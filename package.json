@@ -13,11 +13,11 @@
   "dependencies": {
     "idb-keyval": "6.2.1",
     "immer": "10.1.1",
+    "pdfjs-dist": "4.10.38",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "three": "0.170.0",
-    "zustand": "4.5.5",
-    "pdfjs-dist": "4.10.38"
+    "zustand": "4.5.5"
   },
   "devDependencies": {
     "@types/node": "^18.19.64",
@@ -26,6 +26,9 @@
     "@types/three": "0.170.0",
     "@vitejs/plugin-react": "4.3.4",
     "typescript": "5.6.3",
-    "vite": "5.4.11"
+    "vite": "5.4.21"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
   }
 }
