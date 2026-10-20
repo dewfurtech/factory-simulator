@@ -1,0 +1,1725 @@
+{
+ "id": "pmvf0p0yh1tezzn",
+ "name": "Mastrox Layout",
+ "updatedAt": 1792400755829,
+ "plan": {
+  "corners": {
+   "cmvf0p0yh5lcgjm": {
+    "id": "cmvf0p0yh5lcgjm",
+    "x": 4000,
+    "y": 0
+   },
+   "cmvf0p0yh62op1c": {
+    "id": "cmvf0p0yh62op1c",
+    "x": 42000,
+    "y": 0
+   },
+   "cmvf0p0yh7u48wj": {
+    "id": "cmvf0p0yh7u48wj",
+    "x": 42000,
+    "y": 12300
+   },
+   "cmvf0p0yh8s8sf4": {
+    "id": "cmvf0p0yh8s8sf4",
+    "x": 4000,
+    "y": 12300
+   },
+   "cmvf0p0yhese5z9": {
+    "id": "cmvf0p0yhese5z9",
+    "x": 0,
+    "y": 12300
+   },
+   "cmvf0p0yhfomoe9": {
+    "id": "cmvf0p0yhfomoe9",
+    "x": 33150,
+    "y": 12300
+   },
+   "cmvf0p0yhh0gwv3": {
+    "id": "cmvf0p0yhh0gwv3",
+    "x": 33150,
+    "y": 40900
+   },
+   "cmvf0p0yhi5lkim": {
+    "id": "cmvf0p0yhi5lkim",
+    "x": 0,
+    "y": 40900
+   },
+   "cmvf0p0yiowmfxn": {
+    "id": "cmvf0p0yiowmfxn",
+    "x": 42000,
+    "y": 48300
+   },
+   "cmvf0p0yipmkrf3": {
+    "id": "cmvf0p0yipmkrf3",
+    "x": 33150,
+    "y": 48300
+   },
+   "cmvf0p0yiu5xtlo": {
+    "id": "cmvf0p0yiu5xtlo",
+    "x": 6290,
+    "y": 40900
+   },
+   "cmvf0p0yiwxdm86": {
+    "id": "cmvf0p0yiwxdm86",
+    "x": 6290,
+    "y": 48300
+   },
+   "cmvf0p0yix9xcxh": {
+    "id": "cmvf0p0yix9xcxh",
+    "x": 0,
+    "y": 48300
+   },
+   "cmvf0p0yi121o5nh": {
+    "id": "cmvf0p0yi121o5nh",
+    "x": 14140,
+    "y": 40900
+   },
+   "cmvf0p0yi14ojv03": {
+    "id": "cmvf0p0yi14ojv03",
+    "x": 14140,
+    "y": 43440
+   },
+   "cmvf0p0yi15881p3": {
+    "id": "cmvf0p0yi15881p3",
+    "x": 6290,
+    "y": 43440
+   },
+   "cmvf0p0yi1aaqukx": {
+    "id": "cmvf0p0yi1aaqukx",
+    "x": 14140,
+    "y": 48300
+   },
+   "cmvf0p0yj1eaqs20": {
+    "id": "cmvf0p0yj1eaqs20",
+    "x": 23070,
+    "y": 40900
+   },
+   "cmvf0p0yj1g3kele": {
+    "id": "cmvf0p0yj1g3kele",
+    "x": 23070,
+    "y": 48300
+   },
+   "cmvf0p0yk1ma1y7k": {
+    "id": "cmvf0p0yk1ma1y7k",
+    "x": 12200,
+    "y": 24550
+   },
+   "cmvf0p0yk1n2copb": {
+    "id": "cmvf0p0yk1n2copb",
+    "x": 20800,
+    "y": 24550
+   },
+   "cmvf0p0yk1o7lhu0": {
+    "id": "cmvf0p0yk1o7lhu0",
+    "x": 20800,
+    "y": 28750
+   },
+   "cmvf0p0yk1p472i6": {
+    "id": "cmvf0p0yk1p472i6",
+    "x": 12200,
+    "y": 28750
+   },
+   "cmvf0rtdo4dhtixx": {
+    "id": "cmvf0rtdo4dhtixx",
+    "x": 6290,
+    "y": 47054.08525740564
+   },
+   "cmvf0rtdp4fdjs8v": {
+    "id": "cmvf0rtdp4fdjs8v",
+    "x": 12200,
+    "y": 47054.08525740564
+   },
+   "cmvf0ruor4hqmliy": {
+    "id": "cmvf0ruor4hqmliy",
+    "x": 12200,
+    "y": 48300
+   },
+   "cmvf0rx484l360nb": {
+    "id": "cmvf0rx484l360nb",
+    "x": 9430.79064869197,
+    "y": 47054.08525740564
+   },
+   "cmvf0rx494nj6t3b": {
+    "id": "cmvf0rx494nj6t3b",
+    "x": 9430.79064869197,
+    "y": 48300
+   },
+   "cmvf0s02e4r2bk4k": {
+    "id": "cmvf0s02e4r2bk4k",
+    "x": 6290,
+    "y": 50000
+   },
+   "cmvf0s1hg4ttllhi": {
+    "id": "cmvf0s1hg4ttllhi",
+    "x": 4000,
+    "y": 50000
+   },
+   "cmvf0s2uy4vgm3c1": {
+    "id": "cmvf0s2uy4vgm3c1",
+    "x": 4000,
+    "y": 48300
+   }
+  },
+  "walls": {
+   "wmvf0p0yh9qobsd": {
+    "id": "wmvf0p0yh9qobsd",
+    "a": "cmvf0p0yh5lcgjm",
+    "b": "cmvf0p0yh62op1c",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yha69xxp": {
+    "id": "wmvf0p0yha69xxp",
+    "a": "cmvf0p0yh62op1c",
+    "b": "cmvf0p0yh7u48wj",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yhb24lul": {
+    "id": "wmvf0p0yhb24lul",
+    "a": "cmvf0p0yh7u48wj",
+    "b": "cmvf0p0yhfomoe9",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yhcnldfq": {
+    "id": "wmvf0p0yhcnldfq",
+    "a": "cmvf0p0yh8s8sf4",
+    "b": "cmvf0p0yh5lcgjm",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yhgmvztw": {
+    "id": "wmvf0p0yhgmvztw",
+    "a": "cmvf0p0yhfomoe9",
+    "b": "cmvf0p0yh8s8sf4",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yhjzjer6": {
+    "id": "wmvf0p0yhjzjer6",
+    "a": "cmvf0p0yhese5z9",
+    "b": "cmvf0p0yh8s8sf4",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yhkx6e0i": {
+    "id": "wmvf0p0yhkx6e0i",
+    "a": "cmvf0p0yhfomoe9",
+    "b": "cmvf0p0yhh0gwv3",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yhm4xuml": {
+    "id": "wmvf0p0yhm4xuml",
+    "a": "cmvf0p0yhi5lkim",
+    "b": "cmvf0p0yhese5z9",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yiqh64rz": {
+    "id": "wmvf0p0yiqh64rz",
+    "a": "cmvf0p0yh7u48wj",
+    "b": "cmvf0p0yiowmfxn",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yir7rsbx": {
+    "id": "wmvf0p0yir7rsbx",
+    "a": "cmvf0p0yiowmfxn",
+    "b": "cmvf0p0yipmkrf3",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yivjf2hx": {
+    "id": "wmvf0p0yivjf2hx",
+    "a": "cmvf0p0yiu5xtlo",
+    "b": "cmvf0p0yhi5lkim",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yiy4sf5p": {
+    "id": "wmvf0p0yiy4sf5p",
+    "a": "cmvf0p0yiu5xtlo",
+    "b": "cmvf0p0yi15881p3",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yizzqtu9": {
+    "id": "wmvf0p0yizzqtu9",
+    "a": "cmvf0p0yiwxdm86",
+    "b": "cmvf0s2uy4vgm3c1",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yi10eadw5": {
+    "id": "wmvf0p0yi10eadw5",
+    "a": "cmvf0p0yix9xcxh",
+    "b": "cmvf0p0yhi5lkim",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yi13jot16": {
+    "id": "wmvf0p0yi13jot16",
+    "a": "cmvf0p0yi121o5nh",
+    "b": "cmvf0p0yiu5xtlo",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yi16gwwj7": {
+    "id": "wmvf0p0yi16gwwj7",
+    "a": "cmvf0p0yi15881p3",
+    "b": "cmvf0rtdo4dhtixx",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yi17jsujc": {
+    "id": "wmvf0p0yi17jsujc",
+    "a": "cmvf0p0yi121o5nh",
+    "b": "cmvf0p0yi14ojv03",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yi189pifn": {
+    "id": "wmvf0p0yi189pifn",
+    "a": "cmvf0p0yi14ojv03",
+    "b": "cmvf0p0yi15881p3",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yj1bil2i9": {
+    "id": "wmvf0p0yj1bil2i9",
+    "a": "cmvf0p0yi14ojv03",
+    "b": "cmvf0p0yi1aaqukx",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yj1ch7i5x": {
+    "id": "wmvf0p0yj1ch7i5x",
+    "a": "cmvf0p0yi1aaqukx",
+    "b": "cmvf0ruor4hqmliy",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yj1f5qc95": {
+    "id": "wmvf0p0yj1f5qc95",
+    "a": "cmvf0p0yj1eaqs20",
+    "b": "cmvf0p0yi121o5nh",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yj1hl4otk": {
+    "id": "wmvf0p0yj1hl4otk",
+    "a": "cmvf0p0yj1eaqs20",
+    "b": "cmvf0p0yj1g3kele",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0p0yj1itlh75": {
+    "id": "wmvf0p0yj1itlh75",
+    "a": "cmvf0p0yj1g3kele",
+    "b": "cmvf0p0yi1aaqukx",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yj1k4i8vq": {
+    "id": "wmvf0p0yj1k4i8vq",
+    "a": "cmvf0p0yipmkrf3",
+    "b": "cmvf0p0yj1g3kele",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0p0yk1qhjqjg": {
+    "id": "wmvf0p0yk1qhjqjg",
+    "a": "cmvf0p0yk1ma1y7k",
+    "b": "cmvf0p0yk1n2copb",
+    "thickness": 100,
+    "height": 3000,
+    "glass": true
+   },
+   "wmvf0p0yk1rlk3od": {
+    "id": "wmvf0p0yk1rlk3od",
+    "a": "cmvf0p0yk1n2copb",
+    "b": "cmvf0p0yk1o7lhu0",
+    "thickness": 100,
+    "height": 3000,
+    "glass": true
+   },
+   "wmvf0p0yk1sfse1f": {
+    "id": "wmvf0p0yk1sfse1f",
+    "a": "cmvf0p0yk1o7lhu0",
+    "b": "cmvf0p0yk1p472i6",
+    "thickness": 100,
+    "height": 3000,
+    "glass": true
+   },
+   "wmvf0p0yk1tv3kkw": {
+    "id": "wmvf0p0yk1tv3kkw",
+    "a": "cmvf0p0yk1p472i6",
+    "b": "cmvf0p0yk1ma1y7k",
+    "thickness": 100,
+    "height": 3000,
+    "glass": true
+   },
+   "wmvf0rtdo4exu0gu": {
+    "id": "wmvf0rtdo4exu0gu",
+    "a": "cmvf0rtdo4dhtixx",
+    "b": "cmvf0p0yiwxdm86",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0rtdq4g9fyww": {
+    "id": "wmvf0rtdq4g9fyww",
+    "a": "cmvf0rtdo4dhtixx",
+    "b": "cmvf0rx484l360nb",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0ruor4ig5kur": {
+    "id": "wmvf0ruor4ig5kur",
+    "a": "cmvf0ruor4hqmliy",
+    "b": "cmvf0rx494nj6t3b",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0ruos4jy5ywi": {
+    "id": "wmvf0ruos4jy5ywi",
+    "a": "cmvf0rtdp4fdjs8v",
+    "b": "cmvf0ruor4hqmliy",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0rx484mcvprx": {
+    "id": "wmvf0rx484mcvprx",
+    "a": "cmvf0rx484l360nb",
+    "b": "cmvf0rtdp4fdjs8v",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0rx494oltobh": {
+    "id": "wmvf0rx494oltobh",
+    "a": "cmvf0rx494nj6t3b",
+    "b": "cmvf0p0yiwxdm86",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0rx494pfljxn": {
+    "id": "wmvf0rx494pfljxn",
+    "a": "cmvf0rx484l360nb",
+    "b": "cmvf0rx494nj6t3b",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0s02f4s7wfzu": {
+    "id": "wmvf0s02f4s7wfzu",
+    "a": "cmvf0p0yiwxdm86",
+    "b": "cmvf0s02e4r2bk4k",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0s1hg4ubyh4d": {
+    "id": "wmvf0s1hg4ubyh4d",
+    "a": "cmvf0s02e4r2bk4k",
+    "b": "cmvf0s1hg4ttllhi",
+    "thickness": 150,
+    "height": 3000
+   },
+   "wmvf0s2uy4wopfnj": {
+    "id": "wmvf0s2uy4wopfnj",
+    "a": "cmvf0s2uy4vgm3c1",
+    "b": "cmvf0p0yix9xcxh",
+    "thickness": 200,
+    "height": 6000
+   },
+   "wmvf0s2uz4x926ei": {
+    "id": "wmvf0s2uz4x926ei",
+    "a": "cmvf0s1hg4ttllhi",
+    "b": "cmvf0s2uy4vgm3c1",
+    "thickness": 150,
+    "height": 3000
+   }
+  },
+  "rooms": {
+   "rmvf0p0yhn4nc8v": {
+    "id": "rmvf0p0yhn4nc8v",
+    "name": "ไลน์ผลิต",
+    "zone": "production",
+    "ceilingHeight": 6000,
+    "cornerIds": [
+     "cmvf0p0yh7u48wj",
+     "cmvf0p0yiowmfxn",
+     "cmvf0p0yipmkrf3",
+     "cmvf0p0yj1g3kele",
+     "cmvf0p0yj1eaqs20",
+     "cmvf0p0yi121o5nh",
+     "cmvf0p0yiu5xtlo",
+     "cmvf0p0yhi5lkim",
+     "cmvf0p0yhese5z9",
+     "cmvf0p0yh8s8sf4",
+     "cmvf0p0yhfomoe9"
+    ]
+   },
+   "rmvf0p0yhdqkhmp": {
+    "id": "rmvf0p0yhdqkhmp",
+    "name": "ห้อง 2 คลังสินค้า",
+    "zone": "warehouse",
+    "ceilingHeight": 6000,
+    "cornerIds": [
+     "cmvf0p0yh5lcgjm",
+     "cmvf0p0yh62op1c",
+     "cmvf0p0yh7u48wj",
+     "cmvf0p0yhfomoe9",
+     "cmvf0p0yh8s8sf4"
+    ]
+   },
+   "rmvf0p0yj1ji6r2p": {
+    "id": "rmvf0p0yj1ji6r2p",
+    "name": "ห้อง 7 ประชุม",
+    "zone": "meeting",
+    "ceilingHeight": 3000,
+    "cornerIds": [
+     "cmvf0p0yi121o5nh",
+     "cmvf0p0yj1eaqs20",
+     "cmvf0p0yj1g3kele",
+     "cmvf0p0yi1aaqukx",
+     "cmvf0p0yi14ojv03"
+    ]
+   },
+   "rmvf0p0yi11ck1xf": {
+    "id": "rmvf0p0yi11ck1xf",
+    "name": "โถง",
+    "zone": "toilet",
+    "ceilingHeight": 3000,
+    "cornerIds": [
+     "cmvf0p0yhi5lkim",
+     "cmvf0p0yiu5xtlo",
+     "cmvf0p0yi15881p3",
+     "cmvf0rtdo4dhtixx",
+     "cmvf0p0yiwxdm86",
+     "cmvf0s2uy4vgm3c1",
+     "cmvf0p0yix9xcxh"
+    ]
+   },
+   "rmvf0p0yk1ueqh4k": {
+    "id": "rmvf0p0yk1ueqh4k",
+    "name": "ห้อง 9 ประชุมย่อย",
+    "zone": "meeting",
+    "ceilingHeight": 3000,
+    "cornerIds": [
+     "cmvf0p0yk1ma1y7k",
+     "cmvf0p0yk1n2copb",
+     "cmvf0p0yk1o7lhu0",
+     "cmvf0p0yk1p472i6"
+    ]
+   },
+   "rmvf0p0yj1dm2ywj": {
+    "id": "rmvf0p0yj1dm2ywj",
+    "name": "โถงเล็ก",
+    "zone": "reception",
+    "ceilingHeight": 3000,
+    "cornerIds": [
+     "cmvf0p0yi15881p3",
+     "cmvf0p0yi14ojv03",
+     "cmvf0p0yi1aaqukx",
+     "cmvf0ruor4hqmliy",
+     "cmvf0rtdp4fdjs8v",
+     "cmvf0rx484l360nb",
+     "cmvf0rtdo4dhtixx"
+    ]
+   },
+   "rmvf0p0yi19g47yr": {
+    "id": "rmvf0p0yi19g47yr",
+    "name": "Store",
+    "zone": "warehouse",
+    "ceilingHeight": 3000,
+    "cornerIds": [
+     "cmvf0p0yiu5xtlo",
+     "cmvf0p0yi121o5nh",
+     "cmvf0p0yi14ojv03",
+     "cmvf0p0yi15881p3"
+    ]
+   },
+   "rmvf0ruos4k4rwor": {
+    "id": "rmvf0ruos4k4rwor",
+    "name": "ห้องน้ำ 2",
+    "zone": "toilet",
+    "ceilingHeight": 3000,
+    "cornerIds": [
+     "cmvf0p0yiwxdm86",
+     "cmvf0rtdo4dhtixx",
+     "cmvf0rx484l360nb",
+     "cmvf0rx494nj6t3b"
+    ]
+   },
+   "rmvf0s2uz4yuxh8p": {
+    "id": "rmvf0s2uz4yuxh8p",
+    "name": "ห้องน้ำ 1",
+    "zone": "toilet",
+    "ceilingHeight": 3000,
+    "cornerIds": [
+     "cmvf0p0yiwxdm86",
+     "cmvf0s02e4r2bk4k",
+     "cmvf0s1hg4ttllhi",
+     "cmvf0s2uy4vgm3c1"
+    ]
+   },
+   "rmvf0rx4a4qzyj8s": {
+    "id": "rmvf0rx4a4qzyj8s",
+    "name": "ห้องน้ำ 3",
+    "zone": "toilet",
+    "ceilingHeight": 3000,
+    "cornerIds": [
+     "cmvf0ruor4hqmliy",
+     "cmvf0rx494nj6t3b",
+     "cmvf0rx484l360nb",
+     "cmvf0rtdp4fdjs8v"
+    ]
+   }
+  },
+  "openings": {
+   "omvf0p0yk1wcc1j0": {
+    "id": "omvf0p0yk1wcc1j0",
+    "wallId": "wmvf0p0yhm4xuml",
+    "kind": "door",
+    "doorStyle": "double",
+    "width": 4000,
+    "height": 4000,
+    "sill": 0,
+    "offset": 15050
+   },
+   "omvf0p0yk1x4sgkc": {
+    "id": "omvf0p0yk1x4sgkc",
+    "wallId": "wmvf0p0yhcnldfq",
+    "kind": "door",
+    "doorStyle": "sliding",
+    "width": 4000,
+    "height": 4000,
+    "sill": 0,
+    "offset": 6300
+   },
+   "omvf0p0yk1ydx4uu": {
+    "id": "omvf0p0yk1ydx4uu",
+    "wallId": "wmvf0p0yhgmvztw",
+    "kind": "opening",
+    "width": 3000,
+    "height": 2200,
+    "sill": 0,
+    "offset": 24150
+   },
+   "omvf0p0yk1zh02mz": {
+    "id": "omvf0p0yk1zh02mz",
+    "wallId": "wmvf0p0yhgmvztw",
+    "kind": "opening",
+    "width": 3000,
+    "height": 2200,
+    "sill": 0,
+    "offset": 7150
+   },
+   "omvf0p0yk20hxap2": {
+    "id": "omvf0p0yk20hxap2",
+    "wallId": "wmvf0p0yhkx6e0i",
+    "kind": "opening",
+    "width": 4000,
+    "height": 2200,
+    "sill": 0,
+    "offset": 8900
+   },
+   "omvf0p0yk21ku42h": {
+    "id": "omvf0p0yk21ku42h",
+    "wallId": "wmvf0p0yiqh64rz",
+    "kind": "door",
+    "doorStyle": "rolling",
+    "width": 4000,
+    "height": 4000,
+    "sill": 0,
+    "offset": 17700
+   },
+   "omvf0p0yl240ryq3": {
+    "id": "omvf0p0yl240ryq3",
+    "wallId": "wmvf0p0yi13jot16",
+    "kind": "door",
+    "doorStyle": "swing",
+    "width": 900,
+    "height": 2100,
+    "sill": 0,
+    "offset": 7150
+   },
+   "omvf0p0yl25jisvy": {
+    "id": "omvf0p0yl25jisvy",
+    "wallId": "wmvf0p0yj1f5qc95",
+    "kind": "door",
+    "doorStyle": "double",
+    "width": 1600,
+    "height": 2100,
+    "sill": 0,
+    "offset": 7870
+   },
+   "omvf0p0yl277pshx": {
+    "id": "omvf0p0yl277pshx",
+    "wallId": "wmvf0p0yk1rlk3od",
+    "kind": "door",
+    "doorStyle": "double",
+    "width": 1600,
+    "height": 2100,
+    "sill": 0,
+    "offset": 2100
+   },
+   "omvf0p0yl28cixvv": {
+    "id": "omvf0p0yl28cixvv",
+    "wallId": "wmvf0p0yj1itlh75",
+    "kind": "window",
+    "width": 2400,
+    "height": 1300,
+    "sill": 850,
+    "offset": 4470
+   },
+   "omvf0p0yl29w7g5z": {
+    "id": "omvf0p0yl29w7g5z",
+    "wallId": "wmvf0p0yj1k4i8vq",
+    "kind": "window",
+    "width": 2400,
+    "height": 1300,
+    "sill": 850,
+    "offset": 5150
+   },
+   "omvf0s7oz4z9wcxl": {
+    "id": "omvf0s7oz4z9wcxl",
+    "wallId": "wmvf0s2uz4x926ei",
+    "kind": "door",
+    "doorStyle": "swing",
+    "offset": 616.2136669508618,
+    "width": 900,
+    "height": 2100,
+    "sill": 0,
+    "hingeEnd": false,
+    "openB": false
+   },
+   "omvf0sama50gfbvz": {
+    "id": "omvf0sama50gfbvz",
+    "wallId": "wmvf0rx494oltobh",
+    "kind": "door",
+    "doorStyle": "swing",
+    "offset": 698.9103226930492,
+    "width": 900,
+    "height": 2100,
+    "sill": 0,
+    "hingeEnd": false,
+    "openB": false
+   },
+   "omvf0sccj51tv5ek": {
+    "id": "omvf0sccj51tv5ek",
+    "wallId": "wmvf0ruor4ig5kur",
+    "kind": "door",
+    "doorStyle": "swing",
+    "offset": 649.1813724724489,
+    "width": 900,
+    "height": 2100,
+    "sill": 0,
+    "hingeEnd": false,
+    "openB": false
+   },
+   "omvf0sjzk529hhzv": {
+    "id": "omvf0sjzk529hhzv",
+    "wallId": "wmvf0p0yivjf2hx",
+    "kind": "opening",
+    "offset": 1100,
+    "width": 2000,
+    "height": 2200,
+    "sill": 0,
+    "hingeEnd": false,
+    "openB": false
+   },
+   "omvf0sxuw536mdks": {
+    "id": "omvf0sxuw536mdks",
+    "wallId": "wmvf0p0yi16gwwj7",
+    "kind": "opening",
+    "offset": 750,
+    "width": 1500,
+    "height": 2200,
+    "sill": 0,
+    "hingeEnd": false,
+    "openB": true
+   },
+   "omvf0u5fi5410dku": {
+    "id": "omvf0u5fi5410dku",
+    "wallId": "wmvf0p0yhkx6e0i",
+    "kind": "opening",
+    "offset": 26600,
+    "width": 4000,
+    "height": 2200,
+    "sill": 0,
+    "hingeEnd": false,
+    "openB": true
+   },
+   "omvf0w6hw5kpbs10": {
+    "id": "omvf0w6hw5kpbs10",
+    "wallId": "wmvf0p0yhb24lul",
+    "kind": "opening",
+    "offset": 6800,
+    "width": 4000,
+    "height": 2200,
+    "sill": 0,
+    "hingeEnd": false,
+    "openB": true
+   },
+   "omvf0ws0g5llswnn": {
+    "id": "omvf0ws0g5llswnn",
+    "wallId": "wmvf0p0yir7rsbx",
+    "kind": "door",
+    "doorStyle": "swing",
+    "offset": 656.0553655069452,
+    "width": 900,
+    "height": 2100,
+    "sill": 0,
+    "hingeEnd": false,
+    "openB": true
+   },
+   "omvf0zvz45y5p2ur": {
+    "id": "omvf0zvz45y5p2ur",
+    "wallId": "wmvf0p0yj1ch7i5x",
+    "kind": "opening",
+    "offset": 909.6527978012091,
+    "width": 1500,
+    "height": 2200,
+    "sill": 0,
+    "hingeEnd": false,
+    "openB": true
+   }
+  }
+ },
+ "columns": {
+  "colmvf0p0yl2azzpz8": {
+   "id": "colmvf0p0yl2azzpz8",
+   "x": 11000,
+   "y": 21000,
+   "shape": "rect",
+   "w": 400,
+   "d": 400,
+   "h": 6000,
+   "rotation": 0
+  },
+  "colmvf0p0yl2b6auqf": {
+   "id": "colmvf0p0yl2b6auqf",
+   "x": 11000,
+   "y": 31000,
+   "shape": "rect",
+   "w": 400,
+   "d": 400,
+   "h": 6000,
+   "rotation": 0
+  },
+  "colmvf10flk5z9gcjg": {
+   "id": "colmvf10flk5z9gcjg",
+   "x": 33150,
+   "y": 40900,
+   "rotation": 0,
+   "shape": "rect",
+   "w": 400,
+   "d": 400,
+   "h": 6000
+  },
+  "colmvf10hhu60ovsja": {
+   "id": "colmvf10hhu60ovsja",
+   "x": 23070,
+   "y": 40900,
+   "rotation": 0,
+   "shape": "rect",
+   "w": 400,
+   "d": 400,
+   "h": 6000
+  },
+  "colmvf10o0361ngy6b": {
+   "id": "colmvf10o0361ngy6b",
+   "x": 23070,
+   "y": 31100,
+   "rotation": 0,
+   "shape": "rect",
+   "w": 400,
+   "d": 400,
+   "h": 6000
+  },
+  "colmvf10py462b9334": {
+   "id": "colmvf10py462b9334",
+   "x": 23070,
+   "y": 21000,
+   "rotation": 0,
+   "shape": "rect",
+   "w": 400,
+   "d": 400,
+   "h": 6000
+  }
+ },
+ "objects": [
+  {
+   "id": "objmvf0p0yl2e3ro9x",
+   "assetId": "moon-40",
+   "name": "Moon 40",
+   "x": 1550,
+   "y": 17100,
+   "z": 0,
+   "rotation": -1.5707963267948966,
+   "size": {
+    "w": 6869,
+    "d": 1170,
+    "h": 1656
+   }
+  },
+  {
+   "id": "objmvf0p0yl2fl987v",
+   "assetId": "moon-10",
+   "name": "Moon 10",
+   "x": 4250,
+   "y": 17100,
+   "z": 0,
+   "rotation": 1.5707963267948966,
+   "size": {
+    "w": 4869,
+    "d": 1170,
+    "h": 1695
+   }
+  },
+  {
+   "id": "objmvf0p0yl2gjqqey",
+   "assetId": "rakete-3500ant",
+   "name": "Rakete 3500Ant",
+   "x": 12900,
+   "y": 14900,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 10492,
+    "d": 2270,
+    "h": 2285
+   }
+  },
+  {
+   "id": "objmvf0p0yl2hj8phv",
+   "assetId": "rakete-4800ant",
+   "name": "Rakete 4800Ant",
+   "x": 25600,
+   "y": 14950,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 10492,
+    "d": 2270,
+    "h": 2285
+   }
+  },
+  {
+   "id": "objmvf0p0yl2itzstj",
+   "assetId": "aurora-slide",
+   "name": "Aurora SlideShell",
+   "x": 15100,
+   "y": 32500,
+   "z": 0,
+   "rotation": 3.141592653589793,
+   "size": {
+    "w": 7990,
+    "d": 2125,
+    "h": 1320
+   }
+  },
+  {
+   "id": "objmvf0p0yl2jtq8nq",
+   "assetId": "moon-40d",
+   "name": "Moon 40d",
+   "x": 15100,
+   "y": 36850,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 8369,
+    "d": 1170,
+    "h": 1656
+   }
+  },
+  {
+   "id": "objmvf0p0yl2ktkoxf",
+   "assetId": "booster-e10",
+   "name": "Booster e10",
+   "x": 3900,
+   "y": 33950,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 4270,
+    "d": 772,
+    "h": 1489
+   }
+  },
+  {
+   "id": "objmvf0p0yl2lszg9m",
+   "assetId": "booster-e7",
+   "name": "Booster e7",
+   "x": 3900,
+   "y": 36300,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 3570,
+    "d": 720,
+    "h": 1489
+   }
+  },
+  {
+   "id": "objmvf0p0yl2mou8zk",
+   "assetId": "booster-e6",
+   "name": "Booster e6",
+   "x": 3900,
+   "y": 38800,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 3260,
+    "d": 720,
+    "h": 1489
+   }
+  },
+  {
+   "id": "objmvf0p0yl2ns0hau",
+   "assetId": "nova-xs",
+   "name": "Nova XS",
+   "x": 29550,
+   "y": 33512.78923269937,
+   "z": 0,
+   "rotation": 1.5707963267948966,
+   "size": {
+    "w": 5399,
+    "d": 2800,
+    "h": 2150
+   }
+  },
+  {
+   "id": "objmvf0p0yl2o0r5zj",
+   "assetId": "vair-10",
+   "name": "VAir ปั๊มลม",
+   "x": 32137.5,
+   "y": 17456.71726602152,
+   "z": 0,
+   "rotation": 1.5707963267948966,
+   "size": {
+    "w": 2196,
+    "d": 1875,
+    "h": 2149
+   }
+  },
+  {
+   "id": "objmvf0p0yl2pml696",
+   "assetId": "cold-presso",
+   "name": "Cold Presso 60T",
+   "x": 25500,
+   "y": 21500,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 2950,
+    "d": 1335,
+    "h": 2395
+   }
+  },
+  {
+   "id": "objmvf0p0yl2qv5def",
+   "assetId": "nebula",
+   "name": "Nebula",
+   "x": 6500,
+   "y": 26500,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 3200,
+    "d": 3475,
+    "h": 1295
+   }
+  },
+  {
+   "id": "objmvf0p0yl3acwfqt",
+   "assetId": "meeting-table",
+   "name": "โต๊ะประชุม 6 ที่",
+   "x": 20520,
+   "y": 42450,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 4800,
+    "d": 2400,
+    "h": 750
+   }
+  },
+  {
+   "id": "objmvf0p0yl3b1h4xg",
+   "assetId": "meeting-table",
+   "name": "โต๊ะประชุม 6 ที่",
+   "x": 20520,
+   "y": 46750,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 4800,
+    "d": 2400,
+    "h": 750
+   }
+  },
+  {
+   "id": "objmvf0p0yl3cdz64h",
+   "assetId": "meeting-table",
+   "name": "โต๊ะประชุมย่อย",
+   "x": 14750,
+   "y": 26650,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 4800,
+    "d": 2400,
+    "h": 750
+   }
+  },
+  {
+   "id": "objmvf0p0yl3d7xviw",
+   "assetId": "plant",
+   "name": "ต้นไม้",
+   "x": 20300,
+   "y": 24950,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 600,
+    "d": 600,
+    "h": 1300
+   }
+  },
+  {
+   "id": "objmvf0utt555g9u9g",
+   "assetId": "moon-10",
+   "name": "Moon 10",
+   "x": 39682.204030514724,
+   "y": 14792.21083261003,
+   "z": 0,
+   "rotation": 1.5707963267948966,
+   "size": {
+    "w": 4869,
+    "d": 1170,
+    "h": 1695
+   }
+  },
+  {
+   "id": "objmvf0v50756fgmuf",
+   "assetId": "moon-80",
+   "name": "Moon 80",
+   "x": 39682.20403051471,
+   "y": 22649.67066786642,
+   "z": 0,
+   "rotation": 1.5707963267948966,
+   "size": {
+    "w": 6869,
+    "d": 1170,
+    "h": 1656
+   }
+  },
+  {
+   "id": "objmvf0v6ts57l6h5m",
+   "assetId": "moon-80",
+   "name": "Moon 80",
+   "x": 39682.20403051471,
+   "y": 29518.67066786642,
+   "z": 0,
+   "rotation": 1.5707963267948966,
+   "size": {
+    "w": 6869,
+    "d": 1170,
+    "h": 1656
+   }
+  },
+  {
+   "id": "objmvf0v7t958rf4oj",
+   "assetId": "moon-80",
+   "name": "Moon 80",
+   "x": 33810,
+   "y": 31925.329473628164,
+   "z": 0,
+   "rotation": -1.5707963267948966,
+   "size": {
+    "w": 6869,
+    "d": 1170,
+    "h": 1656
+   }
+  },
+  {
+   "id": "objmvf0vko159pkb8v",
+   "assetId": "moon-40",
+   "name": "Moon 40",
+   "x": 9656.270358630096,
+   "y": 2529.7112032525765,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 6869,
+    "d": 1170,
+    "h": 1656
+   }
+  },
+  {
+   "id": "objmvf0vm645ammbyo",
+   "assetId": "moon-40",
+   "name": "Moon 40",
+   "x": 20658.1391849695,
+   "y": 2529.7112032525747,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 6869,
+    "d": 1170,
+    "h": 1656
+   }
+  },
+  {
+   "id": "objmvf0vnjn5b9cvxp",
+   "assetId": "moon-40",
+   "name": "Moon 40",
+   "x": 34582.3794183053,
+   "y": 2644.3140035269425,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 6869,
+    "d": 1170,
+    "h": 1656
+   }
+  },
+  {
+   "id": "objmvf0vrb85ciw56p",
+   "assetId": "rakete-3500a",
+   "name": "Rakete 3500A",
+   "x": 36416.024222695196,
+   "y": 5623.986810660534,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 3601,
+    "d": 2042,
+    "h": 2285
+   }
+  },
+  {
+   "id": "objmvf0vsih5dya2vh",
+   "assetId": "rakete-3500a",
+   "name": "Rakete 3500A",
+   "x": 36817.13402365549,
+   "y": 9176.673619165964,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 3601,
+    "d": 2042,
+    "h": 2285
+   }
+  },
+  {
+   "id": "objmvf0vtmf5evv9t2",
+   "assetId": "rakete-3500a",
+   "name": "Rakete 3500A",
+   "x": 28279.225403215016,
+   "y": 5681.288210797717,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 3601,
+    "d": 2042,
+    "h": 2285
+   }
+  },
+  {
+   "id": "objmvf0vukl5fucwew",
+   "assetId": "rakete-3500a",
+   "name": "Rakete 3500A",
+   "x": 28623.03380403812,
+   "y": 9348.577819577518,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 3601,
+    "d": 2042,
+    "h": 2285
+   }
+  },
+  {
+   "id": "objmvf0vwg75g9ajnm",
+   "assetId": "rakete-3500a",
+   "name": "Rakete 3500A",
+   "x": 16647.041175366587,
+   "y": 5910.493811346454,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 3601,
+    "d": 2042,
+    "h": 2285
+   }
+  },
+  {
+   "id": "objmvf0vxbd5hu7420",
+   "assetId": "rakete-3500a",
+   "name": "Rakete 3500A",
+   "x": 16818.945375778138,
+   "y": 10093.496021360916,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 3601,
+    "d": 2042,
+    "h": 2285
+   }
+  },
+  {
+   "id": "objmvf0vz0x5ispkz2",
+   "assetId": "rakete-3500a",
+   "name": "Rakete 3500A",
+   "x": 9770.87315890446,
+   "y": 5795.891011072086,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 3601,
+    "d": 2042,
+    "h": 2285
+   }
+  },
+  {
+   "id": "objmvf0w02p5j8i4pb",
+   "assetId": "rakete-3500a",
+   "name": "Rakete 3500A",
+   "x": 10286.585760139118,
+   "y": 8947.468018617226,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 3601,
+    "d": 2042,
+    "h": 2285
+   }
+  },
+  {
+   "id": "objmvf0xskj5myjemk",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 24562.983600192634,
+   "y": 47650,
+   "z": 0,
+   "rotation": -3.141592653589793,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf0xuai5niqyaa",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 24596.15815059009,
+   "y": 46215.47589779829,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf0xvyy5oryh5g",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 24689.34619361583,
+   "y": 43769.289768372626,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf0xx255pqjgyu",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 24642.75217210296,
+   "y": 42464.65716601226,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf0xyjg5qejth0",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 30923.067536699386,
+   "y": 47650,
+   "z": 0,
+   "rotation": -3.141592653589793,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf0xyzo5riyhws",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 30992.95856896869,
+   "y": 46168.88187628542,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf0xzgj5sk3isp",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 30946.364547455818,
+   "y": 43722.69574685975,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf0xzvl5th06gq",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 30969.661558212258,
+   "y": 42464.657166012264,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf0y1ko5ub6ra6",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 36840.50826883387,
+   "y": 47650,
+   "z": 0,
+   "rotation": -3.141592653589793,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf0y2bi5vnrbwj",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 36817.21125807744,
+   "y": 46192.17888704186,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf0y34k5wqucve",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 36863.80527959031,
+   "y": 43699.39873610331,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf0y3gq5xp2uo2",
+   "assetId": "rack",
+   "name": "ชั้นวางพาเลท",
+   "x": 36887.10229034675,
+   "y": 42464.65716601225,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 2700,
+    "d": 1100,
+    "h": 3000
+   }
+  },
+  {
+   "id": "objmvf13f7w63ylehu",
+   "assetId": "desk",
+   "name": "โต๊ะทำงาน + เก้าอี้",
+   "x": 7269.323778058548,
+   "y": 42397.90578979515,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 1400,
+    "d": 1300,
+    "h": 750
+   }
+  },
+  {
+   "id": "objmvf1464f647r2c9",
+   "assetId": "shelf",
+   "name": "ชั้นวางของ",
+   "x": 8967.615625670796,
+   "y": 41275,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 1800,
+    "d": 600,
+    "h": 2000
+   }
+  },
+  {
+   "id": "objmvf1492y65udkps",
+   "assetId": "shelf",
+   "name": "ชั้นวางของ",
+   "x": 10767.615625670796,
+   "y": 41275,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 1800,
+    "d": 600,
+    "h": 2000
+   }
+  },
+  {
+   "id": "objmvf14ayd66sxj6q",
+   "assetId": "shelf",
+   "name": "ชั้นวางของ",
+   "x": 12567.615625670796,
+   "y": 41275,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 1800,
+    "d": 600,
+    "h": 2000
+   }
+  },
+  {
+   "id": "objmvf14h7c67es3rk",
+   "assetId": "shelf",
+   "name": "ชั้นวางของ",
+   "x": 8993.606954376113,
+   "y": 43065,
+   "z": 0,
+   "rotation": -3.141592653589793,
+   "size": {
+    "w": 1800,
+    "d": 600,
+    "h": 2000
+   }
+  },
+  {
+   "id": "objmvf14j39688bwl3",
+   "assetId": "shelf",
+   "name": "ชั้นวางของ",
+   "x": 10793.606954376113,
+   "y": 43065,
+   "z": 0,
+   "rotation": -3.141592653589793,
+   "size": {
+    "w": 1800,
+    "d": 600,
+    "h": 2000
+   }
+  },
+  {
+   "id": "objmvf14ke369pwlxu",
+   "assetId": "shelf",
+   "name": "ชั้นวางของ",
+   "x": 12593.606954376113,
+   "y": 43065,
+   "z": 0,
+   "rotation": -3.141592653589793,
+   "size": {
+    "w": 1800,
+    "d": 600,
+    "h": 2000
+   }
+  },
+  {
+   "id": "objmvf14qk56a0yc6u",
+   "assetId": "forklift",
+   "name": "รถโฟล์คลิฟท์ (จอด)",
+   "x": 27953.201365713925,
+   "y": 44383.78104488818,
+   "z": 0,
+   "rotation": 0,
+   "size": {
+    "w": 2300,
+    "d": 1100,
+    "h": 2100
+   }
+  }
+ ],
+ "staff": [
+  {
+   "id": "smvf0p0yl3uanrmk",
+   "name": "สมชาย",
+   "role": "manager",
+   "stationId": null
+  },
+  {
+   "id": "smvf0p0yl3v16vbz",
+   "name": "วิภา",
+   "role": "supervisor",
+   "stationId": null
+  },
+  {
+   "id": "smvf0p0yl3wqnioo",
+   "name": "ธนา",
+   "role": "operator",
+   "stationId": "objmvf0p0yl2e3ro9x"
+  },
+  {
+   "id": "smvf0p0yl3x5wa6t",
+   "name": "เอก",
+   "role": "operator",
+   "stationId": "objmvf0p0yl2fl987v"
+  },
+  {
+   "id": "smvf0p0yl3y9bn1f",
+   "name": "นุ่น",
+   "role": "operator",
+   "stationId": "objmvf0p0yl2gjqqey"
+  },
+  {
+   "id": "smvf0p0yl3znvjnv",
+   "name": "บอย",
+   "role": "operator",
+   "stationId": "objmvf0p0yl2hj8phv"
+  },
+  {
+   "id": "smvf0p0yl40pw2b7",
+   "name": "ต้น",
+   "role": "operator",
+   "stationId": "objmvf0p0yl2itzstj"
+  },
+  {
+   "id": "smvf0p0yl419tnwm",
+   "name": "แจ็ค",
+   "role": "operator",
+   "stationId": "objmvf0p0yl2jtq8nq"
+  },
+  {
+   "id": "smvf0p0yl42l0r7d",
+   "name": "ฝน",
+   "role": "operator",
+   "stationId": "objmvf0p0yl2ktkoxf"
+  },
+  {
+   "id": "smvf0p0yl43wlaao",
+   "name": "หนึ่ง",
+   "role": "operator",
+   "stationId": "objmvf0p0yl2ns0hau"
+  },
+  {
+   "id": "smvf0p0yl44h8b3b",
+   "name": "ช่างเปี๊ยก",
+   "role": "technician"
+  },
+  {
+   "id": "smvf0p0yl45dr9im",
+   "name": "ช่างโอ๊ต",
+   "role": "technician"
+  },
+  {
+   "id": "smvf0p0yl46usjyo",
+   "name": "ป้อม",
+   "role": "warehouse"
+  },
+  {
+   "id": "smvf0p0yl47wsuv8",
+   "name": "เบียร์",
+   "role": "warehouse"
+  },
+  {
+   "id": "smvf0p0yl48dun58",
+   "name": "มายด์",
+   "role": "qc"
+  },
+  {
+   "id": "smvf0p0yl49j5rgp",
+   "name": "แพร",
+   "role": "sales",
+   "stationId": null
+  },
+  {
+   "id": "smvf0p0yl4ayhasr",
+   "name": "อร",
+   "role": "admin",
+   "stationId": null
+  },
+  {
+   "id": "smvf0p0yl4b3m6yt",
+   "name": "มิ้นท์",
+   "role": "reception"
+  },
+  {
+   "id": "smvf0p0yl4ckxcks",
+   "name": "ป้าศรี",
+   "role": "cleaner"
+  }
+ ],
+ "schedule": {
+  "start": 480,
+  "end": 1020,
+  "breaks": [
+   {
+    "id": "bmvf0p0yh2ru9v3",
+    "label": "พักเช้า",
+    "start": 600,
+    "end": 615
+   },
+   {
+    "id": "bmvf0p0yh3jc6vj",
+    "label": "พักกลางวัน",
+    "start": 720,
+    "end": 780,
+    "meal": true
+   },
+   {
+    "id": "bmvf0p0yh4l47b8",
+    "label": "พักบ่าย",
+    "start": 900,
+    "end": 915
+   }
+  ]
+ },
+ "sim": {
+  "customersPerDay": 4,
+  "breakdownsPerDay": 0.6,
+  "repairMin": [
+   15,
+   45
+  ],
+  "seed": 1
+ }
+}
