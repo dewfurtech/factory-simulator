@@ -226,9 +226,9 @@ const BUILDERS: Record<string, Builder> = {
     p.ico(w * 0.42, 0, 0.4 + (h - 0.4) * 0.45, 0, '#3f8f4a');
     p.ico(w * 0.3, w * 0.1, 0.4 + (h - 0.4) * 0.8, 0.05, '#56a85f');
   },
+  // A plain pale block: a stand-in for anything not in the library (a machine read off a plan before its model is picked).
   box(p, w, d, h) {
-    p.block(w, h, d, 0, 0, 0, '#c9a87a');
-    p.box(w + 0.002, 0.06, d * 0.2, 0, h - 0.03, 0, '#a98657');
+    p.block(w, h, d, 0, 0, 0, '#f1f3f5');
   },
   // A straight flight rising from the front (+z) to the back, one riser above its last tread onto whatever
   // it arrives at; each tread a block with a sloping underside, so a flight set on a landing doesn't read as a slab.
