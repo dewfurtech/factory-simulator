@@ -19,7 +19,7 @@ import {
 } from '../model/plan';
 import { SHAPE_PRESETS, type ShapePresetId } from '../model/presets';
 import { snapPoint, type SnapResult } from '../model/snap';
-import { onSideB, OPENING_PRESETS } from '../model/openings';
+import { clearSpan, onSideB, OPENING_PRESETS } from '../model/openings';
 import type { Column, Id, Mm, PlacedObject, Project, Vec2 } from '../model/types';
 import { add, dist, dot, perp, sub } from '../model/vec';
 import { alignToWalls, parallelWallOffset, weldPlan } from '../model/weld';
@@ -423,8 +423,8 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
 
 const squared = (q: Vec2, prev: Vec2): Vec2 => (Math.abs(q.x - prev.x) > Math.abs(q.y - prev.y) ? { x: q.x, y: prev.y } : { x: prev.x, y: q.y });
 
-/** Puts a catalog item down at p, snapped to walls and neighbours unless `free`. */
-export function placeObjectAt(assetId: string, p: Vec2, radius: Mm, free = false): Id {
+/** The object a catalog item would become if put down at p, snapped to walls and neighbours unless `free`. */
+export function objectAt(assetId: string, p: Vec2, radius: Mm, free = false): PlacedObject {
   const proj = project();
   const item = catalogItem(assetId);
   const obj: PlacedObject = { id: newId('obj'), assetId, name: item?.label ?? 'กล่อง', x: p.x, y: p.y, z: levelZ(useProject.getState().project!, useProject.getState().level), rotation: 0, size: item ? { ...item.size } : { w: 1000, d: 1000, h: 1000 } };
@@ -432,11 +432,66 @@ export function placeObjectAt(assetId: string, p: Vec2, radius: Mm, free = false
     const s = snapObject(proj.plan, proj.objects, obj, p, Math.max(radius, 300));
     Object.assign(obj, { x: s.x, y: s.y, z: s.z, rotation: s.rotation });
   }
+  return obj;
+}
+
+/** Puts a catalog item down at p, snapped to walls and neighbours unless `free`. */
+export function placeObjectAt(assetId: string, p: Vec2, radius: Mm, free = false): Id {
+  const obj = objectAt(assetId, p, radius, free);
   edit((d) => {
     d.objects.push(obj);
   });
   ui().set({ selection: { kind: 'object', id: obj.id } });
   return obj.id;
+}
+
+/**
+ * Puts a plain swing door in the wall under p (or in `wallId` at its centre), opening toward the side p is on,
+ * kept clear of the walls at its ends and narrowed to fit a short wall. Selects the new door.
+ */
+export function addDoorAt(p: Vec2 | null, radius: Mm, wallId?: Id): Id | null {
+  const plan = project().plan;
+  const hit = wallId ? { wallId } : p ? wallAt(plan, p, Math.max(radius, 200)) : null;
+  const wall = hit && plan.walls[hit.wallId];
+  if (!wall) return null;
+  const [lo, hi] = clearSpan(plan, wall);
+  const preset = OPENING_PRESETS.door;
+  const width = Math.min(preset.width, Math.max(300, hi - lo - 100));
+  const at = p ? openingOffsetAt(plan, wall, p, width) : (lo + hi) / 2;
+  const offset = Math.round(Math.min(Math.max(at, lo + width / 2), Math.max(lo + width / 2, hi - width / 2)) / 10) * 10;
+  const id = newId('o');
+  edit((d) => {
+    d.plan.openings[id] = {
+      id,
+      wallId: wall.id,
+      kind: 'door',
+      doorStyle: 'swing',
+      offset,
+      width,
+      height: preset.height,
+      sill: 0,
+      hingeEnd: false,
+      openB: p ? onSideB(d.plan, wall, p) : false,
+    };
+  });
+  ui().set({ selection: { kind: 'opening', id } });
+  return id;
+}
+
+/** Turns a door to open toward the wall's other side. */
+export function flipOpeningSide(id: Id): void {
+  edit((d) => {
+    const o = d.plan.openings[id];
+    if (o) o.openB = !o.openB;
+  });
+}
+
+/** Moves a door's hinge (or a sliding door's run) to the other end of the opening. */
+export function flipOpeningHinge(id: Id): void {
+  edit((d) => {
+    const o = d.plan.openings[id];
+    if (o) o.hingeEnd = !o.hingeEnd;
+  });
 }
 
 export function deleteSelection(): void {
@@ -538,6 +593,13 @@ export function objectKey(e: KeyboardEvent): boolean {
       const c = d.columns[sel.id];
       if (c) c.rotation += Math.PI / 2;
     });
+    return true;
+  }
+  if (sel?.kind === 'opening' && !e.ctrlKey && !e.metaKey) {
+    const k = e.key.toLowerCase();
+    if (k === 'f') flipOpeningHinge(sel.id);
+    else if (k === 'g') flipOpeningSide(sel.id);
+    else return false;
     return true;
   }
   if (sel?.kind !== 'object') return false;

@@ -13,11 +13,17 @@ import { editProject, useEditProject, useProject } from '../store/project';
 import { useUi, type Selection, type Tool } from '../store/ui';
 import { CalibrateInput, CalibrateOverlay, UnderlayImage } from './Underlay';
 import { underlayRect } from '../model/underlay';
-import { columnOutline, isCrossing, isOutdoor, SNAP_PX } from './hit';
-import { columnGridPoints, dispatchPointer, placeObjectAt, presetOutline, roomOutline } from './tools';
+import { columnOutline, hitTest, isCrossing, isOutdoor, SNAP_PX } from './hit';
+import { addDoorAt, columnGridPoints, dispatchPointer, objectAt, placeObjectAt, presetOutline, roomOutline } from './tools';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
 
 export const ASSET_MIME = 'application/x-factory-asset';
+
+/** The catalog item being dragged right now: a drag's data can't be read until the drop. */
+let draggedAsset: string | null = null;
+export const setDraggedAsset = (id: string | null) => {
+  draggedAsset = id;
+};
 
 interface View {
   cx: number;
@@ -90,7 +96,14 @@ export function PlanEditor() {
       pan.current = { x: e.clientX, y: e.clientY, view, moved: false };
       return;
     }
-    if (e.button === 0) dispatchPointer('down', input(e));
+    if (e.button === 0) {
+      const i = input(e);
+      const prev = lastDown.current;
+      // A press soon after another is the second half of a double-click: keep the first one's spot.
+      if (!prev || e.timeStamp - prev.t > 600) firstClick.current = { p: i.p, radius: i.radius };
+      lastDown.current = { t: e.timeStamp };
+      dispatchPointer('down', i);
+    }
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (pan.current) {
@@ -109,7 +122,31 @@ export function PlanEditor() {
     dispatchPointer('up', input(e));
   };
 
+  // Double-clicking a wall while selecting puts a plain door there. The spot is where the first click
+  // landed: that click can open the side panel and shift the plan under the second.
+  const firstClick = useRef<{ p: Vec2; radius: number } | null>(null);
+  const lastDown = useRef<{ t: number } | null>(null);
+  const onDoubleClick = (e: React.MouseEvent) => {
+    const at = firstClick.current ?? input(e);
+    if (e.button !== 0 || useUi.getState().tool.kind !== 'select') return;
+    const hit = hitTest(editProject(), at.p, at.radius);
+    if (hit && hit.kind !== 'wall' && hit.kind !== 'room') return;
+    addDoorAt(at.p, at.radius);
+  };
+
+  // While a catalog item is dragged over the plan, show where it would land.
+  const [dragGhost, setDragGhost] = useState<PlacedObject | null>(null);
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!draggedAsset) return;
+    const o = objectAt(draggedAsset, toPlan(e.clientX, e.clientY), SNAP_PX / view.s, e.altKey);
+    setDragGhost((g) => (g && g.assetId === o.assetId && g.x === o.x && g.y === o.y && g.rotation === o.rotation ? g : o));
+  };
+  const onDragLeave = (e: React.DragEvent) => {
+    if (!wrapRef.current?.contains(e.relatedTarget as Node | null)) setDragGhost(null);
+  };
   const onDrop = (e: React.DragEvent) => {
+    setDragGhost(null);
     const assetId = e.dataTransfer.getData(ASSET_MIME);
     if (!assetId) return;
     e.preventDefault();
@@ -140,7 +177,7 @@ export function PlanEditor() {
   const zoom = (k: number) => setView({ ...view, s: Math.min(2, Math.max(0.004, view.s * k)) });
 
   return (
-    <div ref={wrapRef} className="plan-wrap" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+    <div ref={wrapRef} className="plan-wrap" onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
       <svg
         ref={svgRef}
         className="plan-svg"
@@ -150,6 +187,7 @@ export function PlanEditor() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onDoubleClick={onDoubleClick}
         onPointerLeave={() => useUi.getState().set({ cursor: null })}
         onContextMenu={(e) => e.preventDefault()}
         style={{ cursor: tool.kind === 'select' ? 'default' : tool.kind === 'moveUnderlay' ? 'move' : 'crosshair' }}
@@ -173,6 +211,11 @@ export function PlanEditor() {
         <ColumnLayer columns={columns} {...shared} />
         <PlanLabels onEditDim={onEditDim} {...shared} />
         <ToolOverlay px={livePx} />
+        {dragGhost && (
+          <g opacity={0.7} pointerEvents="none" data-testid="drag-ghost">
+            <ObjectShape o={dragGhost} px={livePx} sel />
+          </g>
+        )}
         <BoxOverlay px={livePx} />
         <CursorOverlay px={livePx} />
         <CalibrateOverlay px={livePx} />
@@ -577,7 +620,7 @@ function OpeningShape({ symbol, px, stroke }: { symbol: OpeningSymbol; px: numbe
 }
 
 const HINTS: Record<string, string> = {
-  select: 'คลิกเพื่อเลือก • ลากมุม/ผนัง/วัตถุ/เสาเพื่อย้าย • R หมุน 90° • Ctrl+D ทำสำเนา • คลิกขวาลากเพื่อเลื่อน • Alt = ไม่ Snap',
+  select: 'คลิกเพื่อเลือก • ดับเบิลคลิกผนัง = ใส่ประตู • ลากมุม/ผนัง/วัตถุ/เสาเพื่อย้าย • R หมุน 90° • Ctrl+D ทำสำเนา • คลิกขวาลากเพื่อเลื่อน • Alt = ไม่ Snap',
   drawWall: 'คลิกเพื่อวางจุด • พิมพ์ความยาว (ซม.) • Tab แล้วพิมพ์มุม (°) • Enter วางผนัง • Esc จบ',
   drawRoomRect: 'คลิกมุมแรก แล้วคลิกมุมตรงข้าม หรือพิมพ์กว้าง • Tab • ลึก (ซม.) แล้ว Enter',
   placePreset: 'พิมพ์กว้าง • Tab • ลึก (ซม.) แล้วคลิกเพื่อวางโซน',

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CATALOG, GROUP_LABEL, GROUP_ORDER, type CatalogItem } from '../model/catalog';
 import { useUi } from '../store/ui';
-import { ASSET_MIME } from '../editor2d/PlanEditor';
+import { ASSET_MIME, setDraggedAsset } from '../editor2d/PlanEditor';
 import { Icon } from '../editor2d/Toolbar';
 import { thumbnail } from '../view3d/thumbs';
 
@@ -46,7 +46,15 @@ export function CatalogPanel() {
                     key={c.id}
                     className={`cat-item${on ? ' on' : ''}${c.use === 'machine' ? ' machine' : ''}`}
                     draggable
-                    onDragStart={(e) => e.dataTransfer.setData(ASSET_MIME, c.id)}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(ASSET_MIME, c.id);
+                      e.dataTransfer.effectAllowed = 'copy';
+                      setDraggedAsset(c.id);
+                      // Only the small picture follows the cursor, so the object drawn on the plan stays in view.
+                      const img = e.currentTarget.querySelector('img');
+                      if (img) e.dataTransfer.setDragImage(img, 0, 0);
+                    }}
+                    onDragEnd={() => setDraggedAsset(null)}
                     onClick={() => useUi.getState().setTool(on ? { kind: 'select', drag: null } : { kind: 'placeObject', assetId: c.id })}
                     title={`${c.label}${c.summary ? `\n${c.summary}` : ''}\n${fmtSize(c)}`}
                     data-testid={`cat-${c.id}`}

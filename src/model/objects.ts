@@ -1,5 +1,5 @@
 import type { Id, Mm, PlacedObject, Plan, Vec2 } from './types';
-import { add, angleOf, cross, dot, fromAngle, len, perp, pointInPolygon, rotate, scale, sub, wrapAngle, norm } from './vec';
+import { add, cross, dot, fromAngle, len, perp, pointInPolygon, rotate, scale, sub, wrapAngle, norm } from './vec';
 
 export interface Obb {
   c: Vec2;
@@ -92,8 +92,8 @@ export interface ObjectSnap {
 }
 
 /**
- * Snaps a moving object: its back face (local −v side) to the nearest wall's inner face, rotating it
- * to the wall angle; then its side faces to an aligned neighbour; then onto the top of an object it
+ * Snaps a moving object, keeping its turn: its side nearest the wall onto the nearest wall's face;
+ * then its side faces to an aligned neighbour; then onto the top of an object it
  * is dropped on. A ceiling light skips the wall, lines up only with other ceiling lights (so linear
  * bars join end to end), and hangs from the ceiling of the room it is over.
  */
@@ -110,7 +110,11 @@ export function snapObject(
   const { w: width, d: depth } = moving.size;
   const hanging = false;
 
-  let bestWall: { gap: number; pos: Vec2; rotation: number; face: [Vec2, Vec2] } | null = null;
+  // The object keeps the turn it has (turning is left to the user); only its position snaps.
+  const ou = fromAngle(rotation);
+  const ov = perp(ou);
+  const halfAlong = (axis: Vec2) => (Math.abs(dot(ou, axis)) * width + Math.abs(dot(ov, axis)) * depth) / 2;
+  let bestWall: { gap: number; pos: Vec2; face: [Vec2, Vec2] } | null = null;
   for (const wall of hanging ? [] : Object.values(plan.walls)) {
     const a = plan.corners[wall.a];
     const b = plan.corners[wall.b];
@@ -120,10 +124,11 @@ export function snapObject(
     const dir = scale(ab, 1 / l);
     const rel = sub(target, a);
     const along = dot(rel, dir);
-    if (along < -width / 2 || along > l + width / 2) continue;
+    const reach = halfAlong(dir);
+    if (along < -reach || along > l + reach) continue;
     const side = Math.sign(cross(dir, rel)) || 1;
     const n = scale(perp(dir), side);
-    const want = wall.thickness / 2 + depth / 2;
+    const want = wall.thickness / 2 + halfAlong(n);
     const gap = Math.abs(Math.abs(cross(dir, rel)) - want);
     if (gap > radius || (bestWall && gap >= bestWall.gap)) continue;
     const foot = add(a, scale(dir, along));
@@ -131,13 +136,11 @@ export function snapObject(
     bestWall = {
       gap,
       pos: add(foot, scale(n, want)),
-      rotation: angleOf(n) - Math.PI / 2,
       face: [add(a, faceOffset), add(b, faceOffset)],
     };
   }
   if (bestWall) {
     pos = bestWall.pos;
-    rotation = bestWall.rotation;
     guides.push({ from: bestWall.face[0], to: bestWall.face[1] });
   }
 

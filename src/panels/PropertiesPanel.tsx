@@ -1,6 +1,6 @@
 import { deg, fmtArea, fmtLen, fmtSize, rad } from '../format';
 import { CATALOG, catalogItem, GROUP_LABEL, GROUP_ORDER } from '../model/catalog';
-import { DOOR_STYLE_LABEL } from '../model/openings';
+import { DOOR_STYLE_LABEL, isHanded, isSliding } from '../model/openings';
 import { moveCorner, roomStats, setWallAngle, setWallLength, wallDir, wallLength } from '../model/plan';
 import { projectFacts } from '../model/project';
 import type { Column, DoorStyle, OpeningKind, PlacedObject, Project, ZoneKind } from '../model/types';
@@ -8,7 +8,7 @@ import { ZONE_IDS, ZONES, zoneColor } from '../model/zones';
 import { applyEdit, useEditProject } from '../store/project';
 import { useUi, type Selection } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
-import { deleteSelection, duplicateSelection, rotateObject } from '../editor2d/tools';
+import { addDoorAt, deleteSelection, duplicateSelection, flipOpeningHinge, flipOpeningSide, rotateObject } from '../editor2d/tools';
 import { ColorField, Field, NumberField, SelectField, TextField } from './fields';
 import { MachineSpec } from './MachineSpec';
 
@@ -159,6 +159,9 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
               <input type="checkbox" checked={!!w.glass} onChange={(e) => set((x) => void (x.glass = e.target.checked || undefined))} /> ผนังกระจก
             </label>
             <ColorField label="สีผนัง" value={w.color ?? '#eceae5'} onChange={(v) => set((x) => void (x.color = v))} onReset={w.color ? () => set((x) => void delete x.color) : undefined} />
+            <button className="btn btn-sm" onClick={() => addDoorAt(null, 0, w.id)} data-testid="wall-add-door">
+              + ใส่ประตูกลางผนัง
+            </button>
             {ops.length > 0 && (
               <Field label="ช่องเปิดบนผนัง">
                 <div className="list">
@@ -241,6 +244,20 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
               {o.kind === 'window' && <NumberField label="สูงจากพื้น" value={o.sill} scale={10} suffix="ซม." min={0} onChange={(v) => set((x) => void (x.sill = v))} />}
               <NumberField label="ระยะจากปลายผนัง" value={o.offset} scale={10} suffix="ซม." onChange={(v) => set((x) => void (x.offset = v))} />
             </div>
+            {o.kind === 'door' && (
+              <Field label="ทิศการเปิด">
+                <div className="row gap">
+                  <button className="btn btn-sm" onClick={() => flipOpeningSide(o.id)} title="G" data-testid="door-flip-side">
+                    สลับฝั่งเปิด (เข้า/ออก)
+                  </button>
+                  {isHanded(o.doorStyle) && (
+                    <button className="btn btn-sm" onClick={() => flipOpeningHinge(o.id)} title="F" data-testid="door-flip-hinge">
+                      {isSliding(o.doorStyle) ? 'สลับทางเลื่อน' : 'สลับด้านบานพับ'}
+                    </button>
+                  )}
+                </div>
+              </Field>
+            )}
             {o.kind !== 'window' && (
               <label className="check">
                 <input
