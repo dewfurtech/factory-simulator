@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Editor } from './Editor';
 import type { Id } from './model/types';
+import { ImportOverlay } from './projects/ImportOverlay';
 import { ProjectList } from './projects/ProjectList';
 import { flushAutosave, loadProject, startAutosave } from './store/persist';
 import { useProject } from './store/project';
@@ -41,6 +42,15 @@ export function App() {
     };
   }, [routeId]);
 
+  return (
+    <>
+      <Screen routeId={routeId} missing={missing} ready={openId === routeId && project?.id === routeId} />
+      <ImportOverlay />
+    </>
+  );
+}
+
+function Screen({ routeId, missing, ready }: { routeId: Id | null; missing: boolean; ready: boolean }) {
   if (!routeId) return <ProjectList />;
   if (missing)
     return (
@@ -48,6 +58,6 @@ export function App() {
         ไม่พบโปรเจกต์ <a href="#/">กลับไปหน้ารายการ</a>
       </div>
     );
-  if (openId !== routeId || project?.id !== routeId) return <div className="empty">กำลังโหลด…</div>;
+  if (!ready) return <div className="empty">กำลังโหลด…</div>;
   return <Editor />;
 }

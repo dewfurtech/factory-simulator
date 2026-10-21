@@ -3,7 +3,7 @@ import { addWall, cornerFor, DEFAULT_WALL, emptyPlan, openingOffsetAt, wallAt } 
 import { newId } from '../id';
 import type { Mm, Plan, Vec2 } from '../types';
 import { dist } from '../vec';
-import { DOOR_OPENING, type TracedPlan } from './detect';
+import type { TracedPlan } from './detect';
 
 const round = (v: number, step: number) => Math.round(v / step) * step;
 
@@ -26,11 +26,9 @@ export function applyTrace(plan: Plan, traced: TracedPlan, toPlan: (p: Vec2) => 
     const hit = wallAt(plan, at, JOIN);
     if (!hit) continue;
     const wall = plan.walls[hit.wallId];
-    const measured = o.width * mmPerPx;
-    // A single door close to standard is the standard door; the drawing's few pixels either way are not a different door.
-    const standard = o.kind === 'door' && !o.double && Math.abs(measured / DOOR_OPENING - 1) <= 0.25;
-    const width = standard ? DOOR_OPENING : round(measured, 50);
-    const preset = OPENING_PRESETS[o.kind === 'door' ? (o.double ? 'doubleDoor' : 'door') : o.kind];
+    // As wide as drawn, to the nearest 5 cm: a house's 70–90 cm doors are not the 1 m door a scale is read from.
+    const width = round(o.width * mmPerPx, 50);
+    const preset = OPENING_PRESETS[o.kind === 'door' ? (o.rolling ? 'rollingDoor' : o.double ? 'doubleDoor' : 'door') : o.kind];
     const id = newId('o');
     const opening = { id, wallId: wall.id, kind: preset.kind, offset: openingOffsetAt(plan, wall, at, width), width, height: preset.height, sill: preset.sill };
     if (o.kind === 'door') {

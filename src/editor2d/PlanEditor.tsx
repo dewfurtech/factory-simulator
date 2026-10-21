@@ -430,6 +430,16 @@ const ObjectShape = memo(function ObjectShape({ o, px, sel, above }: { o: Placed
   if (item?.overhead && above)
     // An upper floor or its railing: a dashed outline over whatever stands beneath.
     return <polygon points={pts(poly)} fill="none" stroke={sel ? 'var(--select)' : '#7c3aed'} strokeWidth={(sel ? 2.5 : 1.2) * px} strokeDasharray={`${6 * px} ${4 * px}`}opacity={o.hidden ? 0.15 : 0.8} pointerEvents="none" />;
+  if (o.assetId === 'zone-area')
+    // A marked-out floor area: its dashed border and name, under whatever stands in it.
+    return (
+      <g opacity={o.hidden ? 0.15 : undefined}>
+        <polygon points={pts(poly)} fill="#16a34a" fillOpacity={0.06} stroke={sel ? 'var(--select)' : '#16a34a'} strokeWidth={(sel ? 2.5 : 1.5) * px} strokeDasharray={`${8 * px} ${5 * px}`} />
+        <text x={o.x} y={o.y} fontSize={12 * px} fontWeight={600} textAnchor="middle" dominantBaseline="middle" fill="#15803d">
+          {o.name}
+        </text>
+      </g>
+    );
   const fill = machine ? GROUP_FILL.machine : open ? '#fde68a' : GROUP_FILL[item?.group ?? 'decor'] ?? '#fff';
   return (
     <g opacity={o.hidden ? 0.15 : undefined}>

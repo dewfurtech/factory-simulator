@@ -2,7 +2,7 @@ import { del, get, set } from 'idb-keyval';
 import { newId } from '../model/id';
 import { migrate, projectFacts, type ProjectFacts } from '../model/project';
 import type { Id, Project } from '../model/types';
-import { underlayImageIds } from '../model/underlay';
+import { underlayImageIds, vectorAssetId } from '../model/underlay';
 import { useProject } from './project';
 
 export interface ProjectSummary extends Partial<ProjectFacts> {
@@ -46,9 +46,10 @@ export async function duplicateProject(id: Id): Promise<Project | undefined> {
   if (!src) return undefined;
   const copy: Project = { ...structuredClone(src), id: newId('p'), name: `${src.name} (สำเนา)`, updatedAt: Date.now() };
   if (copy.underlay) {
-    const blob = await loadAsset(copy.underlay.imageId);
+    const [image, drawing] = await Promise.all([loadAsset(copy.underlay.imageId), loadAsset(vectorAssetId(copy.underlay.imageId))]);
     copy.underlay.imageId = newId('u');
-    if (blob) await saveAsset(copy.underlay.imageId, blob);
+    if (image) await saveAsset(copy.underlay.imageId, image);
+    if (drawing) await saveAsset(vectorAssetId(copy.underlay.imageId), drawing);
   }
   await saveProject(copy);
   return copy;

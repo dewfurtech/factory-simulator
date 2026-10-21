@@ -63,6 +63,8 @@ export interface Room extends LayerFlags {
   ceilingHeight: Mm;
   /** Overrides the zone's floor color. */
   color?: string;
+  /** A yard or car park closed off only by a fence: outdoors, so not counted as a room or in the floor area. */
+  outdoor?: true;
 }
 
 export type OpeningKind = 'door' | 'window' | 'opening';

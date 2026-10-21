@@ -353,3 +353,18 @@ input[type='color'] { width: 44px; height: 30px; border: 1px solid var(--line-2)
 .kv dt { color: var(--ink-3); flex: none; }
 .kv dd { margin: 0; text-align: right; font-weight: 500; overflow-wrap: anywhere; }
 .ms-stations { margin: 0; padding-left: 20px; font-size: 12.5px; color: var(--ink-2); display: flex; flex-direction: column; gap: 2px; }
+
+/* Loading screen while a plan file is imported */
+.import-overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: rgba(15, 23, 42, 0.35); backdrop-filter: blur(2px); }
+.import-card { width: min(420px, calc(100vw - 32px)); padding: 20px 22px; display: grid; gap: 14px; }
+.import-head { display: flex; align-items: center; gap: 12px; }
+.import-head b { font-size: 15px; }
+.import-file { max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.import-spinner { width: 28px; height: 28px; flex: none; border-radius: 50%; border: 3px solid var(--line-2); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+.import-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 13px; color: var(--ink-3); }
+.import-steps li { display: flex; align-items: center; gap: 10px; }
+.import-steps i { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%; font-style: normal; font-size: 11px; font-weight: 700; background: var(--line); color: var(--ink-3); }
+.import-steps li.step-done { color: var(--ink-2); }
+.import-steps li.step-done i { background: #16a34a; color: #fff; }
+.import-steps li.step-now { color: var(--ink); font-weight: 600; }
+.import-steps li.step-now i { background: var(--accent); color: #fff; }

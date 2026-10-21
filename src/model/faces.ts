@@ -62,11 +62,33 @@ export function detectFaces(plan: Plan): Face[] {
         a = b;
         b = next;
       }
-      const area = signedArea(cycle.map(pos));
-      if (area > 1e-6 && new Set(cycle).size === cycle.length) faces.push({ cornerIds: cycle, area });
+      // A face whose boundary runs out along a wall to a room standing in it and back passes corners twice: it is
+      // split there into simple loops, its own outline (positive) and the outline of what it surrounds (negative).
+      for (const loop of simpleLoops(cycle)) {
+        const area = signedArea(loop.map(pos));
+        if (area > 1e-6) faces.push({ cornerIds: loop, area });
+      }
     }
   }
   return faces;
+}
+
+/** A closed walk split at every corner it revisits into simple loops; the walk out and back along a wall leaves none. */
+function simpleLoops(walk: Id[]): Id[][] {
+  const loops: Id[][] = [];
+  const path: Id[] = [];
+  const at = new Map<Id, number>();
+  for (const id of [...walk, walk[0]]) {
+    const i = at.get(id);
+    if (i !== undefined) {
+      const loop = path.splice(i);
+      for (const c of loop) at.delete(c);
+      if (loop.length >= 3) loops.push(loop);
+    }
+    at.set(id, path.length);
+    path.push(id);
+  }
+  return loops;
 }
 
 export const faceKey = (ids: readonly Id[]): string => [...ids].sort().join('|');

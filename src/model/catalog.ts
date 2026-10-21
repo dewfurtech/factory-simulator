@@ -73,6 +73,7 @@ const S = (w: Mm, d: Mm, h: Mm): Size3 => ({ w, d, h });
 const builtins: CatalogItem[] = [
   { id: 'desk', label: 'โต๊ะทำงาน + เก้าอี้', group: 'office', size: S(1400, 1300, 750), use: 'desk' },
   { id: 'meeting-table', label: 'โต๊ะประชุม 6 ที่', group: 'office', size: S(3000, 2400, 750), use: 'meeting', seats: 6 },
+  { id: 'office-chair', label: 'เก้าอี้สำนักงาน (ล้อเลื่อน)', group: 'office', size: S(650, 650, 1050) },
   { id: 'cabinet', label: 'ตู้เอกสาร', group: 'office', size: S(900, 450, 1800), use: 'file' },
   { id: 'reception', label: 'เคาน์เตอร์ต้อนรับ', group: 'office', size: S(2400, 1500, 1100), use: 'reception' },
   { id: 'sofa', label: 'โซฟารับแขก', group: 'office', size: S(1800, 850, 800), use: 'wait', seats: 3 },
@@ -94,6 +95,7 @@ const builtins: CatalogItem[] = [
   { id: 'plant', label: 'ต้นไม้', group: 'decor', size: S(600, 600, 1300) },
   { id: 'box', label: 'กล่อง / บล็อก', group: 'decor', size: S(1000, 1000, 1000) },
   { id: 'floor-mark', label: 'เส้นตีพื้นทางเดิน', group: 'decor', size: S(4000, 1500, 5), open: true },
+  { id: 'zone-area', label: 'พื้นที่ตีเส้น (โซนงาน)', group: 'decor', size: S(6000, 4000, 5), open: true },
   { id: 'stairs', label: 'บันได (ช่วงตรง)', group: 'decor', size: S(1100, 3000, 1800) },
   { id: 'stair-landing', label: 'ชานพักบันได', group: 'decor', size: S(1100, 1100, 1100) },
   { id: 'floor-slab', label: 'พื้นชั้นลอย / ชั้น 2', group: 'decor', size: S(6000, 4000, 200), open: true, overhead: true },

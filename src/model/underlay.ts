@@ -33,5 +33,8 @@ export function underlayRect(u: Underlay): { x: Mm; y: Mm; w: Mm; h: Mm } {
   return { x: u.x - w / 2, y: u.y - h / 2, w, h };
 }
 
-/** Image blobs a project's underlays keep in the asset store. */
-export const underlayImageIds = (project: Pick<Project, 'underlay'>): Id[] => (project.underlay ? [project.underlay.imageId] : []);
+/** The asset holding the drawing read out of a vector PDF, beside the image it was rendered to; absent for a picture. */
+export const vectorAssetId = (imageId: Id) => `${imageId}:vector` as Id;
+
+/** Blobs a project's underlays keep in the asset store: each image, and the drawing behind it when it was a vector PDF. */
+export const underlayImageIds = (project: Pick<Project, 'underlay'>): Id[] => (project.underlay ? [project.underlay.imageId, vectorAssetId(project.underlay.imageId)] : []);

@@ -1,5 +1,5 @@
 import { deg, fmtArea, fmtLen, fmtSize, rad } from '../format';
-import { catalogItem, needsOperator } from '../model/catalog';
+import { CATALOG, catalogItem, GROUP_LABEL, GROUP_ORDER, needsOperator } from '../model/catalog';
 import { newId } from '../model/id';
 import { DOOR_STYLE_LABEL } from '../model/openings';
 import { moveCorner, roomStats, setWallAngle, setWallLength, wallDir, wallLength } from '../model/plan';
@@ -16,6 +16,62 @@ import { ColorField, Field, NumberField, SelectField, TextField, TimeField } fro
 import { MachineSpec } from './MachineSpec';
 
 const KIND_LABEL: Record<OpeningKind, string> = { door: 'ประตู', window: 'หน้าต่าง', opening: 'ช่องเปิด' };
+
+/** Names a placed block or machine carries until someone names it: changing the model renames these. */
+const PLACEHOLDER_NAMES = new Set(['เครื่องจักร', 'อุปกรณ์', 'เครื่องจักร / อุปกรณ์']);
+
+/** How far a model's footprint is from a block's, either way round (a block's long side may be drawn along y). */
+const footprintMiss = (a: { w: number; d: number }, b: { w: number; d: number }) =>
+  Math.min(Math.abs(a.w - b.w) + Math.abs(a.d - b.d), Math.abs(a.w - b.d) + Math.abs(a.d - b.w));
+
+/**
+ * Which Mastrox machine a block or machine is: a block read off a plan (a footprint with no model) becomes a machine
+ * the simulation runs, keeping its place and turn. The models nearest the block's size are offered first.
+ */
+function MachineModelPicker({ o }: { o: PlacedObject }) {
+  const models = CATALOG.filter((c) => c.use === 'machine');
+  const nearest = o.assetId === 'box' ? [...models].sort((a, b) => footprintMiss(a.size, o.size) - footprintMiss(b.size, o.size)).slice(0, 3) : [];
+  const groups = GROUP_ORDER.map((g) => ({ g, items: models.filter((m) => m.group === g) })).filter((x) => x.items.length);
+  const pick = (assetId: string) =>
+    applyEdit((d) => {
+      const x = d.objects.find((y) => y.id === o.id);
+      const next = catalogItem(assetId);
+      if (!x || !next) return;
+      const was = catalogItem(x.assetId);
+      // A block drawn with its long side across: the model is turned to lie the way the block did.
+      const across = x.assetId === 'box' && x.size.d > x.size.w && next.size.w > next.size.d;
+      if (PLACEHOLDER_NAMES.has(x.name) || x.name === was?.label) x.name = next.label;
+      else if (/^เครื่อง \d+$/.test(x.name)) x.name = `${x.name} · ${next.label}`;
+      x.assetId = next.id;
+      x.size = { ...next.size };
+      if (across) x.rotation += Math.PI / 2;
+    });
+  return (
+    <Field label="รุ่นเครื่องจักร">
+      <select value={o.assetId === 'box' ? '' : o.assetId} onChange={(e) => e.target.value && pick(e.target.value)} data-testid="machine-model">
+        {o.assetId === 'box' && <option value="">— ยังไม่ระบุรุ่น ({fmtSize(o.size.w, o.size.d)}) —</option>}
+        {nearest.length > 0 && (
+          <optgroup label="ขนาดใกล้เคียงกับในแบบ">
+            {nearest.map((m) => (
+              <option key={`near-${m.id}`} value={m.id}>
+                {m.label} · {fmtSize(m.size.w, m.size.d)}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {groups.map(({ g, items }) => (
+          <optgroup key={g} label={GROUP_LABEL[g]}>
+            {items.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label} · {fmtSize(m.size.w, m.size.d)}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+    </Field>
+  );
+}
 
 export function PropertiesPanel() {
   const selection = useUi((s) => s.selection);
@@ -145,6 +201,10 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
                 ))}
               </div>
             </Field>
+            <label className="row gap" data-testid="room-outdoor">
+              <input type="checkbox" checked={!!r.outdoor} onChange={(e) => set((x) => void (e.target.checked ? (x.outdoor = true) : delete x.outdoor))} />
+              <span>ลานนอกอาคาร (ไม่นับเป็นห้องและพื้นที่)</span>
+            </label>
             <ColorField label="สีพื้น" value={zoneColor(r)} onChange={(v) => set((x) => void (x.color = v))} onReset={r.color ? () => set((x) => void delete x.color) : undefined} />
             <div className="stats">
               <div>
@@ -242,6 +302,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
         <>
           <Header icon={machine ? 'machine' : 'box'} title={o.name} sub={item?.label} actions />
           <div className="panel-body">
+            {(machine || o.assetId === 'box') && <MachineModelPicker o={o} />}
             {machine ? <MachineSpec assetId={o.assetId} /> : item?.summary && <p className="muted small">{item.summary}</p>}
             <TextField label="ชื่อ" value={o.name} onChange={(v) => set((x) => void (x.name = v))} />
             <div className="two">

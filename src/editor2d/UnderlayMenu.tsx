@@ -7,8 +7,14 @@ import { activeUnderlay, placeUnderlay } from '../model/underlay';
 import { NumberField } from '../panels/fields';
 import { applyEdit, useProject } from '../store/project';
 import { useUi } from '../store/ui';
+import { useImport } from '../store/importProgress';
+import { buildFromVector, vectorPlanFor } from './pdfVector';
 import { RailButton } from './Toolbar';
 import { traceUnderlay } from './traceUnderlay';
+import { closeLooseEnds } from '../model/trace/close';
+
+/** Doors a scale read off a picture must agree on before it is taken without asking. */
+const TRUSTED_DOORS = 4;
 import { storeUnderlayFile, UNDERLAY_ACCEPT } from './underlayFile';
 
 /** Where the upload-and-trace flow stands; `needScale` waits for a measured span, then traces by itself. */
@@ -17,10 +23,11 @@ type Status =
   | { kind: 'reading' }
   | { kind: 'tracing' }
   | { kind: 'traced'; walls: number; doors: number; windows: number; scaleDoors: number }
+  | { kind: 'built'; walls: number; doors: number; windows: number; columns: number; zones: number; machines: number; scaleDoors: number; gridPitch?: number }
   | { kind: 'needScale' }
   | { kind: 'failed'; message: string };
 
-const STYLE_LABEL: Record<WallStyle | 'auto', string> = { auto: 'อัตโนมัติ', solid: 'ทึบ / แรเงา', hollow: 'เส้นคู่' };
+const STYLE_LABEL: Record<WallStyle | 'auto', string> = { auto: 'อัตโนมัติ', solid: 'ทึบ / แรเงา', hollow: 'เส้นคู่', sketch: 'ร่างด้วยมือ' };
 
 const editUnderlay = (recipe: (u: Underlay) => void) =>
   applyEdit((d) => {
@@ -49,13 +56,54 @@ export function UnderlayMenu() {
 
   const measure = () => useUi.getState().setTool({ kind: 'calibrate', a: null, b: null });
 
+  /** A vector PDF is built from its lines; anything else is traced as a picture. */
+  const buildVector = async (from: Underlay) => {
+    const drawing = await vectorPlanFor(from.imageId);
+    if (!drawing) return false;
+    setStatus({ kind: 'tracing' });
+    // Let the busy note paint before the build takes the main thread for a moment.
+    await new Promise((r) => setTimeout(r, 30));
+    const result: { built: ReturnType<typeof buildFromVector> } = { built: null };
+    applyEdit((d) => {
+      const u = d.underlay;
+      if (!u || u.imageId !== from.imageId) return;
+      result.built = buildFromVector(d, u, drawing);
+      if (result.built && !u.calibrated) Object.assign(u, { mmPerPx: result.built.underlayMmPerPx, calibrated: true });
+    });
+    const b = result.built;
+    if (!b) {
+      setStatus({ kind: 'needScale' });
+      measure();
+      return true;
+    }
+    useUi.getState().set({ selection: null });
+    setStatus({ kind: 'built', ...b.counts, scaleDoors: b.doors, gridPitch: b.gridPitch });
+    return true;
+  };
+
+  /** Builds the storey from the plan, under the import loading screen when an import is what asked for it. */
   const trace = async (from: Underlay) => {
+    await useImport.getState().stage('build');
+    try {
+      await traceInner(from);
+    } finally {
+      useImport.getState().done();
+    }
+  };
+
+  const traceInner = async (from: Underlay) => {
+    try {
+      if (await buildVector(from)) return;
+    } catch (e) {
+      return setStatus({ kind: 'failed', message: message(e) });
+    }
     setStatus({ kind: 'tracing' });
     try {
       const result = await traceUnderlay(from, style === 'auto' ? WALL_STYLES : [style]);
       // The storey or its image may have changed while the trace ran; walls traced off another image don't belong.
       if (activeUnderlay(useProject.getState().project!)?.imageId !== from.imageId) return setStatus({ kind: 'idle' });
-      if (!result) {
+      // A scale read off a few doors is a guess (a tag or a cupboard read as a door doubles it): the user measures instead.
+      if (!result || (!from.calibrated && result.doors < TRUSTED_DOORS)) {
         setStatus({ kind: 'needScale' });
         return measure();
       }
@@ -64,6 +112,9 @@ export function UnderlayMenu() {
         const u = d.underlay;
         if (u && !u.calibrated) Object.assign(u, { mmPerPx: result.underlayMmPerPx, calibrated: true });
         counts = applyTrace(d.plan, result.traced, result.toPlan, result.mmPerPx);
+        // A door the trace could not read leaves a gap a doorway wide: it is closed with an opening, so rooms close.
+        closeLooseEnds(d.plan, { doorways: 'doorway', straight: true });
+        counts.walls = Object.keys(d.plan.walls).length;
       });
       useUi.getState().set({ selection: null });
       setStatus({ kind: 'traced', ...counts, scaleDoors: result.doors });
@@ -80,7 +131,10 @@ export function UnderlayMenu() {
   // A plan image put on an empty storey from elsewhere (a project started from one) is built once, as an upload here is.
   const tried = useRef(new Set<string>());
   useEffect(() => {
-    if (!u || u.calibrated || hasWalls || status.kind !== 'idle' || tried.current.has(u.imageId)) return;
+    // A build already started for this image (the effect run again) keeps the loading screen; one with nothing to build
+    // ends it here.
+    if (u && tried.current.has(u.imageId)) return;
+    if (!u || u.calibrated || hasWalls || status.kind !== 'idle') return useImport.getState().done();
     tried.current.add(u.imageId);
     setOpen(true);
     void trace(u);
@@ -89,8 +143,9 @@ export function UnderlayMenu() {
   const upload = async (file: File) => {
     setStatus({ kind: 'reading' });
     setOpen(true);
+    useImport.getState().start(file.name);
     try {
-      const image = await storeUnderlayFile(file);
+      const image = await storeUnderlayFile(file, useImport.getState().stage);
       let placed: Underlay | undefined;
       applyEdit((d) => {
         placed = d.underlay = placeUnderlay(image, d.plan);
@@ -101,13 +156,15 @@ export function UnderlayMenu() {
       else setStatus({ kind: 'idle' });
     } catch (e) {
       setStatus({ kind: 'failed', message: message(e) });
+    } finally {
+      useImport.getState().done();
     }
   };
 
   // A result is worth a glance, not a permanent line on the plan.
   useEffect(() => {
-    if (status.kind !== 'traced') return;
-    const t = setTimeout(() => setStatus({ kind: 'idle' }), 6000);
+    if (status.kind !== 'traced' && status.kind !== 'built') return;
+    const t = setTimeout(() => setStatus({ kind: 'idle' }), status.kind === 'built' ? 10000 : 6000);
     return () => clearTimeout(t);
   }, [status]);
 
@@ -230,8 +287,14 @@ function statusNote(status: Status): { text: string; tip?: string; error?: boole
         tip: `${status.scaleDoors ? `สเกลจากประตู ${status.scaleDoors} บาน` : 'สเกลจากที่วัดไว้'} · กดเลิกทำเพื่อย้อน`,
         testId: 'underlay-traced',
       };
+    case 'built':
+      return {
+        text: `ผนัง ${status.walls} · ประตู ${status.doors} · หน้าต่าง ${status.windows} · เสา ${status.columns} · โซน ${status.zones} · เครื่อง/อุปกรณ์ ${status.machines}`,
+        tip: `อ่านจากเส้นในไฟล์ PDF · ${status.scaleDoors ? `สเกลจากประตู ${status.scaleDoors} บาน${status.gridPitch ? ` ปรับตามระยะเสา ${status.gridPitch / 1000} ม.` : ''}` : 'สเกลจากที่วัดไว้'} · กดเลิกทำเพื่อย้อน`,
+        testId: 'underlay-built',
+      };
     case 'needScale':
-      return { text: 'ไม่เจอประตู: คลิก 2 จุดที่รู้ระยะ แล้วพิมพ์ระยะ', testId: 'underlay-need-scale' };
+      return { text: 'หาสเกลจากแบบไม่ชัด: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ) แล้วพิมพ์ระยะ', testId: 'underlay-need-scale' };
     case 'failed':
       return { text: status.message, error: true, testId: 'underlay-error' };
     case 'idle':

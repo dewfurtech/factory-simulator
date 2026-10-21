@@ -3,13 +3,24 @@ import { dist } from '../vec';
 import { detectPlan, DOOR_OPENING, type TracedPlan, type TraceOptions } from './detect';
 import { shrink, type Gray } from './raster';
 
-/** How walls are drawn: filled or hatched dark, or as two outlines with paper (or sparse hatching) between. */
-export type WallStyle = 'solid' | 'hollow';
-export const WALL_STYLES: WallStyle[] = ['solid', 'hollow'];
+/**
+ * How walls are drawn: filled or hatched dark, as two outlines with paper (or sparse hatching) between, or sketched
+ * by hand in pencil, two wavering and broken outlines.
+ */
+export type WallStyle = 'solid' | 'hollow' | 'sketch';
+export const WALL_STYLES: WallStyle[] = ['solid', 'hollow', 'sketch'];
 
 export function traceOptions(mmPerPx: number, style: WallStyle): TraceOptions {
   const px = (mm: Mm) => mm / mmPerPx;
-  return { minThick: px(80), maxThick: px(400), minLen: px(400), hollowGap: style === 'hollow' ? px(150) : 0, minOpening: px(450), maxOpening: px(2600) };
+  return {
+    minThick: px(80),
+    maxThick: px(400),
+    minLen: px(400),
+    hollowGap: style === 'solid' ? 0 : px(style === 'sketch' ? 200 : 150),
+    minOpening: px(450),
+    maxOpening: px(2600),
+    bridge: style === 'sketch' ? Math.max(2, Math.round(px(150))) : 0,
+  };
 }
 
 export interface AutoTrace {
@@ -46,8 +57,11 @@ const wallLength = (t: TracedPlan) => t.walls.reduce((sum, w) => sum + dist(w.a,
 function pickStyle(traces: { style: WallStyle; traced: TracedPlan }[]) {
   const solid = traces.find((t) => t.style === 'solid');
   const hollow = traces.find((t) => t.style === 'hollow');
-  if (!solid || !hollow) return (solid ?? hollow)!;
-  return wallLength(solid.traced) >= wallLength(hollow.traced) * 0.5 ? solid : hollow;
+  const sketch = traces.find((t) => t.style === 'sketch');
+  const drawn = !solid || !hollow ? (solid ?? hollow) : wallLength(solid.traced) >= wallLength(hollow.traced) * 0.5 ? solid : hollow;
+  // Read as a sketch, a drawn plan comes out about the same; taken only when the drawn styles miss a good part of it.
+  if (!drawn || (sketch && wallLength(drawn.traced) < wallLength(sketch.traced) * 0.75)) return sketch ?? drawn!;
+  return drawn;
 }
 
 /**
@@ -60,13 +74,15 @@ export function autoTrace(gray: Gray, given?: number, styles: WallStyle[] = WALL
   let doors = 0;
   let candidates = styles;
   if (mmPerPx === undefined) {
+    // A sketch's doors are drawn too loosely to measure: the scale is read the drawn ways only.
+    const searched = styles.length > 1 ? styles.filter((st) => st !== 'sketch') : styles;
     const f = Math.max(1, Math.ceil(Math.max(gray.w, gray.h) / SEARCH_PX));
     const small = shrink(gray, f);
     const long = Math.max(small.w, small.h);
     let best: { n: number; spread: number; scale: number; style: WallStyle } | null = null;
     for (let s = SPAN[0] / long; s <= SPAN[1] / long; s *= STEP) {
-      for (const style of styles) {
-        const implied = singleDoorWidths(detectPlan(small, traceOptions(s, style)))
+      for (const style of searched) {
+        const implied = singleDoorWidths(detectPlan(small, { ...traceOptions(s, style), wallDoors: false }))
           .map((w) => DOOR_OPENING / w)
           .filter((m) => Math.abs(m / s - 1) <= DOOR_SLACK);
         if (!implied.length) continue;
@@ -77,9 +93,9 @@ export function autoTrace(gray: Gray, given?: number, styles: WallStyle[] = WALL
     }
     if (!best || best.n < MIN_DOORS) return null;
     const guess = best.scale / f;
-    candidates = [best.style];
+    candidates = styles.includes('sketch') && best.style !== 'sketch' ? [best.style, 'sketch'] : [best.style];
     // Read the doors again at full size, where their edges are sharper than in the search, and keep the scale only if they agree.
-    const full = singleDoorWidths(detectPlan(gray, traceOptions(guess, best.style)))
+    const full = singleDoorWidths(detectPlan(gray, { ...traceOptions(guess, best.style), wallDoors: false }))
       .map((w) => DOOR_OPENING / w)
       .filter((m) => Math.abs(m / guess - 1) <= DOOR_SLACK);
     if (full.length < MIN_DOORS) return null;

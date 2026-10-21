@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../editor2d/Toolbar';
 import { storeUnderlayFile, UNDERLAY_ACCEPT } from '../editor2d/underlayFile';
+import { useImport } from '../store/importProgress';
 import { newProject } from '../model/project';
 import { mastroxLayout, sampleFactory } from '../model/sample';
 import type { Id, Project } from '../model/types';
@@ -56,6 +57,8 @@ const ago = (t: number) => {
 export function ProjectList() {
   const [list, setList] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** The plan file being read while a project is started from one: a large PDF takes a while. */
+  const [reading, setReading] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const planRef = useRef<HTMLInputElement>(null);
   const refresh = () => void listProjects().then(setList);
@@ -67,13 +70,20 @@ export function ProjectList() {
   };
 
   const fromPlan = async (file: File) => {
+    setError(null);
+    setReading(file.name);
     try {
-      const image = await storeUnderlayFile(file);
+      useImport.getState().start(file.name);
+      const image = await storeUnderlayFile(file, useImport.getState().stage);
+      await useImport.getState().stage('open');
       const p = newProject(file.name.replace(/\.[^.]+$/, ''));
       p.underlay = placeUnderlay(image, p.plan);
       await create(p);
     } catch (e) {
+      useImport.getState().done();
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReading(null);
     }
   };
 
@@ -99,10 +109,10 @@ export function ProjectList() {
           <b>Layout Mastrox</b>
           <span>ผัง 42 × 48 ม. ตามแบบที่ส่งมา พร้อมเครื่องจักรและพนักงาน</span>
         </button>
-        <button className="action" onClick={() => planRef.current?.click()} data-testid="new-from-plan">
+        <button className="action" onClick={() => planRef.current?.click()} disabled={!!reading} data-testid="new-from-plan">
           <Icon name="underlay" />
           <b>เริ่มจากแบบแปลน</b>
-          <span>อัปโหลดรูป / PDF ของ layout แล้วสร้างผนังให้อัตโนมัติ</span>
+          <span>{reading ? `กำลังอ่านไฟล์แปลน… (${reading})` : 'อัปโหลดรูป / PDF ของ layout แล้วสร้างผนังให้อัตโนมัติ'}</span>
         </button>
         <button className="action" onClick={() => void create(newProject('โรงงานใหม่'))} data-testid="new-blank">
           <Icon name="plus" />

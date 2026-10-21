@@ -61,6 +61,34 @@ const BUILDERS: Record<string, Builder> = {
       p.block(0.05, 0.42, 0.25, w / 2 - 0.15, 0, s * (d / 2 - 0.15), STEEL);
     }
   },
+  // A swivel task chair: five-star base on casters, gas lift, padded seat, curved mesh back and armrests.
+  'office-chair'(p, w, d, h) {
+    const r = Math.min(w, d) / 2 - 0.04;
+    const seatY = Math.min(0.47, h * 0.45);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 + Math.PI / 2;
+      const [cx, cz] = [Math.cos(a) * r, Math.sin(a) * r];
+      p.box(r, 0.04, 0.05, cx / 2, 0.09, cz / 2, DARK, -a);
+      p.cyl(0.03, 0.04, cx, 0.03, cz, '#111827', 6, 'x');
+      p.block(0.03, 0.04, 0.03, cx, 0.05, cz, STEEL);
+    }
+    p.cyl(0.05, 0.08, 0, 0.1, 0, DARK, 7);
+    p.cyl(0.025, seatY - 0.16, 0, 0.14 + (seatY - 0.16) / 2, 0, STEEL, 6);
+    p.block(0.2, 0.04, 0.2, 0, seatY - 0.06, 0, DARK);
+    p.block(0.48, 0.08, 0.46, 0, seatY - 0.02, 0.02, '#334155');
+    p.block(0.44, 0.02, 0.4, 0, seatY + 0.06, 0.03, '#3f4b5f');
+    // The back stands on a spine from under the seat; its top tips back a little.
+    const backZ = -0.23;
+    p.block(0.05, 0.22, 0.04, 0, seatY - 0.04, backZ - 0.02, DARK);
+    const backH = Math.max(0.35, h - seatY - 0.12);
+    p.box(0.44, backH, 0.05, 0, seatY + 0.16 + backH / 2, backZ, '#1f2937');
+    p.box(0.38, backH - 0.08, 0.02, 0, seatY + 0.16 + backH / 2, backZ + 0.03, '#475569');
+    p.box(0.3, 0.06, 0.04, 0, seatY + 0.2, backZ + 0.03, '#334155');
+    for (const s of [-1, 1]) {
+      p.block(0.03, 0.2, 0.03, s * 0.25, seatY, -0.02, DARK);
+      p.block(0.06, 0.03, 0.26, s * 0.25, seatY + 0.2, 0.01, '#1f2937');
+    }
+  },
   cabinet(p, w, d, h) {
     p.block(w, h, d, 0, 0, 0, '#cfd3d8');
     for (let i = 1; i < 4; i++) p.box(w - 0.04, 0.01, 0.01, 0, (h / 4) * i, d / 2 + 0.005, '#8b929b');
@@ -225,6 +253,15 @@ const BUILDERS: Record<string, Builder> = {
     for (let i = 0; i <= n; i++) p.block(0.04, h, 0.04, -w / 2 + (w / n) * i, 0, 0, DARK);
     p.block(w, 0.05, Math.max(d, 0.05), 0, h - 0.05, 0, DARK);
     p.block(w, 0.03, 0.03, 0, h * 0.5, 0, DARK);
+  },
+  // An area marked out on the hall floor: a faint tint inside a painted green border, as on the drawing.
+  'zone-area'(p, w, d) {
+    p.block(w, 0.004, d, 0, 0, 0, '#dfeedd');
+    const t = 0.1;
+    for (const s of [-1, 1]) {
+      p.block(w, 0.008, t, 0, 0, s * (d / 2 - t / 2), '#2f9e44');
+      p.block(t, 0.008, d, s * (w / 2 - t / 2), 0, 0, '#2f9e44');
+    }
   },
   'floor-mark'(p, w, d) {
     p.block(w, 0.01, d, 0, 0, 0, '#f2c218');

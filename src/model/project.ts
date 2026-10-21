@@ -63,7 +63,8 @@ export interface ProjectFacts {
 
 export function projectFacts(p: Project): ProjectFacts {
   let area = 0;
-  for (const r of Object.values(p.plan.rooms)) {
+  const indoors = Object.values(p.plan.rooms).filter((r) => !r.outdoor);
+  for (const r of indoors) {
     const poly = r.cornerIds.map((id) => p.plan.corners[id]);
     let a = 0;
     for (let i = 0; i < poly.length; i++) {
@@ -72,7 +73,7 @@ export function projectFacts(p: Project): ProjectFacts {
     }
     area += Math.abs(a / 2);
   }
-  return { rooms: Object.keys(p.plan.rooms).length, machines: p.objects.filter(isMachine).length, staff: p.staff.length, area };
+  return { rooms: indoors.length, machines: p.objects.filter(isMachine).length, staff: p.staff.length, area };
 }
 
 export const staffById = (p: Project, id: Id) => p.staff.find((s) => s.id === id);
