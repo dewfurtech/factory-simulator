@@ -79,7 +79,7 @@ input[type='color'] { width: 44px; height: 30px; border: 1px solid var(--line-2)
 @keyframes pulse { 50% { box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15); } }
 
 /* ——— editor shell ——— */
-.editor { display: grid; height: 100%; grid-template-rows: 56px minmax(0, 1fr); grid-template-columns: 0 minmax(0, 1fr); grid-template-areas: 'top top' 'dock main'; position: relative; }
+.editor { display: grid; height: 100%; grid-template-rows: 56px minmax(0, 1fr); grid-template-columns: 0 minmax(0, 1fr); grid-template-areas: 'top top' 'dock main'; position: relative; overflow: hidden; }
 .editor.with-dock { grid-template-columns: 300px minmax(0, 1fr); }
 .topbar { grid-area: top; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; background: var(--card); border-bottom: 1px solid var(--line); position: relative; z-index: 20; }
 .tb-group { display: flex; align-items: center; gap: 4px; min-width: 0; }
