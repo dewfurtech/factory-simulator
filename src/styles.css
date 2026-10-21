@@ -185,6 +185,9 @@ input[type='color'] { width: 44px; height: 30px; border: 1px solid var(--line-2)
 .ul-btn.on { background: var(--ink); color: #fff; }
 .ul-btn:disabled { color: #a1a1aa; cursor: default; }
 .ul-primary, .ul-primary:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.ul-secondary { border: 1.5px solid var(--accent); color: var(--accent); background: #fff7ed; }
+.ul-secondary:hover:not(:disabled) { background: #ffedd5; }
+.ul-secondary:disabled { border-color: var(--line-2); background: transparent; }
 .ul-wide { padding: 0 14px; font-weight: 600; }
 .ul-sep { width: 1px; height: 20px; margin: 0 4px; background: var(--line-2); }
 .ul-btn[data-tip]:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none; z-index: 10; }

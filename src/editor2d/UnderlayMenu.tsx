@@ -292,6 +292,10 @@ export function UnderlayMenu() {
               <Glyph name="room" />
               <span>วาดห้องทับแปลน</span>
             </button>
+            <button className="ul-btn ul-secondary ul-wide" onClick={() => void trace(u)} disabled={busy} data-tip={hasWalls ? 'ให้แอปอ่านผนัง ประตู เสา จากแปลน (แทนผนังเดิม · เลิกทำได้)' : 'ให้แอปอ่านผนัง ประตู เสา จากแปลน (เลิกทำได้)'} data-testid="underlay-trace">
+              <Glyph name={busy ? 'busy' : 'build'} />
+              <span>{busy ? 'กำลังสร้าง…' : 'สร้างผนังอัตโนมัติ'}</span>
+            </button>
             <button
               className={`ul-btn${peek ? ' on' : ''}`}
               onPointerDown={(e) => {
@@ -306,9 +310,6 @@ export function UnderlayMenu() {
               data-testid="underlay-peek"
             >
               <Glyph name="peek" />
-            </button>
-            <button className="ul-btn" onClick={() => void trace(u)} disabled={busy} aria-label="สร้างผนังอัตโนมัติ" data-tip={hasWalls ? 'ลองให้แอปสร้างผนังให้ (แทนผนังเดิม · เลิกทำได้)' : 'ลองให้แอปสร้างผนังให้ (เลิกทำได้)'} data-testid="underlay-trace">
-              <Glyph name={busy ? 'busy' : 'build'} />
             </button>
             <span className="ul-sep" />
             <button className={`ul-btn${tool.kind === 'calibrate' ? ' on' : ''}`} onClick={measure} aria-label="วัดสเกลเอง" data-tip="วัดสเกลเอง (คลิก 2 จุด)" data-testid="underlay-calibrate">
