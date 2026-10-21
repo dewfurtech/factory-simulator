@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProject } from '../store/project';
-import { rememberRealistic, useUi } from '../store/ui';
+import { DRAWING_TOOLS, rememberRealistic, useUi } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
 import { FactoryScene } from './scene';
 import { locate } from '../model/locate';
@@ -14,6 +14,11 @@ export default function View3D() {
   const cutaway = useUi((s) => s.cutaway);
   const shadows = useUi((s) => s.shadows);
   const realistic = useUi((s) => s.realistic);
+  const islandOn = useUi((s) => s.island);
+  // While walls, rooms or areas are being drawn the whole ground is back, so there is somewhere to draw beyond the island.
+  const drawing = useUi((s) => DRAWING_TOOLS.has(s.tool.kind));
+  const island = islandOn && !drawing;
+  const areas = useUi((s) => !s.areasHidden);
   const [top, setTop] = useState(false);
   const goto = useUi((s) => s.goto);
 
@@ -36,7 +41,7 @@ export default function View3D() {
 
   useEffect(() => sceneRef.current?.setProject(project), [project]);
   useEffect(() => sceneRef.current?.select(null, selection?.kind === 'object' ? selection.id : null), [selection]);
-  useEffect(() => sceneRef.current?.setOptions({ cutaway, shadows, names: false, paths: false, realistic }), [cutaway, shadows, realistic]);
+  useEffect(() => sceneRef.current?.setOptions({ cutaway, shadows, names: false, paths: false, realistic, island, areas }), [cutaway, shadows, realistic, island, areas]);
 
   useEffect(() => rememberRealistic(realistic), [realistic]);
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
@@ -57,7 +62,7 @@ export default function View3D() {
     if (p) sceneRef.current!.focus(p.x, p.y, 16);
   };
 
-  const toggle = (k: 'cutaway' | 'shadows' | 'realistic') => useUi.getState().set({ [k]: !useUi.getState()[k] });
+  const toggle = (k: 'cutaway' | 'shadows' | 'realistic' | 'island') => useUi.getState().set({ [k]: !useUi.getState()[k] });
 
   return (
     <div className="view3d">
@@ -71,6 +76,9 @@ export default function View3D() {
         </button>
         <button className={`ib sm${shadows ? ' on' : ''}`} onClick={() => toggle('shadows')} title="เงา (ใช้เครื่องแรงขึ้น)" aria-pressed={shadows}>
           <Icon name="shadow" />
+        </button>
+        <button className={`ib sm${islandOn ? ' on' : ''}`} onClick={() => toggle('island')} title="พื้นแบบเกาะ: ตัดพื้นรอบนอกให้เหลือแค่รอบอาคาร (กลับมาเต็มเองตอนวาดผนัง/พื้นที่)" aria-pressed={islandOn} data-testid="island">
+          <Icon name="island" />
         </button>
         <button className={`ib sm${top ? ' on' : ''}`} onClick={() => setTop(!top)} title="มุมมองจากด้านบน (Top view)" aria-pressed={top} data-testid="top-view">
           <Icon name="topView" />

@@ -23,6 +23,7 @@ import { clearSpan, onSideB, OPENING_PRESETS } from '../model/openings';
 import type { Column, Id, Mm, PlacedObject, Project, Vec2 } from '../model/types';
 import { add, dist, dot, perp, sub } from '../model/vec';
 import { alignToWalls, parallelWallOffset, weldPlan } from '../model/weld';
+import { addArea, boxOutline, closedOutline, extendOutline, moveArea } from '../model/areas';
 import { editProject, useProject } from '../store/project';
 import { levelZ } from '../model/levels';
 import { SELECT, useUi, type ColumnSpec, type Drag, type Selection, type Tool, type ToolKind } from '../store/ui';
@@ -98,6 +99,37 @@ function rectTo(tool: Of<'drawRoomRect'>, b: Vec2, input: Pick<PointerInput, 'al
   setTool({ ...tool, start: null, entry: EMPTY_ENTRY });
 }
 
+/** Puts an area down over a closed outline and selects it; the tool stays on for the next one. */
+function commitArea(tool: Of<'drawArea'>, outline: Vec2[]): void {
+  const points = closedOutline(outline);
+  if (!points) return;
+  let id: Id | null = null;
+  edit((d) => {
+    id = addArea(d.plan, points);
+  });
+  setTool({ ...tool, start: null, points: [], entry: EMPTY_ENTRY });
+  if (id) ui().set({ selection: { kind: 'area', id } });
+}
+
+/** Closes the outline being drawn point by point as it stands (Enter, a double-click or Esc with enough points). */
+export function finishArea(): boolean {
+  const tool = ui().tool;
+  if (tool.kind !== 'drawArea' || tool.mode !== 'poly' || tool.points.length < 3) return false;
+  commitArea(tool, tool.points);
+  return true;
+}
+
+function areaPointTo(tool: Of<'drawArea'>, p: Vec2, radius: Mm): void {
+  if (tool.mode === 'box') {
+    if (!tool.start) return setTool({ ...tool, start: p, entry: EMPTY_ENTRY });
+    if (Math.abs(p.x - tool.start.x) < 100 || Math.abs(p.y - tool.start.y) < 100) return;
+    return commitArea(tool, boxOutline(tool.start, p));
+  }
+  const ext = extendOutline(tool.points, p, radius);
+  if (ext.closed) commitArea(tool, ext.points);
+  else setTool({ ...tool, points: ext.points, entry: EMPTY_ENTRY });
+}
+
 /** Columns filling the rectangle a–b at the spacing, one at every grid node (corners included). */
 export function columnGridPoints(a: Vec2, b: Vec2, spacing: Mm): Vec2[] {
   const x0 = Math.min(a.x, b.x);
@@ -131,6 +163,7 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
         const o = p.objects.find((x) => x.id === hit.id)!;
         drag = { kind: 'object', id: hit.id, grab: sub(input.p, { x: o.x, y: o.y }) };
       } else if (hit.kind === 'column') drag = { kind: 'column', id: hit.id, grab: sub(input.p, p.columns[hit.id]) };
+      else if (hit.kind === 'area') drag = { kind: 'area', id: hit.id, origin: input.p, applied: { x: 0, y: 0 } };
       else drag = { kind: hit.kind, id: hit.id };
       useProject.getState().beginGesture();
       setTool({ ...tool, drag });
@@ -165,6 +198,15 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
         edit((d) => {
           d.plan.openings[drag.id].offset = Math.round(offset / step) * step;
         });
+      } else if (drag.kind === 'area') {
+        const step = snapping(input) ? ui().grid : 1;
+        const raw = sub(input.p, drag.origin);
+        const target = { x: Math.round(raw.x / step) * step, y: Math.round(raw.y / step) * step };
+        const by = sub(target, drag.applied);
+        if (by.x || by.y) {
+          edit((d) => moveArea(d.plan, drag.id, by));
+          setTool({ ...tool, drag: { ...drag, applied: target } });
+        }
       } else if (drag.kind === 'column') {
         const at = sub(input.p, drag.grab);
         const step = snapping(input) ? ui().grid : 1;
@@ -265,6 +307,43 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
       if (e.key === 'Enter' && hasTyped(tool.entry)) {
         const cursor = ui().cursor;
         rectTo(tool, rectCorner(tool.start, cursor?.point ?? tool.start, tool.entry), { alt: cursor?.kind === 'free', radius: 1 });
+        return true;
+      }
+      return false;
+    },
+  },
+
+  drawArea: {
+    down(tool, input) {
+      const last = tool.mode === 'poly' ? tool.points[tool.points.length - 1] : tool.start;
+      const s = snap(input, { from: last ?? undefined });
+      const typed = hasTyped(tool.entry) && last;
+      const p = !typed ? s.point : tool.mode === 'box' ? rectCorner(last, s.point, tool.entry) : wallEnd(last, s.point, tool.entry);
+      areaPointTo(tool, p, input.radius);
+    },
+    move(tool, input) {
+      const last = tool.mode === 'poly' ? tool.points[tool.points.length - 1] : tool.start;
+      ui().set({ cursor: snap(input, { from: last ?? undefined }) });
+    },
+    key(tool, e) {
+      const drawing = tool.mode === 'box' ? !!tool.start : tool.points.length > 0;
+      if (e.key === 'Escape') {
+        // Enough points make an area even when the loop was never closed; fewer are dropped.
+        if (!finishArea()) setTool(drawing ? { ...tool, start: null, points: [], entry: EMPTY_ENTRY } : SELECT);
+        return true;
+      }
+      if (e.key === 'Enter' && !hasTyped(tool.entry)) return finishArea();
+      if (!drawing) return false;
+      const fields = tool.mode === 'box' ? ENTRY_FIELDS.drawRoomRect : ENTRY_FIELDS.drawWall;
+      const entry = entryKey(tool.entry, fields, e);
+      if (entry) {
+        setTool({ ...tool, entry });
+        return true;
+      }
+      if (e.key === 'Enter' && hasTyped(tool.entry)) {
+        const last = (tool.mode === 'poly' ? tool.points[tool.points.length - 1] : tool.start)!;
+        const at = ui().cursor?.point ?? last;
+        areaPointTo(tool, tool.mode === 'box' ? rectCorner(last, at, tool.entry) : wallEnd(last, at, tool.entry), 1);
         return true;
       }
       return false;
@@ -531,6 +610,9 @@ function deleteOne(d: Project, sel: Selection): void {
     case 'column':
       delete d.columns[sel.id];
       break;
+    case 'area':
+      delete d.plan.areas?.[sel.id];
+      break;
   }
 }
 
@@ -552,6 +634,11 @@ export function duplicateSelection(): void {
         const copy = { ...c, id: newId('col'), x: c.x + 1000, y: c.y };
         d.columns[copy.id] = copy;
         made.push({ kind: 'column', id: copy.id });
+      } else if (s.kind === 'area') {
+        const a = d.plan.areas?.[s.id];
+        if (!a) continue;
+        const id = addArea(d.plan, a.points.map((p) => ({ x: p.x + 500, y: p.y + 500 })), { name: `${a.name} (สำเนา)`, color: a.color, height: a.height });
+        made.push({ kind: 'area', id });
       }
     }
   });

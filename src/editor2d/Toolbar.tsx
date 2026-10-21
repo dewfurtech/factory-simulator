@@ -10,6 +10,9 @@ const PATHS: Record<string, string> = {
   drawWall: 'M4 20V4h16 M8 20V8h12',
   glassWall: 'M4 4h16v16H4z M12 4v16 M7 9l3-3 M14 16l3-3',
   drawRoomRect: 'M4 6h16v12H4z M18 16l3 3',
+  areaBox: 'M4 5h4 M12 5h4 M20 5v4 M20 13v4 M4 9v4 M4 17v2h2 M10 19h4 M18 19h2 M8 9h8v6H8z',
+  areaPoly: 'M5 6l9-2 5 6-3 9-10-1z M5 6a1.5 1.5 0 1 0 .01 0 M14 4a1.5 1.5 0 1 0 .01 0 M19 10a1.5 1.5 0 1 0 .01 0 M16 19a1.5 1.5 0 1 0 .01 0 M6 18a1.5 1.5 0 1 0 .01 0',
+  island: 'M3 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0 M6 13c1.5-1 3-1 4.5 0 M12 5c2 0 4 2 4 5v3H8v-3c0-3 2-5 4-5z M12 5v8',
   rect: 'M4 5h16v14H4z',
   L: 'M4 4h8v8h8v8H4z',
   U: 'M4 4h5v9h6V4h5v16H4z',
@@ -124,6 +127,22 @@ const ROOM_ITEMS: Item[] = [
   ),
 ];
 
+const AREA_ITEMS: Item[] = [
+  { id: 'areaBox', label: 'กล่องพื้นที่ (คลิก 2 มุม)', tool: () => ({ kind: 'drawArea', mode: 'box', start: null, points: [], entry: EMPTY_ENTRY }), isOn: (t) => t.kind === 'drawArea' && t.mode === 'box', testId: 'tool-areaBox' },
+  { id: 'areaPoly', label: 'วาดพื้นที่ทีละจุด (ปิดรอบเอง)', tool: () => ({ kind: 'drawArea', mode: 'poly', start: null, points: [], entry: EMPTY_ENTRY }), isOn: (t) => t.kind === 'drawArea' && t.mode === 'poly', testId: 'tool-areaPoly' },
+];
+
+/** The area flyout's footer: one switch that takes every area out of both views and brings them back. */
+function AreasVisible() {
+  const hidden = useUi((s) => s.areasHidden);
+  return (
+    <button className={`flyout-foot${hidden ? ' on' : ''}`} role="menuitemcheckbox" aria-checked={hidden} onClick={() => useUi.getState().set({ areasHidden: !hidden })} data-testid="areas-hidden">
+      <Icon name={hidden ? 'eyeOff' : 'eye'} />
+      <span>{hidden ? 'ซ่อนพื้นที่ทั้งหมดอยู่ · คลิกเพื่อแสดง' : 'ซ่อนพื้นที่ทั้งหมด'}</span>
+    </button>
+  );
+}
+
 const OPENING_ITEMS: Item[] = OPENING_PRESET_IDS.map(
   (id: OpeningPresetId): Item => ({
     id,
@@ -234,6 +253,7 @@ export function Toolbar() {
       <hr />
       <ToolGroup id="wall" text="ผนัง" label="ผนัง" items={WALL_ITEMS} {...group('wall')} />
       <ToolGroup id="room" text="โซน" label="ห้อง / โซน" items={ROOM_ITEMS} {...group('room')} />
+      <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (กล่องโปร่งแสง)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
       <ToolGroup id="opening" text="ประตู" label="ประตู / หน้าต่าง" items={OPENING_ITEMS} {...group('opening')} />
       <ToolGroup id="column" text="เสา" label="เสา" items={COLUMN_ITEMS} {...group('column')} />
       <hr />

@@ -6,7 +6,7 @@ import { roomPolygon } from '../model/plan';
 import { bounds, pointInPolygon } from '../model/vec';
 import type { Agent, Engine } from '../sim/engine';
 import { MACHINE_STATES } from '../sim/activities';
-import { buildBuilding, buildZoneLabels } from './building3d';
+import { buildAreas, buildBuilding, buildIsland, buildZoneLabels } from './building3d';
 import { builtinGeometry } from './furniture3d';
 import { disposeTree, FLAT, LABEL_LAYER } from './lowpoly';
 import { hasModel, liveMachine, machineObject, type LiveMachine } from './machines3d';
@@ -27,6 +27,10 @@ export interface SceneOptions {
   paths: boolean;
   /** Smooth PBR materials, detailed people, soft shadows and ambient occlusion instead of the low-poly look. */
   realistic: boolean;
+  /** Ground as an island around the building (sky all round) instead of the endless plane. */
+  island: boolean;
+  /** Areas (the translucent boxes) shown at all. */
+  areas: boolean;
 }
 
 export interface Picked {
@@ -46,6 +50,8 @@ export class FactoryScene {
   private objects = new THREE.Group();
   private people = new THREE.Group();
   private overlay = new THREE.Group();
+  private areas = new THREE.Group();
+  private island: THREE.Mesh | null = null;
   private persons = new Map<string, PersonMesh | RealPersonMesh>();
   private hemi = new THREE.HemisphereLight('#ffffff', '#b7c0c8', 1.7);
   private ground: THREE.Mesh;
@@ -58,7 +64,7 @@ export class FactoryScene {
   private pathLines = new Map<string, { path: THREE.Line; trail: THREE.Line }>();
   private project: Project | null = null;
   private engine: Engine | null = null;
-  private opts: SceneOptions = { cutaway: false, shadows: false, names: true, paths: false, realistic: false };
+  private opts: SceneOptions = { cutaway: false, shadows: false, names: true, paths: false, realistic: false, island: false, areas: true };
   private selectedAgent: string | null = null;
   private selectedObject: Id | null = null;
   private dirty = true;
@@ -86,7 +92,7 @@ export class FactoryScene {
     ground.receiveShadow = true;
     ground.name = 'ground';
     this.ground = ground;
-    this.scene.add(ground, this.building, this.labels, this.objects, this.people, this.overlay);
+    this.scene.add(ground, this.building, this.labels, this.areas, this.objects, this.people, this.overlay);
     this.camera.position.set(30, 35, 55);
     this.camera.layers.enable(LABEL_LAYER);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -124,6 +130,8 @@ export class FactoryScene {
       for (const [id, node] of this.objectMeshes) node.visible = this.shows(this.objectKeys.get(id)!);
     }
     if (before.realistic !== this.opts.realistic) this.setLook(this.opts.realistic);
+    if (before.island !== this.opts.island && this.project) this.rebuildGround(this.project);
+    this.areas.visible = this.opts.areas;
     const shadows = this.opts.shadows || this.opts.realistic;
     this.renderer.shadowMap.enabled = shadows;
     this.sun.castShadow = shadows;
@@ -153,7 +161,8 @@ export class FactoryScene {
     this.sun.shadow.normalBias = on ? 0.03 : 0;
     this.sun.shadow.map?.dispose();
     this.sun.shadow.map = null;
-    (this.ground.material as THREE.MeshLambertMaterial).color.set(on ? '#7d8275' : '#d5dbd2');
+    (this.ground.material as THREE.MeshLambertMaterial).color.set(this.groundColor(on));
+    if (this.project) this.rebuildGround(this.project);
     applyLook(this.scene, on);
     if (on && !this.pipeline) {
       this.pipeline = new RealPipeline(r, this.scene, this.camera);
@@ -184,6 +193,7 @@ export class FactoryScene {
     this.project = p;
     if (!prev || prev.plan !== p.plan || prev.columns !== p.columns || prev.upper !== p.upper) this.rebuildBuilding(p);
     if (!prev || prev.objects !== p.objects) this.syncObjects(p.objects);
+    if (!prev || prev.plan !== p.plan || prev.columns !== p.columns || prev.upper !== p.upper || prev.objects !== p.objects) this.rebuildGround(p);
     if (!this.framed) {
       this.frame();
       this.framed = true;
@@ -191,12 +201,38 @@ export class FactoryScene {
     this.dirty = true;
   }
 
+  private groundColor(realistic: boolean) {
+    return realistic ? '#7d8275' : '#d5dbd2';
+  }
+
+  /** The endless plane, or the island slab under everything there is; the plane is what an empty plan stands on. */
+  private rebuildGround(p: Project) {
+    if (this.island) {
+      this.scene.remove(this.island);
+      disposeTree(this.island);
+      this.island = null;
+    }
+    this.island = this.opts.island ? buildIsland(p, this.groundColor(this.opts.realistic)) : null;
+    if (this.island) {
+      if (this.opts.realistic) applyLook(this.island, true);
+      this.scene.add(this.island);
+    }
+    this.ground.visible = !this.island;
+    this.dirty = true;
+  }
+
   private rebuildBuilding(p: Project) {
-    for (const g of [this.building, this.labels]) {
+    for (const g of [this.building, this.labels, this.areas]) {
       disposeTree(g);
       g.clear();
     }
     this.building.add(buildBuilding(p.plan, p.columns, { cutaway: this.opts.cutaway ? LOW_WALL : null }));
+    this.areas.add(buildAreas(p.plan));
+    if (p.upper) {
+      const up = buildAreas(p.upper.plan);
+      up.position.y = p.upper.z * M + 0.005;
+      this.areas.add(up);
+    }
     const ground = buildZoneLabels(p.plan);
     // Names of ground-floor rooms under the second floor would show through it; they come back with the cutaway.
     if (p.upper && !this.opts.cutaway) {
@@ -559,7 +595,7 @@ export class FactoryScene {
     const cam = this.camera.position;
     const v = new THREE.Vector3();
     const items: { s: THREE.Sprite; x: number; y: number; w: number; h: number; f: number }[] = [];
-    this.labels.traverseVisible((o) => {
+    const collect = (o: THREE.Object3D) => {
       const base = o.userData.baseScale as THREE.Vector3 | undefined;
       if (!base) return;
       o.getWorldPosition(v);
@@ -567,7 +603,9 @@ export class FactoryScene {
       v.project(this.camera);
       if (v.z > 1) return;
       items.push({ s: o as THREE.Sprite, x: ((v.x + 1) / 2) * el.clientWidth, y: ((1 - v.y) / 2) * H, w: base.x * k, h: base.y * k, f: 1 });
-    });
+    };
+    this.labels.traverseVisible(collect);
+    this.areas.traverseVisible(collect);
     for (let i = 0; i < items.length; i++)
       for (let j = i + 1; j < items.length; j++) {
         const a = items[i];

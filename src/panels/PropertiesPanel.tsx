@@ -3,8 +3,9 @@ import { CATALOG, catalogItem, GROUP_LABEL, GROUP_ORDER } from '../model/catalog
 import { DOOR_STYLE_LABEL, isHanded, isSliding } from '../model/openings';
 import { moveCorner, roomStats, setWallAngle, setWallLength, wallDir, wallLength } from '../model/plan';
 import { projectFacts } from '../model/project';
-import type { Column, DoorStyle, OpeningKind, PlacedObject, Project, ZoneKind } from '../model/types';
+import type { Area, Column, DoorStyle, OpeningKind, PlacedObject, Project, ZoneKind } from '../model/types';
 import { ZONE_IDS, ZONES, zoneColor } from '../model/zones';
+import { AREA_COLORS, areaStats } from '../model/areas';
 import { applyEdit, useEditProject } from '../store/project';
 import { useUi, type Selection } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
@@ -222,6 +223,53 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
                 <span>ชิ้นในโซน</span>
               </div>
             </div>
+          </div>
+        </>
+      );
+    }
+    case 'area': {
+      const a = plan.areas?.[sel.id];
+      if (!a) return null;
+      const st = areaStats(a);
+      const set = (recipe: (x: Area) => void) =>
+        applyEdit((d) => {
+          const x = d.plan.areas?.[sel.id];
+          if (x) recipe(x);
+        });
+      return (
+        <>
+          <Header icon="areaBox" title={a.name} sub={`พื้นที่ · ${fmtArea(st.area)}`} actions />
+          <div className="panel-body">
+            <TextField label="ชื่อพื้นที่" value={a.name} onChange={(v) => set((x) => void (x.name = v))} />
+            <Field label="สี">
+              <div className="color-chips" data-testid="area-colors">
+                {AREA_COLORS.map((c) => (
+                  <button key={c} type="button" className={`color-chip${a.color === c ? ' on' : ''}`} style={{ background: c }} onClick={() => set((x) => void (x.color = c))} aria-label={c} aria-pressed={a.color === c} />
+                ))}
+                <input type="color" value={a.color} onChange={(e) => set((x) => void (x.color = e.target.value))} aria-label="สีอื่น" />
+              </div>
+            </Field>
+            <div className="two">
+              <NumberField label="สูง (กล่องใน 3D)" value={a.height} scale={10} suffix="ซม." min={10} onChange={(v) => set((x) => void (x.height = v))} />
+            </div>
+            <div className="stats">
+              <div>
+                <b>{fmtArea(st.area)}</b>
+                <span>พื้นที่</span>
+              </div>
+              <div>
+                <b>{fmtSize(st.width, st.depth)}</b>
+                <span>ขนาดรวม</span>
+              </div>
+              <div>
+                <b>{a.points.length}</b>
+                <span>มุม</span>
+              </div>
+            </div>
+            <button className="btn btn-sm" onClick={duplicateSelection} title="Ctrl+D">
+              <Icon name="copy" /> ทำสำเนา
+            </button>
+            <p className="muted small">ลากพื้นที่บนแปลนเพื่อย้าย · ซ่อน/ล็อกได้ที่แผงเลเยอร์ · ปุ่ม "พื้นที่" บนแถบเครื่องมือซ่อนพื้นที่ทั้งหมดได้</p>
           </div>
         </>
       );

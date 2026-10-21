@@ -11,11 +11,14 @@ export type Selection =
   | { kind: 'room'; id: Id }
   | { kind: 'opening'; id: Id }
   | { kind: 'object'; id: Id }
-  | { kind: 'column'; id: Id };
+  | { kind: 'column'; id: Id }
+  | { kind: 'area'; id: Id };
 
 export type Drag =
   | { kind: 'corner'; id: Id }
   | { kind: 'wall'; id: Id; origin: Vec2; applied: Mm }
+  /** An area slides as a whole; `applied` is how far it has moved from where the drag began. */
+  | { kind: 'area'; id: Id; origin: Vec2; applied: Vec2 }
   | { kind: 'opening'; id: Id }
   | { kind: 'object'; id: Id; grab: Vec2 }
   | { kind: 'column'; id: Id; grab: Vec2 }
@@ -28,6 +31,8 @@ export type Tool =
   | { kind: 'select'; drag: Drag | null }
   | { kind: 'drawWall'; last: Vec2 | null; entry: Entry; glass: boolean }
   | { kind: 'drawRoomRect'; start: Vec2 | null; entry: Entry }
+  /** Marks out an area: a box from two corners, or point by point until the outline closes. */
+  | { kind: 'drawArea'; mode: 'box' | 'poly'; start: Vec2 | null; points: Vec2[]; entry: Entry }
   | { kind: 'placePreset'; preset: ShapePresetId; w: Mm; d: Mm; entry: Entry }
   | { kind: 'placeObject'; assetId: string }
   | { kind: 'addOpening'; preset: OpeningPresetId; hingeEnd: boolean; openB: boolean }
@@ -58,6 +63,10 @@ interface UiState {
   shadows: boolean;
   /** 3D in the realistic look (PBR, AO) rather than low poly. */
   realistic: boolean;
+  /** 3D ground as an island around the building rather than an endless plane; the plane comes back while drawing. */
+  island: boolean;
+  /** Every area out of sight in both views, without touching the areas' own flags. */
+  areasHidden: boolean;
   /** A request from the layers panel to bring the views to this thing; n makes each request distinct. */
   goto: { sel: Selection; n: number } | null;
   /** Selects something and asks the open views to move to it. */
@@ -86,6 +95,9 @@ export function rememberRealistic(on: boolean) {
 
 export const SELECT: Tool = { kind: 'select', drag: null };
 
+/** Tools that put down walls, rooms or areas: while one is active the 3D ground shows whole, not as an island. */
+export const DRAWING_TOOLS: ReadonlySet<ToolKind> = new Set<ToolKind>(['drawWall', 'drawRoomRect', 'drawArea', 'placePreset', 'columnGrid']);
+
 export const useUi = create<UiState>((set) => ({
   view: '2d',
   tool: SELECT,
@@ -100,6 +112,8 @@ export const useUi = create<UiState>((set) => ({
   cutaway: true,
   shadows: false,
   realistic: storedRealistic(),
+  island: true,
+  areasHidden: false,
   goto: null,
   goTo: (sel) => set((s) => ({ selection: sel, boxed: [], goto: { sel, n: (s.goto?.n ?? 0) + 1 } })),
   set: (patch) => set('selection' in patch && !('boxed' in patch) ? { ...patch, boxed: [] } : patch),

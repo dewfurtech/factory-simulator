@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { fmtLen, fmtSize } from '../format';
+import { fmtArea, fmtLen, fmtSize } from '../format';
+import { areaStats, planAreas } from '../model/areas';
 import { isMachine } from '../model/catalog';
 import { onLevel, viewLevel } from '../model/levels';
 import { wallLength } from '../model/plan';
@@ -9,17 +10,18 @@ import { useUi, type Selection } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
 
 type Flag = keyof LayerFlags;
-type Group = 'room' | 'wall' | 'opening' | 'column' | 'machine' | 'equipment';
+type Group = 'room' | 'area' | 'wall' | 'opening' | 'column' | 'machine' | 'equipment';
 
 const GROUP_LABEL: Record<Group, string> = {
   room: 'ห้อง / โซน',
+  area: 'พื้นที่',
   wall: 'ผนัง',
   opening: 'ประตู / หน้าต่าง',
   column: 'เสา',
   machine: 'เครื่องจักร',
   equipment: 'อุปกรณ์',
 };
-const GROUP_ORDER: Group[] = ['room', 'wall', 'opening', 'column', 'machine', 'equipment'];
+const GROUP_ORDER: Group[] = ['room', 'area', 'wall', 'opening', 'column', 'machine', 'equipment'];
 const OPENING_LABEL: Record<OpeningKind, string> = { door: 'ประตู', window: 'หน้าต่าง', opening: 'ช่องเปิด' };
 
 interface Row {
@@ -32,8 +34,9 @@ interface Row {
 /** Everything on the edited floor, grouped the way the layers panel lists it. */
 function rows(p: Project): Record<Group, Row[]> {
   const { plan } = p;
-  const out: Record<Group, Row[]> = { room: [], wall: [], opening: [], column: [], machine: [], equipment: [] };
+  const out: Record<Group, Row[]> = { room: [], area: [], wall: [], opening: [], column: [], machine: [], equipment: [] };
   for (const r of Object.values(plan.rooms)) out.room.push({ sel: { kind: 'room', id: r.id }, name: r.name || 'ห้อง', note: r.outdoor ? 'กลางแจ้ง' : '', flags: r });
+  for (const a of planAreas(plan)) out.area.push({ sel: { kind: 'area', id: a.id }, name: a.name || 'พื้นที่', note: fmtArea(areaStats(a).area), flags: a });
   let n = 0;
   for (const w of Object.values(plan.walls)) out.wall.push({ sel: { kind: 'wall', id: w.id }, name: `${w.glass ? 'ผนังกระจก' : 'ผนัง'} ${++n}`, note: fmtLen(wallLength(plan, w)), flags: w });
   const counts: Record<OpeningKind, number> = { door: 0, window: 0, opening: 0 };
@@ -58,7 +61,7 @@ function setFlag(sels: Selection[], flag: Flag, on: boolean) {
   applyEdit((d) => {
     for (const sel of sels) {
       const x: LayerFlags | undefined =
-        sel.kind === 'object' ? d.objects.find((o) => o.id === sel.id) : sel.kind === 'column' ? d.columns[sel.id] : sel.kind === 'wall' ? d.plan.walls[sel.id] : sel.kind === 'room' ? d.plan.rooms[sel.id] : undefined;
+        sel.kind === 'object' ? d.objects.find((o) => o.id === sel.id) : sel.kind === 'column' ? d.columns[sel.id] : sel.kind === 'wall' ? d.plan.walls[sel.id] : sel.kind === 'room' ? d.plan.rooms[sel.id] : sel.kind === 'area' ? d.plan.areas?.[sel.id] : undefined;
       if (!x) continue;
       if (on) x[flag] = true;
       else delete x[flag];

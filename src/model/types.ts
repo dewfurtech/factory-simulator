@@ -86,11 +86,27 @@ export interface Opening {
   entrance?: boolean;
 }
 
+/**
+ * A marked-out floor area: a named translucent box standing on the floor, apart from the walls and rooms.
+ * Its outline is free points, not wall corners, so it can cross walls and rooms.
+ */
+export interface Area extends LayerFlags {
+  id: Id;
+  name: string;
+  /** Closed outline in plan coordinates, in drawing order. */
+  points: Vec2[];
+  color: string;
+  /** Height of the box in 3D. */
+  height: Mm;
+}
+
 export interface Plan {
   corners: Record<Id, Corner>;
   walls: Record<Id, Wall>;
   rooms: Record<Id, Room>;
   openings: Record<Id, Opening>;
+  /** Absent on plans saved before areas existed. */
+  areas?: Record<Id, Area>;
 }
 
 export interface Size3 {

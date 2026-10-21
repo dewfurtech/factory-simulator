@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { wallFootprints } from '../model/miter';
 import { roomLabelPoint, roomPolygon, wallDir } from '../model/plan';
-import type { Column, Id, Plan, Vec2 } from '../model/types';
-import { dot, pointInPolygon, signedArea, sub } from '../model/vec';
+import type { Column, Id, Plan, Project, Vec2 } from '../model/types';
+import { bounds, dot, pointInPolygon, signedArea, sub } from '../model/vec';
+import { planAreas } from '../model/areas';
 import { zoneColor } from '../model/zones';
 import { GLASS, paint, textSprite } from './lowpoly';
 
@@ -173,6 +174,76 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
   if (wallMesh) wallMesh.userData.wall = true;
   add(glass, GLASS, false);
   return group;
+}
+
+/**
+ * Areas as translucent boxes in their own colors, each with a crisp outline and its name floating over it.
+ * Kept apart from the building so the realistic look leaves their see-through materials alone.
+ */
+export function buildAreas(plan: Plan): THREE.Group {
+  const g = new THREE.Group();
+  g.name = 'areas';
+  for (const a of planAreas(plan)) {
+    if (a.hidden || a.points.length < 3) continue;
+    const box = prism(a.points, 0, a.height, a.color);
+    if (!box) continue;
+    const mat = new THREE.MeshLambertMaterial({ color: a.color, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(box, mat);
+    mesh.renderOrder = 2;
+    mesh.userData.areaId = a.id;
+    g.add(mesh);
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box, 1), new THREE.LineBasicMaterial({ color: a.color, transparent: true, opacity: 0.8 }));
+    edges.renderOrder = 3;
+    g.add(edges);
+    const b = bounds(a.points);
+    const s = textSprite(a.name, { height: Math.min(0.9, Math.max(0.5, Math.sqrt(Math.abs(signedArea(a.points))) / 14000)), color: '#ffffff', bg: a.color });
+    s.position.set(((b.min.x + b.max.x) / 2) * M, a.height * M + 0.35, ((b.min.y + b.max.y) / 2) * M);
+    s.userData.baseScale = s.scale.clone();
+    g.add(s);
+  }
+  return g;
+}
+
+/**
+ * The ground as an island: a slab under the building and everything standing around it, with a margin,
+ * rounded at the corners. Null when there is nothing yet to stand on it.
+ */
+export function buildIsland(p: Project, color: string): THREE.Mesh | null {
+  const pts: Vec2[] = [...Object.values(p.plan.corners), ...Object.values(p.columns), ...p.objects, ...planAreas(p.plan).flatMap((a) => a.points)];
+  if (p.upper) pts.push(...Object.values(p.upper.plan.corners));
+  if (pts.length < 2) return null;
+  const b = bounds(pts);
+  const margin = Math.max(6000, Math.min(12000, (Math.max(b.max.x - b.min.x, b.max.y - b.min.y) * 0.15)));
+  const x0 = (b.min.x - margin) * M;
+  const x1 = (b.max.x + margin) * M;
+  const z0 = (b.min.y - margin) * M;
+  const z1 = (b.max.y + margin) * M;
+  const r = Math.min(margin * M * 0.6, (x1 - x0) / 4, (z1 - z0) / 4);
+  const shape = new THREE.Shape();
+  // Plan y runs down the screen; shape y is -plan y so the extrusion lies flat the right way up.
+  shape.moveTo(x0 + r, -z0);
+  shape.lineTo(x1 - r, -z0);
+  shape.quadraticCurveTo(x1, -z0, x1, -z0 - r);
+  shape.lineTo(x1, -z1 + r);
+  shape.quadraticCurveTo(x1, -z1, x1 - r, -z1);
+  shape.lineTo(x0 + r, -z1);
+  shape.quadraticCurveTo(x0, -z1, x0, -z1 + r);
+  shape.lineTo(x0, -z0 - r);
+  shape.quadraticCurveTo(x0, -z0, x0 + r, -z0);
+  const depth = 0.8;
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 6 });
+  g.rotateX(-Math.PI / 2);
+  g.translate(0, -0.03 - depth, 0);
+  const painted = paint(g, color);
+  // The slab's edge is darker earth under the grass-colored top.
+  const n = painted.attributes.normal;
+  const c = painted.attributes.color;
+  const side = new THREE.Color(color).multiplyScalar(0.72);
+  for (let i = 0; i < n.count; i++) if (n.getY(i) < 0.5) c.setXYZ(i, side.r, side.g, side.b);
+  const mesh = new THREE.Mesh(painted, new THREE.MeshLambertMaterial({ vertexColors: true }));
+  mesh.receiveShadow = true;
+  mesh.name = 'island';
+  return mesh;
 }
 
 /** Room names floating over each zone. */

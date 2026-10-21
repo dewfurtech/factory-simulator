@@ -14,8 +14,9 @@ import { useUi, type Selection, type Tool } from '../store/ui';
 import { CalibrateInput, CalibrateOverlay, UnderlayImage } from './Underlay';
 import { underlayRect } from '../model/underlay';
 import { locate } from '../model/locate';
+import { areaCenter, areaStats, boxOutline, extendOutline, planAreas } from '../model/areas';
 import { columnOutline, hitTest, isCrossing, isOutdoor, SNAP_PX } from './hit';
-import { addDoorAt, columnGridPoints, dispatchPointer, objectAt, placeObjectAt, presetOutline, roomOutline } from './tools';
+import { addDoorAt, columnGridPoints, dispatchPointer, finishArea, objectAt, placeObjectAt, presetOutline, roomOutline } from './tools';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
 
 export const ASSET_MIME = 'application/x-factory-asset';
@@ -143,7 +144,10 @@ export function PlanEditor() {
   const lastDown = useRef<{ t: number } | null>(null);
   const onDoubleClick = (e: React.MouseEvent) => {
     const at = firstClick.current ?? input(e);
-    if (e.button !== 0 || useUi.getState().tool.kind !== 'select') return;
+    if (e.button !== 0) return;
+    // Drawing an area point by point, a double-click closes it where it stands.
+    if (finishArea()) return;
+    if (useUi.getState().tool.kind !== 'select') return;
     const hit = hitTest(editProject(), at.p, at.radius);
     if (hit && hit.kind !== 'wall' && hit.kind !== 'room') return;
     addDoorAt(at.p, at.radius);
@@ -223,6 +227,7 @@ export function PlanEditor() {
         </g>
         <PlanBase {...shared} />
         <ObjectLayer objects={objects} outdoor={false} {...shared} />
+        <AreaLayer {...shared} />
         <ColumnLayer columns={columns} {...shared} />
         <PlanLabels onEditDim={onEditDim} {...shared} />
         <ToolOverlay px={livePx} />
@@ -405,6 +410,34 @@ const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim }: 
   );
 });
 
+/** Areas: translucent boxes in their own color over the floor and whatever stands in them, named in the middle. */
+const AreaLayer = memo(function AreaLayer({ plan, selection, marked, px }: LayerProps) {
+  const allHidden = useUi((s) => s.areasHidden);
+  if (allHidden) return null;
+  const selArea = selId(selection, 'area');
+  return (
+    <>
+      {planAreas(plan)
+        .sort((a, b) => areaStats(b).area - areaStats(a).area)
+        .map((a) => {
+          const sel = selArea === a.id || marked.has(a.id);
+          const c = areaCenter(a);
+          const st = areaStats(a);
+          return (
+            <g key={a.id} opacity={a.hidden ? 0.15 : undefined} data-testid={`area-${a.id}`}>
+              <polygon points={pts(a.points)} fill={a.color} fillOpacity={sel ? 0.3 : 0.16} stroke={sel ? 'var(--select)' : a.color} strokeWidth={(sel ? 3 : 1.5) * px} strokeLinejoin="round" />
+              {st.width > 40 * px && (
+                <text x={c.x} y={c.y} fontSize={13 * px} fontWeight={700} textAnchor="middle" dominantBaseline="middle" fill={a.color} stroke="var(--canvas)" strokeWidth={3 * px} paintOrder="stroke" pointerEvents="none">
+                  {a.name}
+                </text>
+              )}
+            </g>
+          );
+        })}
+    </>
+  );
+});
+
 const ColumnLayer = memo(function ColumnLayer({ columns, selection, marked, px }: LayerProps & { columns: Record<Id, Column> }) {
   return (
     <>
@@ -544,6 +577,33 @@ function ToolOverlay({ px }: { px: number }) {
     return <polygon points={pts(roomOutline([a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }], placing))} {...ghost} />;
   }
   if (tool.kind === 'placePreset') return <polygon points={pts(roomOutline(presetOutline(tool, p), placing))} {...ghost} />;
+  if (tool.kind === 'drawArea') {
+    const area = { fill: '#2563eb', fillOpacity: 0.14, stroke: '#2563eb', strokeWidth: 1.5 * px, pointerEvents: 'none' as const };
+    if (tool.mode === 'box') return tool.start ? <polygon points={pts(boxOutline(tool.start, rectCorner(tool.start, p, tool.entry)))} {...area} /> : null;
+    if (!tool.points.length) return null;
+    const last = tool.points[tool.points.length - 1];
+    const e = wallEnd(last, p, tool.entry);
+    const ext = extendOutline(tool.points, e, SNAP_PX * px);
+    const first = tool.points[0];
+    return (
+      <g pointerEvents="none">
+        {ext.closed ? (
+          // The next click closes it: show the box it would make, cut where the new edge crosses an earlier one.
+          <polygon points={pts(ext.points)} {...area} strokeDasharray={`${6 * px} ${4 * px}`} />
+        ) : (
+          <>
+            {tool.points.length >= 2 && <polygon points={pts([...tool.points, e])} fill="#2563eb" fillOpacity={0.07} stroke="none" />}
+            <line x1={e.x} y1={e.y} x2={first.x} y2={first.y} stroke="#2563eb" strokeWidth={px} strokeDasharray={`${4 * px} ${4 * px}`} opacity={0.6} />
+          </>
+        )}
+        <polyline points={pts(tool.points)} fill="none" stroke="#2563eb" strokeWidth={2 * px} strokeLinejoin="round" />
+        <line x1={last.x} y1={last.y} x2={e.x} y2={e.y} stroke="#2563eb" strokeWidth={2 * px} />
+        {tool.points.map((q, i) => (
+          <circle key={i} cx={q.x} cy={q.y} r={(i === 0 ? 5 : 3) * px} fill={i === 0 ? '#2563eb' : '#fff'} stroke="#2563eb" strokeWidth={1.5 * px} />
+        ))}
+      </g>
+    );
+  }
   if (tool.kind === 'placeColumn') return <polygon points={pts(columnOutline({ ...tool.spec, x: p.x, y: p.y, rotation: 0 }))} {...ghost} />;
   if (tool.kind === 'columnGrid') {
     const ps = tool.start ? columnGridPoints(tool.start, p, tool.spacing) : [p];
@@ -588,6 +648,16 @@ function entryState(tool: Tool, p: Vec2): { fields: EntryField[]; entry: Entry; 
     return { fields: ENTRY_FIELDS.drawRoomRect, entry: tool.entry, live: [Math.abs(b.x - tool.start.x) / 10, Math.abs(b.y - tool.start.y) / 10], at: b };
   }
   if (tool.kind === 'placePreset') return { fields: ENTRY_FIELDS.placePreset, entry: tool.entry, live: [tool.w / 10, tool.d / 10], at: p };
+  if (tool.kind === 'drawArea' && tool.mode === 'box' && tool.start) {
+    const b = rectCorner(tool.start, p, tool.entry);
+    return { fields: ENTRY_FIELDS.drawRoomRect, entry: tool.entry, live: [Math.abs(b.x - tool.start.x) / 10, Math.abs(b.y - tool.start.y) / 10], at: b };
+  }
+  if (tool.kind === 'drawArea' && tool.mode === 'poly' && tool.points.length) {
+    const last = tool.points[tool.points.length - 1];
+    const e = wallEnd(last, p, tool.entry);
+    const d = { x: e.x - last.x, y: e.y - last.y };
+    return { fields: ENTRY_FIELDS.drawWall, entry: tool.entry, live: [Math.hypot(d.x, d.y) / 10, planDeg(d)], at: e };
+  }
   return null;
 }
 
@@ -639,6 +709,7 @@ const HINTS: Record<string, string> = {
   drawWall: 'คลิกเพื่อวางจุด • พิมพ์ความยาว (ซม.) • Tab แล้วพิมพ์มุม (°) • Enter วางผนัง • Esc จบ',
   drawRoomRect: 'คลิกมุมแรก แล้วคลิกมุมตรงข้าม หรือพิมพ์กว้าง • Tab • ลึก (ซม.) แล้ว Enter',
   placePreset: 'พิมพ์กว้าง • Tab • ลึก (ซม.) แล้วคลิกเพื่อวางโซน',
+  drawArea: 'กล่อง: คลิก 2 มุม • ทีละจุด: คลิกวางจุด กลับมาจุดแรกหรือลากตัดเส้นเดิมเพื่อปิดรอบ • Enter / ดับเบิลคลิก ปิดรอบตรงนี้ • Esc จบ',
   placeObject: 'คลิกเพื่อวาง (ติดผนังให้เอง) • วางต่อได้หลายตัว • Alt = ไม่ติดผนัง • Esc จบ',
   addOpening: 'คลิกบนผนังเพื่อวาง • ขยับเมาส์ไปฝั่งที่ต้องการให้ประตูเปิด • กด F สลับด้านบานพับ',
   placeColumn: 'คลิกเพื่อวางเสา (ติดตาราง) • วางต่อได้หลายต้น • Esc จบ',

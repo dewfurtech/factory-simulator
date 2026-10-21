@@ -3,8 +3,9 @@ import { obbCorners, objectObb } from '../model/objects';
 import { wallFootprint } from '../model/miter';
 import { roomOf, roomPolygon, wallDir } from '../model/plan';
 import type { Column, Mm, PlacedObject, Plan, Project, Vec2 } from '../model/types';
-import { add, dist, dot, fromAngle, perp, pointInPolygon, projectOnSegment, scale, segmentIntersect, sub } from '../model/vec';
-import type { Selection } from '../store/ui';
+import { add, dist, dot, fromAngle, perp, pointInPolygon, projectOnSegment, scale, segmentIntersect, signedArea, sub } from '../model/vec';
+import { planAreas } from '../model/areas';
+import { useUi, type Selection } from '../store/ui';
 
 /** Objects whose centre sits in no room draw and hit-test beneath the rooms. */
 export function isOutdoor(plan: Plan, o: PlacedObject): boolean {
@@ -50,6 +51,17 @@ export function hitTest(project: Project, p: Vec2, radius: Mm): Selection | null
   const indoor = hitObject(false);
   if (indoor) return indoor;
   for (const w of Object.values(plan.walls)) if (!off(w) && pointInPolygon(p, wallFootprint(plan, w.id))) return { kind: 'wall', id: w.id };
+  // Areas lie over the rooms; the smallest one under p wins, so an area inside another can be picked.
+  if (!useUi.getState().areasHidden) {
+    let area: Selection | null = null;
+    let size = Infinity;
+    for (const a of planAreas(plan)) {
+      if (off(a) || !pointInPolygon(p, a.points)) continue;
+      const s = Math.abs(signedArea(a.points));
+      if (s < size) [area, size] = [{ kind: 'area', id: a.id }, s];
+    }
+    if (area) return area;
+  }
   let room: Selection | null = null;
   let area = Infinity;
   for (const r of Object.values(plan.rooms)) {
@@ -104,6 +116,7 @@ export function boxSelect(project: Project, from: Vec2, to: Vec2): Selection[] {
   }
   for (const c of Object.values(project.columns)) if (!off(c) && caught(columnOutline(c))) out.push({ kind: 'column', id: c.id });
   for (const o of project.objects) if (!off(o) && onLevel(o, viewLevel(project)) && caught(obbCorners(objectObb(o)))) out.push({ kind: 'object', id: o.id });
+  if (!useUi.getState().areasHidden) for (const a of planAreas(plan)) if (!off(a) && caught(a.points)) out.push({ kind: 'area', id: a.id });
   return out;
 }
 

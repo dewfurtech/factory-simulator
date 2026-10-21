@@ -350,3 +350,11 @@ input[type='color'] { width: 44px; height: 30px; border: 1px solid var(--line-2)
 .lyr-flag:hover { background: rgba(15, 23, 42, 0.08); color: var(--ink); }
 .lyr-flag.on { color: var(--accent); }
 .lyr-flag svg { width: 15px; height: 15px; }
+
+/* Areas */
+.flyout .flyout-foot { margin-top: 4px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--ink-2); font-size: 12.5px; }
+.flyout .flyout-foot.on { background: var(--accent-soft); color: var(--ink); }
+.color-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.color-chip { width: 24px; height: 24px; border-radius: 7px; border: 2px solid transparent; cursor: pointer; padding: 0; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); }
+.color-chip.on { border-color: var(--ink); }
+.color-chips input[type='color'] { width: 32px; height: 26px; }
