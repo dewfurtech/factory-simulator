@@ -50,13 +50,12 @@ const keyOf = (u: Underlay, vector: boolean) => `${u.imageId}:${vector ? 'v' : u
 
 const pending = new Map<string, Promise<void>>();
 
-/** Reads the image's lines once per image and scale; a picture waits until its scale is known. */
+/** Reads the image's lines once per image and scale; a picture not yet to scale is read at the scale its doors suggest, and again once measured. */
 export async function ensureGuides(u: Underlay): Promise<void> {
     const drawing = await vectorPlanFor(u.imageId);
     const key = keyOf(u, !!drawing);
     if (useGuides.getState().key === key) return;
     if (pending.has(key)) return pending.get(key);
-    if (!drawing && !u.calibrated) return;
     const job = (async () => {
       useGuides.setState({ busy: true });
       try {

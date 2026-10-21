@@ -571,13 +571,16 @@ function CursorOverlay({ px }: { px: number }) {
 
 const DRAWING_TOOLS = new Set<Tool['kind']>(['drawRoomRect', 'drawWall', 'drawArea', 'placePreset', 'placeColumn', 'columnGrid']);
 
+/** Most guide lines drawn: a CAD drawing has tens of thousands, which would paint over the image it came from; the image itself shows them. */
+const SHOWN_GUIDES = 600;
+
 /** The plan image's lines the drawing snaps to, shown faintly while a drawing tool is out so it is clear where a corner will land. */
 function GuideLayer({ underlay, px }: { underlay: Underlay | undefined; px: number }) {
   const drawing = useUi((s) => DRAWING_TOOLS.has(s.tool.kind));
   const peek = useUi((s) => s.peek);
   const ready = useGuides((s) => s.key);
   const lines = useMemo(() => (drawing && !peek ? guideLines(underlay) : []), [drawing, peek, ready, underlay]);
-  if (!lines.length) return null;
+  if (!lines.length || lines.length > SHOWN_GUIDES) return null;
   return (
     <g stroke="#ea580c" strokeOpacity={0.35} strokeWidth={1.5 * px} strokeLinecap="round" pointerEvents="none" data-testid="plan-guides">
       {lines.map((l, i) => (

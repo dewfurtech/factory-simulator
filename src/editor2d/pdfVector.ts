@@ -37,6 +37,13 @@ export interface VectorBuild {
  * points to plan mm. Uses the underlay's scale once calibrated and reads it off the doors and column grid before.
  * Null when it isn't calibrated and the drawing has no doors to read a scale from. Mutates `project` (a draft).
  */
+/** The drawing's scale as mm per underlay image pixel, read off its doors and column grid; null when it has too few doors. */
+export function scaleFromVector(drawing: VectorPlan): { underlayMmPerPx: number; doors: number } | null {
+  const imp = readPdfPlan(drawing);
+  const s = readScale(drawing, imp.structure.openings);
+  return s && { underlayMmPerPx: s.mmPerPt / pdfPxPerPt(drawing), doors: s.doors };
+}
+
 export function buildFromVector(project: Project, u: Underlay, drawing: VectorPlan): VectorBuild | null {
   const imp = readPdfPlan(drawing);
   const pxPerPt = pdfPxPerPt(drawing);

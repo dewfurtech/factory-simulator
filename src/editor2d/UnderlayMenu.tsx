@@ -8,7 +8,7 @@ import { NumberField } from '../panels/fields';
 import { applyEdit, useProject } from '../store/project';
 import { useUi } from '../store/ui';
 import { useImport } from '../store/importProgress';
-import { buildFromVector, vectorPlanFor } from './pdfVector';
+import { buildFromVector, scaleFromVector, vectorPlanFor } from './pdfVector';
 import { RailButton } from './Toolbar';
 import { traceUnderlay } from './traceUnderlay';
 import { closeLooseEnds, mergeDoubledWalls } from '../model/trace/close';
@@ -29,9 +29,11 @@ type Status =
   | { kind: 'reading' }
   | { kind: 'tracing' }
   | { kind: 'ready' }
+  /** The plan placed and to scale: the user picks drawing over it or the automatic build. */
+  | { kind: 'choose' }
   | { kind: 'traced'; walls: number; doors: number; windows: number; scaleDoors: number }
   | { kind: 'built'; walls: number; doors: number; windows: number; columns: number; zones: number; machines: number; scaleDoors: number; gridPitch?: number }
-  | { kind: 'needScale'; then: 'draw' | 'build' }
+  | { kind: 'needScale'; then: 'choose' | 'build' }
   | { kind: 'failed'; message: string };
 
 const STYLE_LABEL: Record<WallStyle | 'auto', string> = { auto: 'อัตโนมัติ', solid: 'ทึบ / แรเงา', hollow: 'เส้นคู่', sketch: 'ร่างด้วยมือ' };
@@ -139,21 +141,29 @@ export function UnderlayMenu() {
   };
 
   /**
-   * What a plan just placed on an empty storey gets: a CAD drawing is built into walls by itself, as its lines are
-   * exact; a picture is only put to scale, then rooms are drawn over it by hand (the automatic build stays a button).
+   * What a plan just placed on an empty storey gets: it is put to scale (a CAD drawing reads its own off its doors,
+   * a picture is measured), then the user picks between drawing rooms over it and the automatic build. Nothing is
+   * built unasked.
    */
   const prepare = async (from: Underlay) => {
-    let drawing = false;
-    try {
-      drawing = !!(await vectorPlanFor(from.imageId));
-    } catch {
-      /* unreadable: treated as a picture */
-    }
-    if (drawing) return trace(from);
     useImport.getState().done();
     setOpen(true);
-    if (from.calibrated) return startDrawing();
-    setStatus({ kind: 'needScale', then: 'draw' });
+    if (from.calibrated) return setStatus({ kind: 'choose' });
+    let scale: ReturnType<typeof scaleFromVector> = null;
+    try {
+      const drawing = await vectorPlanFor(from.imageId);
+      if (drawing) scale = scaleFromVector(drawing);
+    } catch {
+      /* unreadable: measured like a picture */
+    }
+    if (scale) {
+      const { underlayMmPerPx } = scale;
+      applyEdit((d) => {
+        if (d.underlay?.imageId === from.imageId) Object.assign(d.underlay, { mmPerPx: underlayMmPerPx, calibrated: true });
+      });
+      return setStatus({ kind: 'choose' });
+    }
+    setStatus({ kind: 'needScale', then: 'choose' });
     measure();
   };
 
@@ -161,7 +171,7 @@ export function UnderlayMenu() {
   useEffect(() => {
     if (status.kind !== 'needScale' || !u?.calibrated) return;
     if (status.then === 'build') void trace(u);
-    else startDrawing();
+    else setStatus({ kind: 'choose' });
   }, [u?.calibrated, u?.mmPerPx]);
 
   // A plan image put on an empty storey from elsewhere (a project started from one) is prepared once, as an upload here is.
@@ -218,6 +228,26 @@ export function UnderlayMenu() {
       {note && (
         <div className={`ul-note glass${note.error ? ' error' : ''}`} title={note.tip} data-testid={note.testId}>
           {note.text}
+        </div>
+      )}
+      {status.kind === 'choose' && u && (
+        <div className="ul-choice glass" role="group" aria-label="แปลนพร้อมแล้ว" data-testid="underlay-choose">
+          <div className="ul-choice-title">แปลนพร้อมแล้ว · จะสร้างผนังแบบไหน?</div>
+          <div className="ul-choice-row">
+            <button className="ul-card primary" onClick={startDrawing} data-testid="choose-draw">
+              <Glyph name="room" />
+              <b>วาดห้องทับแปลน</b>
+              <span>ลากกรอบทับห้องทีละห้อง มุมดูดเข้าหาเส้นในรูป · แนะนำ ตรงกว่า</span>
+            </button>
+            <button className="ul-card" onClick={() => void trace(u)} data-testid="choose-auto">
+              <Glyph name="build" />
+              <b>สร้างผนังอัตโนมัติ</b>
+              <span>ให้แอปอ่านผนัง ประตู เสา จากแปลน · แก้ต่อได้ เลิกทำได้</span>
+            </button>
+          </div>
+          <button className="ul-choice-later" onClick={() => setStatus({ kind: 'idle' })} data-testid="choose-later">
+            ไว้ก่อน ดูแปลนเฉย ๆ
+          </button>
         </div>
       )}
       {more && u && (
@@ -358,11 +388,12 @@ function statusNote(status: Status): { text: string; tip?: string; error?: boole
       return { text: 'ลากกรอบทับห้องในแปลนทีละห้อง · มุมจะดูดเข้าหาเส้นในรูปเอง · กดค้าง \\ เพื่อดูแปลน', tip: 'ผนังที่วาดแก้ขนาดได้ที่แผงขวา · ปุ่มสร้างผนังอัตโนมัติอยู่ถัดไป', testId: 'underlay-ready' };
     case 'needScale':
       return {
-        text: status.then === 'draw' ? 'ตั้งสเกลก่อน: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ หรือประตู 0.9 ม.) แล้วพิมพ์ระยะ' : 'หาสเกลจากแบบไม่ชัด: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ) แล้วพิมพ์ระยะ',
+        text: status.then === 'choose' ? 'ตั้งสเกลก่อน: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ หรือประตู 0.9 ม.) แล้วพิมพ์ระยะ' : 'หาสเกลจากแบบไม่ชัด: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ) แล้วพิมพ์ระยะ',
         testId: 'underlay-need-scale',
       };
     case 'failed':
       return { text: status.message, error: true, testId: 'underlay-error' };
+    case 'choose':
     case 'idle':
       return null;
   }

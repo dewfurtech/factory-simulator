@@ -190,6 +190,16 @@ input[type='color'] { width: 44px; height: 30px; border: 1px solid var(--line-2)
 .ul-btn[data-tip]:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none; z-index: 10; }
 .ul-note { max-width: 100%; padding: 5px 12px; border-radius: 999px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ul-note.error { color: var(--danger); }
+.ul-choice { width: 560px; max-width: 100%; display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; }
+.ul-choice-title { font-weight: 700; font-size: 14px; }
+.ul-choice-row { display: flex; gap: 10px; }
+.ul-card { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; border: 1.5px solid var(--line-2); border-radius: 12px; background: var(--card); cursor: pointer; text-align: left; font-size: 12px; color: var(--ink-2); }
+.ul-card b { font-size: 14px; color: var(--ink); }
+.ul-card svg { width: 22px; height: 22px; margin-bottom: 2px; }
+.ul-card:hover { border-color: var(--accent); }
+.ul-card.primary { border-color: var(--accent); background: #fff7ed; }
+.ul-card.primary b, .ul-card.primary svg { color: var(--accent); }
+.ul-choice-later { align-self: flex-end; border: none; background: transparent; color: var(--ink-3); font-size: 12px; cursor: pointer; text-decoration: underline; }
 .ul-more { width: 280px; max-width: 100%; display: flex; flex-direction: column; gap: 10px; padding: 12px; font-size: 13px; }
 .ul-field { display: flex; flex-direction: column; gap: 4px; color: var(--ink-2); }
 .ul-more .seg { display: flex; }
