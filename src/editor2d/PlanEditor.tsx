@@ -18,6 +18,7 @@ import { areaCenter, areaStats, boxOutline, extendOutline, planAreas } from '../
 import { columnOutline, hitTest, isCrossing, isOutdoor, SNAP_PX } from './hit';
 import { addDoorAt, columnGridPoints, dispatchPointer, finishArea, objectAt, placeObjectAt, presetOutline, roomOutline } from './tools';
 import { ensureGuides, guideLines, useGuides } from './planGuides';
+import { checkClearance, type Issue } from '../model/clearance';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
 
 export const ASSET_MIME = 'application/x-factory-asset';
@@ -193,7 +194,9 @@ export function PlanEditor() {
   const px = 1 / drawScale;
   const vb = `${view.cx - size.w / 2 / view.s} ${view.cy - size.h / 2 / view.s} ${size.w / view.s} ${size.h / view.s}`;
   const grid = view.s > 0.08 ? 100 : 1000;
-  const shared = { plan, selection, marked, px };
+  // What cannot stand where it is put (clashes, through a wall, over the ceiling, no room for the operator), by object.
+  const issues = useMemo(() => checkClearance(project), [project]);
+  const shared = { plan, selection, marked, px, issues };
 
   const commitEdit = () => {
     if (!editing) return;
@@ -288,6 +291,7 @@ interface LayerProps {
   selection: Selection | null;
   marked: ReadonlySet<Id>;
   px: number;
+  issues: ReadonlyMap<Id, Issue[]>;
 }
 
 const selId = (selection: Selection | null, kind: Selection['kind']) => (selection?.kind === kind ? selection.id : null);
@@ -472,20 +476,32 @@ const ColumnLayer = memo(function ColumnLayer({ columns, selection, marked, px }
 
 const GROUP_FILL: Record<string, string> = { machine: '#fff4e8', office: '#ffffff', production: '#eef2ff', storage: '#fbf3e4', amenity: '#f0f9ff', decor: '#ffffff' };
 
-const ObjectLayer = memo(function ObjectLayer({ plan, selection, marked, px, objects, outdoor }: LayerProps & { objects: PlacedObject[]; outdoor: boolean }) {
+const ObjectLayer = memo(function ObjectLayer({ plan, selection, marked, px, objects, outdoor, issues }: LayerProps & { objects: PlacedObject[]; outdoor: boolean }) {
   const level = useProject((s) => s.level);
   const shown = objects.filter((o) => onLevel(o, level) && isOutdoor(plan, o) === outdoor);
   const selObject = selId(selection, 'object');
   return (
     <>
       {shown.map((o) => (
-        <ObjectShape key={o.id} o={o} px={px} sel={selObject === o.id || marked.has(o.id)} above={levelOf(o) > level} />
+        <ObjectShape key={o.id} o={o} px={px} sel={selObject === o.id || marked.has(o.id)} above={levelOf(o) > level} bad={issues.has(o.id)} />
       ))}
     </>
   );
 });
 
-const ObjectShape = memo(function ObjectShape({ o, px, sel, above }: { o: PlacedObject; px: number; sel: boolean; above?: boolean }) {
+/** A red badge at the object's corner: it clashes with something or does not fit (see model/clearance). */
+function IssueBadge({ at, px }: { at: Vec2; px: number }) {
+  return (
+    <g pointerEvents="none" data-testid="issue-badge">
+      <circle cx={at.x} cy={at.y} r={8 * px} fill="var(--danger)" stroke="#fff" strokeWidth={1.5 * px} />
+      <text x={at.x} y={at.y} fontSize={11 * px} fontWeight={700} fill="#fff" textAnchor="middle" dominantBaseline="central">
+        !
+      </text>
+    </g>
+  );
+}
+
+const ObjectShape = memo(function ObjectShape({ o, px, sel, above, bad }: { o: PlacedObject; px: number; sel: boolean; above?: boolean; bad?: boolean }) {
   const poly = obbCorners(objectObb(o));
   const item = catalogItem(o.assetId);
   const machine = item?.use === 'machine';
@@ -507,7 +523,7 @@ const ObjectShape = memo(function ObjectShape({ o, px, sel, above }: { o: Placed
   const fill = machine ? GROUP_FILL.machine : open ? '#fde68a' : GROUP_FILL[item?.group ?? 'decor'] ?? '#fff';
   return (
     <g opacity={o.hidden ? 0.15 : undefined}>
-      <polygon points={pts(poly)} fill={fill} fillOpacity={open ? 0.6 : 0.95} stroke={sel ? 'var(--select)' : machine ? '#c2410c' : '#52525b'} strokeWidth={(sel ? 2.5 : machine ? 1.6 : 1) * px} />
+      <polygon points={pts(poly)} fill={bad ? '#fee2e2' : fill} fillOpacity={open ? 0.6 : 0.95} stroke={sel ? 'var(--select)' : bad ? 'var(--danger)' : machine ? '#c2410c' : '#52525b'} strokeWidth={(sel || bad ? 2.5 : machine ? 1.6 : 1) * px} strokeDasharray={bad && !sel ? `${5 * px} ${3 * px}` : undefined} />
       {!open && <line x1={poly[2].x} y1={poly[2].y} x2={poly[3].x} y2={poly[3].y} stroke={machine ? '#ea580c' : '#18181b'} strokeWidth={(machine ? 3.5 : 2) * px} />}
       {Math.min(o.size.w, o.size.d) > 14 * px && Math.max(o.size.w, o.size.d) > o.name.length * 6.5 * px && (
         <text x={o.x} y={o.y} fontSize={(machine ? 11 : 10) * px} fontWeight={machine ? 700 : 400} textAnchor="middle" dominantBaseline="middle" fill={machine ? '#9a3412' : '#3f3f46'}>
@@ -515,6 +531,7 @@ const ObjectShape = memo(function ObjectShape({ o, px, sel, above }: { o: Placed
         </text>
       )}
       <circle cx={front.x} cy={front.y} r={2 * px} fill="#18181b" />
+      {bad && <IssueBadge at={poly[1]} px={px} />}
     </g>
   );
 });

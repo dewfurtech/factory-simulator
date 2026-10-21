@@ -1,6 +1,7 @@
 import { deg, fmtArea, fmtLen, fmtSize, rad } from '../format';
 import { CATALOG, catalogItem, GROUP_LABEL, GROUP_ORDER } from '../model/catalog';
 import { DOOR_STYLE_LABEL, isHanded, isSliding } from '../model/openings';
+import { checkClearance, issueText } from '../model/clearance';
 import { moveCorner, roomStats, setWallAngle, setWallLength, wallDir, wallLength } from '../model/plan';
 import { projectFacts } from '../model/project';
 import type { Area, Column, DoorStyle, OpeningKind, PlacedObject, Project, ZoneKind } from '../model/types';
@@ -360,10 +361,18 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
           if (x) recipe(x);
         });
       const machine = item?.use === 'machine';
+      const issues = checkClearance(project).get(o.id) ?? [];
       return (
         <>
           <Header icon={machine ? 'machine' : 'box'} title={o.name} sub={item?.label} actions />
           <div className="panel-body">
+            {issues.length > 0 && (
+              <ul className="issues" data-testid="object-issues">
+                {issues.map((i, k) => (
+                  <li key={k}>{issueText(i)}</li>
+                ))}
+              </ul>
+            )}
             {machine ? <MachineSpec assetId={o.assetId} placed={o.size} /> : item?.summary && <p className="muted small">{item.summary}</p>}
             {(machine || o.assetId === 'box') && <MachineModelPicker o={o} />}
             <h5>บนผัง</h5>
@@ -399,6 +408,8 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
 function ProjectProps({ project }: { project: Project }) {
   const facts = projectFacts(project);
   const tool = useUi((s) => s.tool);
+  const issues = checkClearance(project);
+  const troubled = project.objects.filter((o) => issues.has(o.id));
   return (
     <>
       <div className="panel-head">
@@ -432,6 +443,19 @@ function ProjectProps({ project }: { project: Project }) {
         {tool.kind === 'columnGrid' && (
           <NumberField label="ระยะห่างเสา (ตาราง)" value={tool.spacing} scale={1000} step={0.5} suffix="ม." min={1} onChange={(v) => useUi.getState().set({ tool: { ...tool, spacing: v } })} />
         )}
+        <Field label={troubled.length ? `ตรวจผัง: ${troubled.length} ชิ้นวางไม่ได้` : 'ตรวจผัง'}>
+          {troubled.length ? (
+            <div className="list" data-testid="project-issues">
+              {troubled.map((o) => (
+                <button key={o.id} className="list-item issue" onClick={() => useUi.getState().goTo({ kind: 'object', id: o.id })} title={issues.get(o.id)!.map(issueText).join(' · ')}>
+                  {o.name} · {issueText(issues.get(o.id)![0])}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="muted small">ไม่พบของซ้อนทับ ทับผนัง สูงเกินเพดาน หรือเครื่องที่ไม่มีที่ยืนทำงาน</p>
+          )}
+        </Field>
         <p className="muted small">คลิกเครื่องจักร โซน ผนัง ประตู หรือเสาบนแปลน เพื่อดูรายละเอียดและแก้ไข</p>
       </div>
     </>

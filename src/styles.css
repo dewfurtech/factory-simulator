@@ -223,6 +223,8 @@ input[type='color'] { width: 44px; height: 30px; border: 1px solid var(--line-2)
 .stepper button:nth-of-type(1) { right: 26px; }
 .stepper button:nth-of-type(2) { right: 3px; }
 .list { display: flex; flex-wrap: wrap; gap: 6px; }
+.issues { margin: 0; padding: 8px 10px 8px 24px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); font-size: 12.5px; display: flex; flex-direction: column; gap: 4px; }
+.list-item.issue { color: var(--danger); border-color: #fecaca; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list-item { height: 28px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--card); cursor: pointer; font-size: 12.5px; }
 .zone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .zone-chip { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); cursor: pointer; font-size: 12.5px; text-align: left; white-space: nowrap; overflow: hidden; }
