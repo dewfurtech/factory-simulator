@@ -115,7 +115,7 @@ const WALL_ITEMS: Item[] = [
 ];
 
 const ROOM_ITEMS: Item[] = [
-  { id: 'drawRoomRect', label: 'โซนสี่เหลี่ยม (คลิก 2 มุม)', tool: () => ({ kind: 'drawRoomRect', start: null, entry: EMPTY_ENTRY }), isOn: (t) => t.kind === 'drawRoomRect', testId: 'tool-drawRoomRect' },
+  { id: 'drawRoomRect', label: 'ห้องสี่เหลี่ยม (คลิก 2 มุม)', tool: () => ({ kind: 'drawRoomRect', start: null, entry: EMPTY_ENTRY }), isOn: (t) => t.kind === 'drawRoomRect', testId: 'tool-drawRoomRect' },
   ...SHAPE_PRESET_IDS.map(
     (id: ShapePresetId): Item => ({
       id,
@@ -252,7 +252,7 @@ export function Toolbar() {
       <RailButton icon="select" text="เลือก" label="เลือก / ย้าย (Esc)" on={tool.kind === 'select'} onClick={() => setTool({ kind: 'select', drag: null })} testId="tool-select" />
       <hr />
       <ToolGroup id="wall" text="ผนัง" label="ผนัง" items={WALL_ITEMS} {...group('wall')} />
-      <ToolGroup id="room" text="โซน" label="โซน (พื้นที่โปร่งแสง ไม่มีผนัง)" items={ROOM_ITEMS} {...group('room')} />
+      <ToolGroup id="room" text="โซน" label="ห้อง / โซน" items={ROOM_ITEMS} {...group('room')} />
       <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (กล่องโปร่งแสง)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
       <ToolGroup id="opening" text="ประตู" label="ประตู / หน้าต่าง" items={OPENING_ITEMS} {...group('opening')} />
       <ToolGroup id="column" text="เสา" label="เสา" items={COLUMN_ITEMS} {...group('column')} />

@@ -3,6 +3,7 @@ import { newId } from '../model/id';
 import { incidentWalls } from '../model/miter';
 import { moveWithStack, snapObject } from '../model/objects';
 import {
+  addPolygon,
   addWall,
   cornerFor,
   deleteCorner,
@@ -95,19 +96,13 @@ function wallTo(tool: Of<'drawWall'>, end: SnapResult | Vec2): void {
   setTool({ ...tool, last: ends ? null : target.point, entry: EMPTY_ENTRY });
 }
 
-/** Puts a zone down as a see-through area (no walls; walls come from the wall tool or the plan) and selects it. */
-function zoneArea(outline: Vec2[]): void {
-  let id: Id | null = null;
-  edit((d) => {
-    id = addArea(d.plan, outline, { name: `โซน ${Object.keys(d.plan.areas ?? {}).length + 1}` });
-  });
-  if (id) ui().set({ selection: { kind: 'area', id } });
-}
-
-function rectTo(tool: Of<'drawRoomRect'>, b: Vec2, _input: Pick<PointerInput, 'alt' | 'radius'>): void {
+function rectTo(tool: Of<'drawRoomRect'>, b: Vec2, input: Pick<PointerInput, 'alt' | 'radius'>): void {
   const a = tool.start!;
   if (Math.abs(a.x - b.x) < 100 || Math.abs(a.y - b.y) < 100) return;
-  zoneArea(boxOutline(a, b));
+  const outline = roomOutline([a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }], input);
+  edit((d) => {
+    addPolygon(d.plan, outline);
+  });
   setTool({ ...tool, start: null, entry: EMPTY_ENTRY });
 }
 
@@ -366,7 +361,10 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
   placePreset: {
     down(tool, input) {
       const s = snap(input);
-      zoneArea(presetOutline(tool, s.point));
+      const outline = roomOutline(presetOutline(tool, s.point), input);
+      edit((d) => {
+        addPolygon(d.plan, outline);
+      });
       setTool(SELECT);
     },
     move(_tool, input) {
