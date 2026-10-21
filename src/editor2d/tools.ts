@@ -152,7 +152,8 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
     down(tool, input) {
       const p = project();
       const hit = hitTest(p, input.p, input.radius);
-      ui().set({ selection: hit });
+      // A click on nothing also tucks the panel away, even when it was opened by hand.
+      ui().set(hit ? { selection: hit } : { selection: null, panelOpen: false });
       if (!hit || hit.kind === 'room') {
         setTool({ ...tool, drag: { kind: 'box', from: input.p, to: input.p } });
         return;

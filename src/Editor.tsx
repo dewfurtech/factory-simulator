@@ -121,7 +121,7 @@ export function Editor() {
   const showPanel = hasSelection || panelOpen;
 
   return (
-    <div className={`editor${dock ? ' with-dock' : ''}${showPanel ? ' with-panel' : ''}`}>
+    <div className={`editor${dock ? ' with-dock' : ''}`}>
       <header className="topbar">
         <div className="tb-group">
           <MainMenu />

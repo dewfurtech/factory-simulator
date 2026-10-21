@@ -55,7 +55,8 @@ export default function View3D() {
     const hit = sceneRef.current!.pick(e.clientX, e.clientY);
     // A locked object can't be picked here either, the same as on the plan.
     const locked = hit.object && project.objects.find((o) => o.id === hit.object)?.locked;
-    useUi.getState().set({ selection: hit.object && !locked ? { kind: 'object', id: hit.object as never } : null });
+    // A click on nothing also tucks the panel away, even when it was opened by hand.
+    useUi.getState().set(hit.object && !locked ? { selection: { kind: 'object', id: hit.object as never } } : { selection: null, panelOpen: false });
   };
   const onDouble = (e: React.MouseEvent) => {
     const p = sceneRef.current?.floorPoint(e.clientX, e.clientY);
