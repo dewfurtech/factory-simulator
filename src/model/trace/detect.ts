@@ -693,7 +693,8 @@ function sideSpans(runs: Run[], thin: Mask, any: Mask, o: TraceOptions, found: T
     if (ahead && !walled(Math.min(s, ahead.c), Math.max(s, ahead.c))) {
       const face = ahead.c - (e.dir * ahead.t) / 2;
       const [g0, g1] = [Math.min(s, face), Math.max(s, face)];
-      const opening = g1 - g0 >= o.minOpening ? sideOpening(at, thin, r.axis, strokeLine(r.axis, r.c, r.t, g0, g1), r.t, g0, g1, o) : null;
+      const past = { s: ahead.c + (e.dir * ahead.t) / 2 + e.dir, dir: e.dir };
+      const opening = g1 - g0 >= o.minOpening ? sideOpening(at, thin, r.axis, strokeLine(r.axis, r.c, r.t, g0, g1), r.t, g0, g1, past, o) : null;
       if (opening && !taken(opening)) {
         if (loose) r[e.end] = ahead.c;
         else runs.push({ ...r, s0: Math.min(s, ahead.c), s1: Math.max(s, ahead.c) });
@@ -720,7 +721,7 @@ function sideSpans(runs: Run[], thin: Mask, any: Mask, o: TraceOptions, found: T
       // Already walled along that side.
       if (runs.some((w) => w.axis === side && Math.abs(w.c - line) <= t && w.s0 < g1 - t && w.s1 > g0 + t)) continue;
       const c = strokeLine(side, line, t, g0, g1);
-      const opening = sideOpening(at, thin, side, c, t, g0, g1, o);
+      const opening = sideOpening(at, thin, side, c, t, g0, g1, { s: q.c + (dir * q.t) / 2 + dir, dir }, o);
       if (!opening || taken(opening)) continue;
       runs.push({ axis: side, c, s0: Math.min(r.c, q.c), s1: Math.max(r.c, q.c), t });
       r[e.end] = c;
@@ -745,6 +746,8 @@ function sideOpening(
   t: number,
   g0: number,
   g1: number,
+  /** Where the wall the side runs into ends on its far face, and which way is past it. */
+  past: { s: number; dir: 1 | -1 },
   o: TraceOptions,
 ): TracedOpening | null {
   const width = g1 - g0;
@@ -754,26 +757,59 @@ function sideOpening(
   const pxPerMm = o.minOpening / 450;
   const door = width <= o.maxOpening ? readGap(thin, { axis, c, s0: g0 - 1, s1: g0, t }, { axis, c, s0: g1, s1: g1 + 1, t }, o) : undefined;
   if (door?.kind === 'door' && (door.double ? width / 2 : width) <= DOOR_OPENING * 1.2 * pxPerMm) return door;
-  // Two thin lines along the side, most of its length: a grid or dimension line alone is one.
   let inked = 0;
-  let pair = 0;
   for (let s = Math.ceil(g0); s < g1; s++) {
-    let strokes = 0;
-    let was = false;
     let near = false;
-    for (let k = -Math.ceil(t); k <= Math.ceil(t); k++) {
-      const on = at(axis, s, c + k);
-      if (on && !was) strokes++;
-      was = on;
-      near ||= on && Math.abs(k) <= t * 0.6;
-    }
+    for (let k = -Math.ceil(t * 0.6); k <= t * 0.6 && !near; k++) near = at(axis, s, c + k);
     if (near) inked++;
-    if (strokes >= 2) pair++;
   }
   const n = Math.max(1, Math.floor(g1) - Math.ceil(g0));
-  if (width < SIDE_MIN * pxPerMm || inked / n < 0.75 || pair / n < 0.5) return null;
+  if (width < SIDE_MIN * pxPerMm || inked / n < 0.75 || !alikePair(at, axis, c, t, g0, g1, past, pxPerMm)) return null;
   if (!slideMarks(at, axis, c, t, g0, g1, o)) return { kind: 'window', at: mid, width };
   return { kind: 'door', at: mid, width, double: false, hinge: pt(axis, g0, c), swing: mid, sliding: true };
+}
+
+/**
+ * Two thin lines along the side drawn alike, as a window's or a sliding door's frame is: each the length of the side,
+ * near as unbroken as the other, and both stopping at the wall the side runs into. A grid line and a section line
+ * crossing the plan together are not alike (dashed against solid) and run on past the wall; a dimension or grid line
+ * alone is one line.
+ */
+function alikePair(
+  at: (axis: Axis, s: number, c: number) => boolean,
+  axis: Axis,
+  c: number,
+  t: number,
+  g0: number,
+  g1: number,
+  past: { s: number; dir: 1 | -1 },
+  pxPerMm: number,
+): boolean {
+  const n = Math.max(1, Math.floor(g1) - Math.ceil(g0));
+  const reach = Math.ceil(t) + 1;
+  const cover: number[] = [];
+  for (let k = -reach; k <= reach; k++) {
+    let m = 0;
+    for (let s = Math.ceil(g0); s < g1; s++) if (at(axis, s, c + k)) m++;
+    cover.push(m / n);
+  }
+  // Each line: the rows its ink runs along, and how much of the side it covers.
+  const lines: { rows: number[]; peak: number }[] = [];
+  cover.forEach((v, i) => {
+    if (v < 0.5) return;
+    const last = lines[lines.length - 1];
+    if (last && last.rows[last.rows.length - 1] === i - reach - 1) {
+      last.rows.push(i - reach);
+      last.peak = Math.max(last.peak, v);
+    } else lines.push({ rows: [i - reach], peak: v });
+  });
+  const look = Math.max(4, Math.round(450 * pxPerMm));
+  const stops = lines.filter((l) => {
+    let m = 0;
+    for (let j = 1; j <= look; j++) if (l.rows.some((k) => at(axis, past.s + past.dir * j, c + k))) m++;
+    return m / look < 0.3;
+  });
+  return stops.some((p, i) => stops.some((q, j) => j > i && Math.abs(p.peak - q.peak) <= 0.3));
 }
 
 /**
