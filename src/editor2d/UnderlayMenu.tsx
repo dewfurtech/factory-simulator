@@ -134,10 +134,10 @@ export function UnderlayMenu() {
     }
   };
 
-  /** The room tool out over the plan: rooms are drawn as boxes over it, their corners pulled onto its lines. */
+  /** The area tool out over the plan: zones are drawn as see-through boxes over it (no walls), their corners pulled onto its lines. */
   const startDrawing = () => {
     setStatus({ kind: 'ready' });
-    useUi.getState().setTool({ kind: 'drawRoomRect', start: null, entry: EMPTY_ENTRY });
+    useUi.getState().setTool({ kind: 'drawArea', mode: 'box', start: null, points: [], entry: EMPTY_ENTRY });
   };
 
   /**
@@ -237,7 +237,7 @@ export function UnderlayMenu() {
             <button className="ul-card primary" onClick={startDrawing} data-testid="choose-draw">
               <Glyph name="room" />
               <b>วาดห้องทับแปลน</b>
-              <span>ลากกรอบทับห้องทีละห้อง มุมดูดเข้าหาเส้นในรูป · แนะนำ ตรงกว่า</span>
+              <span>ลากกรอบทับห้องทีละห้อง เป็นพื้นที่โปร่งแสงไม่มีผนัง · แนะนำ ตรงกว่า</span>
             </button>
             <button className="ul-card" onClick={() => void trace(u)} data-testid="choose-auto">
               <Glyph name="build" />
@@ -288,7 +288,7 @@ export function UnderlayMenu() {
           </button>
         ) : (
           <>
-            <button className={`ul-btn ul-primary ul-wide${tool.kind === 'drawRoomRect' ? ' on' : ''}`} onClick={startDrawing} disabled={busy} data-tip={guides ? `ลากกรอบทับห้องในแปลนทีละห้อง · มุมดูดเข้าหาเส้นในรูป (${guides} เส้น)` : 'ลากกรอบทับห้องในแปลนทีละห้อง'} data-testid="underlay-draw">
+            <button className={`ul-btn ul-primary ul-wide${tool.kind === 'drawArea' ? ' on' : ''}`} onClick={startDrawing} disabled={busy} data-tip={guides ? `ลากกรอบทับห้องในแปลนทีละห้อง · มุมดูดเข้าหาเส้นในรูป (${guides} เส้น)` : 'ลากกรอบทับห้องในแปลนทีละห้อง'} data-testid="underlay-draw">
               <Glyph name="room" />
               <span>วาดห้องทับแปลน</span>
             </button>
