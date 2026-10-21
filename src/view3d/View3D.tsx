@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useProject } from '../store/project';
 import { rememberRealistic, useUi } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
@@ -13,6 +13,7 @@ export default function View3D() {
   const cutaway = useUi((s) => s.cutaway);
   const shadows = useUi((s) => s.shadows);
   const realistic = useUi((s) => s.realistic);
+  const [top, setTop] = useState(false);
 
   useEffect(() => {
     const s = new FactoryScene(host.current!);
@@ -29,6 +30,7 @@ export default function View3D() {
   useEffect(() => sceneRef.current?.setOptions({ cutaway, shadows, names: false, paths: false, realistic }), [cutaway, shadows, realistic]);
 
   useEffect(() => rememberRealistic(realistic), [realistic]);
+  useEffect(() => sceneRef.current?.setTopView(top), [top]);
 
   const down = useRef<{ x: number; y: number } | null>(null);
   const onPointerDown = (e: React.PointerEvent) => void (down.current = { x: e.clientX, y: e.clientY });
@@ -59,11 +61,14 @@ export default function View3D() {
         <button className={`ib sm${shadows ? ' on' : ''}`} onClick={() => toggle('shadows')} title="เงา (ใช้เครื่องแรงขึ้น)" aria-pressed={shadows}>
           <Icon name="shadow" />
         </button>
+        <button className={`ib sm${top ? ' on' : ''}`} onClick={() => setTop(!top)} title="มุมมองจากด้านบน (Top view)" aria-pressed={top} data-testid="top-view">
+          <Icon name="topView" />
+        </button>
         <button className="ib sm" onClick={() => sceneRef.current?.frame()} title="มุมมองทั้งโรงงาน">
           <Icon name="fit" />
         </button>
       </div>
-      <div className="view-hint">ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน · เลื่อนลูกกลิ้งเพื่อซูม · คลิกวัตถุเพื่อดูรายละเอียด · ดับเบิลคลิกเพื่อซูมไปจุดนั้น</div>
+      <div className="view-hint">{top ? 'มุมมองด้านบน · ลากเพื่อเลื่อน' : 'ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน'} · เลื่อนลูกกลิ้งเพื่อซูม · คลิกวัตถุเพื่อดูรายละเอียด · ดับเบิลคลิกเพื่อซูมไปจุดนั้น</div>
     </div>
   );
 }

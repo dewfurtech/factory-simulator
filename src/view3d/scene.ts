@@ -293,8 +293,44 @@ export class FactoryScene {
     return holder;
   }
 
+  private top = false;
+
+  /** Top view: looks straight down at the plan, rotation off, left-drag pans. Off returns to the usual angled view. */
+  setTopView(on: boolean) {
+    if (on === this.top) return;
+    this.top = on;
+    const c = this.controls;
+    c.enableRotate = !on;
+    c.maxPolarAngle = on ? 0 : Math.PI * 0.47;
+    c.screenSpacePanning = on;
+    c.mouseButtons.LEFT = on ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+    c.touches.ONE = on ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+    this.frame();
+  }
+
+  /** Straight down over the whole building, high enough that all of it fits. Plan north stays at the top. */
+  private frameTop() {
+    const pts = this.project ? Object.values(this.project.plan.corners) : [];
+    let cx = 0, cz = 0, w = 20, d = 20;
+    if (pts.length) {
+      const b = bounds(pts);
+      cx = ((b.min.x + b.max.x) / 2) * M;
+      cz = ((b.min.y + b.max.y) / 2) * M;
+      w = (b.max.x - b.min.x) * M;
+      d = (b.max.y - b.min.y) * M;
+    }
+    const t = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const h = Math.min(this.controls.maxDistance, Math.max(d / 2 / t, w / 2 / (t * this.camera.aspect)) * 1.1 + 4);
+    this.controls.target.set(cx, 0, cz);
+    // A hair off vertical so the orbit maths keeps plan-up at the top of the screen.
+    this.camera.position.set(cx, h, cz + h * 1e-4);
+    this.controls.update();
+    this.dirty = true;
+  }
+
   /** Points the camera at the whole building. */
   frame() {
+    if (this.top) return this.frameTop();
     const pts = this.project ? Object.values(this.project.plan.corners) : [];
     if (!pts.length) {
       this.controls.target.set(0, 0, 0);
@@ -314,6 +350,13 @@ export class FactoryScene {
   /** Moves the camera to look at a plan point (mm) from closer in, steeply enough to see over the walls. */
   focus(x: number, y: number, dist = 14, h = 0) {
     const t = new THREE.Vector3(x * M, h, y * M);
+    if (this.top) {
+      this.controls.target.copy(t);
+      this.camera.position.set(t.x, h + dist * 1.6, t.z + dist * 1e-4);
+      this.controls.update();
+      this.dirty = true;
+      return;
+    }
     const flat = this.camera.position.clone().sub(this.controls.target).setY(0);
     if (flat.lengthSq() < 1e-6) flat.set(0, 0, 1);
     flat.setLength(dist * 0.3);
