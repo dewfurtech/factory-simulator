@@ -10,7 +10,7 @@ export interface ShapePreset {
 
 export const SHAPE_PRESETS: Record<ShapePresetId, ShapePreset> = {
   rect: {
-    label: 'ห้องสี่เหลี่ยม',
+    label: 'โซนสี่เหลี่ยม',
     outline: (w, d) => [
       { x: 0, y: 0 },
       { x: w, y: 0 },
@@ -43,7 +43,7 @@ export const SHAPE_PRESETS: Record<ShapePresetId, ShapePreset> = {
     ],
   },
   chamfer: {
-    label: 'ห้องตัดมุม 45°',
+    label: 'โซนตัดมุม 45°',
     outline: (w, d) => {
       const c = Math.min(w, d) * 0.3;
       return [

@@ -16,7 +16,7 @@ import { underlayRect } from '../model/underlay';
 import { locate } from '../model/locate';
 import { areaCenter, areaStats, boxOutline, extendOutline, planAreas } from '../model/areas';
 import { columnOutline, hitTest, isCrossing, isOutdoor, SNAP_PX } from './hit';
-import { addDoorAt, columnGridPoints, dispatchPointer, finishArea, objectAt, placeObjectAt, presetOutline, roomOutline } from './tools';
+import { addDoorAt, columnGridPoints, dispatchPointer, finishArea, objectAt, placeObjectAt, presetOutline } from './tools';
 import { ensureGuides, guideLines, useGuides } from './planGuides';
 import { checkClearance, type Issue } from '../model/clearance';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
@@ -627,15 +627,11 @@ function ToolOverlay({ px }: { px: number }) {
       </g>
     );
   }
-  const placing = { alt: cursor.kind === 'free', radius: SNAP_PX * px };
-  if (tool.kind === 'drawRoomRect' && tool.start) {
-    const a = tool.start;
-    const b = rectCorner(a, p, tool.entry);
-    return <polygon points={pts(roomOutline([a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }], placing))} {...ghost} />;
-  }
-  if (tool.kind === 'placePreset') return <polygon points={pts(roomOutline(presetOutline(tool, p), placing))} {...ghost} />;
+  // Zones and areas go down as see-through boxes, so their ghost is one too.
+  const area = { fill: '#2563eb', fillOpacity: 0.14, stroke: '#2563eb', strokeWidth: 1.5 * px, pointerEvents: 'none' as const };
+  if (tool.kind === 'drawRoomRect' && tool.start) return <polygon points={pts(boxOutline(tool.start, rectCorner(tool.start, p, tool.entry)))} {...area} />;
+  if (tool.kind === 'placePreset') return <polygon points={pts(presetOutline(tool, p))} {...area} />;
   if (tool.kind === 'drawArea') {
-    const area = { fill: '#2563eb', fillOpacity: 0.14, stroke: '#2563eb', strokeWidth: 1.5 * px, pointerEvents: 'none' as const };
     if (tool.mode === 'box') return tool.start ? <polygon points={pts(boxOutline(tool.start, rectCorner(tool.start, p, tool.entry)))} {...area} /> : null;
     if (!tool.points.length) return null;
     const last = tool.points[tool.points.length - 1];
@@ -765,7 +761,7 @@ const HINTS: Record<string, string> = {
   select: 'คลิกเพื่อเลือก • ดับเบิลคลิกผนัง = ใส่ประตู • ลากมุม/ผนัง/วัตถุ/เสาเพื่อย้าย • R หมุน 90° • Ctrl+D ทำสำเนา • คลิกขวาลากเพื่อเลื่อน • Alt = ไม่ Snap',
   drawWall: 'คลิกเพื่อวางจุด • พิมพ์ความยาว (ซม.) • Tab แล้วพิมพ์มุม (°) • Enter วางผนัง • Esc จบ',
   drawRoomRect: 'คลิกมุมแรก แล้วคลิกมุมตรงข้าม หรือพิมพ์กว้าง • Tab • ลึก (ซม.) แล้ว Enter • มีภาพแปลน: มุมดูดเข้าหาเส้นในรูป • กดค้าง \\ ดูแปลน',
-  placePreset: 'พิมพ์กว้าง • Tab • ลึก (ซม.) แล้วคลิกเพื่อวางโซน',
+  placePreset: 'โซนโปร่งแสง ไม่มีผนัง: พิมพ์กว้าง • Tab • ลึก (ซม.) แล้วคลิกเพื่อวาง',
   drawArea: 'กล่อง: คลิก 2 มุม • ทีละจุด: คลิกวางจุด กลับมาจุดแรกหรือลากตัดเส้นเดิมเพื่อปิดรอบ • Enter / ดับเบิลคลิก ปิดรอบตรงนี้ • Esc จบ',
   placeObject: 'คลิกเพื่อวาง (ติดผนังให้เอง) • วางต่อได้หลายตัว • Alt = ไม่ติดผนัง • Esc จบ',
   addOpening: 'คลิกบนผนังเพื่อวาง • ขยับเมาส์ไปฝั่งที่ต้องการให้ประตูเปิด • กด F สลับด้านบานพับ',
