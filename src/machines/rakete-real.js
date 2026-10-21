@@ -35,10 +35,14 @@ try {
   ]);
 } catch (e) {}
 
-// `overrides` switch optional parts on for a stand-alone machine: { line: true } adds the infeed lift table and
-// outfeed conveyor (the 10 m line), { loader: true } the suction-cup loader on the gantry.
+// `overrides` switch optional parts on for a stand-alone machine: { infeed: true } adds the lift table, { outfeed: true }
+// the belt conveyor (both together are the 10 m line), { loader: true } the suction-cup loader on the gantry.
 export function createRealRakete(id = 'rakete-3500a', overrides = {}) {
   const V = { ...RAKETE_VARIANTS[id], ...overrides };
+  // The line's two ends can be taken separately; a line variant has both unless told otherwise.
+  const INFEED_ON = V.infeed ?? V.line;
+  const OUTFEED_ON = V.outfeed ?? V.line;
+  V.line = !!(INFEED_ON || OUTFEED_ON);
   const MAX_ANISO = 8;
   // ---------- textures ----------
   function canvasTex(w, h, draw, { srgb = true, repeat } = {}) {
@@ -1278,7 +1282,7 @@ export function createRealRakete(id = 'rakete-3500a', overrides = {}) {
   // Infeed: a scissor lift table beyond the roller platform holding the stack of boards to be cut.
   // The conveyor reaches in over the chute pit right up to the slotted plate, so panels slide straight onto it.
   const OUT = { x0: PIT.x1 + 0.005, len: V.line ? LINE_LENGTH - 0.417 - (BL / 2 + 0.03 + 2.5 - (PIT.x1 + 0.005)) : 3.0 + (BL / 2 + 0.02 + PIT.x1), w: 1.36, top: TABLE_TOP - 0.01 };
-  const outfeed = new THREE.Group(); outfeed.name = 'OutfeedConveyor'; outfeed.visible = V.line; machine.add(outfeed);
+  const outfeed = new THREE.Group(); outfeed.name = 'OutfeedConveyor'; outfeed.visible = OUTFEED_ON; machine.add(outfeed);
   const beltTex = canvasTex(256, 64, (c, w, h) => {
     c.fillStyle = '#245c57'; c.fillRect(0, 0, w, h);
     for (let i = 0; i < 2600; i++) { c.fillStyle = `rgba(0,0,0,${Math.random() * 0.12})`; c.fillRect(Math.random() * w, Math.random() * h, 2, 1); }
@@ -1322,7 +1326,7 @@ export function createRealRakete(id = 'rakete-3500a', overrides = {}) {
 
   const INF = { x0: BL / 2 + 0.03, len: 2.5, w: 1.3, boards: 8 };
   const WHEEL_TOP = LOAD.top + 0.02;   // tops of the wheels in the loading plate
-  const infeed = new THREE.Group(); infeed.name = 'InfeedLiftTable'; infeed.visible = V.line; machine.add(infeed);
+  const infeed = new THREE.Group(); infeed.name = 'InfeedLiftTable'; infeed.visible = INFEED_ON; machine.add(infeed);
   const lift = { boards: INF.boards, deck: new THREE.Group(), arms: [], stack: [] };
   {
     const cx = INF.x0 + INF.len / 2;

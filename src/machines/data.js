@@ -19,7 +19,8 @@ export const MACHINES = [
     // Add-ons a customer can tick per placed machine. Prices split the 3500A → 3500Ant difference (400,000) until the
     // price list gives each its own; `flags` are what they switch on in the model (rakete-real.js RAKETE_VARIANTS).
     options: [
-      { id: 'line', name: 'โต๊ะยกไม้ + สายพานลำเลียงออก', note: 'เป็นไลน์ยาว 10.3 ม.', price: 250000, flags: { line: true } },
+      { id: 'infeed', name: 'โต๊ะยกไม้ (ป้อนเข้า)', note: 'ต่อท้ายด้านป้อน ยาวขึ้น 2.5 ม.', price: 150000, flags: { infeed: true } },
+      { id: 'outfeed', name: 'สายพานลำเลียงออก', note: 'ต่อท้ายด้านออก ครบทั้งสองเป็นไลน์ 10.3 ม.', price: 100000, flags: { outfeed: true } },
       { id: 'loader', name: 'ชุดดูดแผ่นป้อนอัตโนมัติ', note: 'บนแกนทรี ใช้คู่กับโต๊ะยก', price: 150000, flags: { loader: true } },
     ],
     look: 'โต๊ะ 1220×2450, ตู้คอนโทรลแยก (ตู้สูงมีไฟสัญญาณ), หัว ATC ฝาส้ม, ท่อดูดฝุ่น, แม็กกาซีนทูลเรียงเส้น 12 ตัว, หมุดดันขึ้น (popup pin)',

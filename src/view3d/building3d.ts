@@ -191,6 +191,9 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
  * Areas as translucent boxes in their own colors, each with a crisp outline and its name floating over it.
  * Kept apart from the building so the realistic look leaves their see-through materials alone.
  */
+/** How far area boxes float above the floor (m), clear of the floor plane and of the zone floors on it. */
+const AREA_LIFT = 0.015;
+
 export function buildAreas(plan: Plan): THREE.Group {
   const g = new THREE.Group();
   g.name = 'areas';
@@ -200,10 +203,13 @@ export function buildAreas(plan: Plan): THREE.Group {
     if (!box) continue;
     const mat = new THREE.MeshLambertMaterial({ color: a.color, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(box, mat);
+    // A hair above the floor: its underside on the floor plane itself would fight it and flicker.
+    mesh.position.y = AREA_LIFT;
     mesh.renderOrder = 2;
     mesh.userData.areaId = a.id;
     g.add(mesh);
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box, 1), new THREE.LineBasicMaterial({ color: a.color, transparent: true, opacity: 0.8 }));
+    edges.position.y = AREA_LIFT;
     edges.renderOrder = 3;
     g.add(edges);
     const b = bounds(a.points);
