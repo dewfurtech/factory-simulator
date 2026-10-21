@@ -1,7 +1,14 @@
 import type { Id, Mm, Plan, Vec2 } from './types';
 import { add, angleOf, dist, fromAngle, lerp, lineIntersect, projectOnSegment, scale, sub, dot } from './vec';
 
-export type SnapKind = 'corner' | 'midpoint' | 'wall' | 'angle' | 'align' | 'grid' | 'free';
+/** `plan`: a line read off the plan image beneath the drawing (its corners, ends and edges). */
+export type SnapKind = 'corner' | 'midpoint' | 'wall' | 'plan' | 'angle' | 'align' | 'grid' | 'free';
+
+/** A line on the plan image, in plan coordinates. */
+export interface GuideLine {
+  a: Vec2;
+  b: Vec2;
+}
 
 export interface SnapGuide {
   from: Vec2;
@@ -25,6 +32,55 @@ export interface SnapOptions {
   free?: boolean;
   excludeCorners?: readonly Id[];
   excludeWalls?: readonly Id[];
+  /** Lines read off the plan image: snapped to after the drawing's own corners and walls. */
+  lines?: readonly GuideLine[];
+}
+
+/**
+ * Where p lands on the plan image's lines: where two of them cross, at an end of one, or on one (where a ray from
+ * `from` crosses it, when snapping an angle). Null when none is within reach.
+ */
+export function snapToLines(lines: readonly GuideLine[], p: Vec2, radius: Mm, ray?: { o: Vec2; d: Vec2 } | null): SnapResult | null {
+  const near: { line: GuideLine; point: Vec2; d: number }[] = [];
+  const reach = radius * 2;
+  for (const line of lines) {
+    const r = projectOnSegment(p, line.a, line.b);
+    if (r.distance <= reach) near.push({ line, point: r.point, d: r.distance });
+  }
+  if (!near.length) return null;
+  const guide = (l: GuideLine): SnapGuide => ({ from: l.a, to: l.b });
+
+  // Two lines crossing: a room corner, a wall meeting another.
+  let cross: { point: Vec2; d: number; lines: [GuideLine, GuideLine] } | null = null;
+  for (let i = 0; i < near.length; i++)
+    for (let j = i + 1; j < near.length; j++) {
+      const { a, b } = near[i].line;
+      const { a: c, b: e } = near[j].line;
+      const x = lineIntersect(a, sub(b, a), c, sub(e, c));
+      if (!x) continue;
+      // On (or just past the end of) both lines, as a corner is where the two strokes meet or stop short of each other.
+      if (projectOnSegment(x, a, b).distance > radius || projectOnSegment(x, c, e).distance > radius) continue;
+      const d = dist(x, p);
+      if (d <= radius && (!cross || d < cross.d)) cross = { point: x, d, lines: [near[i].line, near[j].line] };
+    }
+  if (cross) return { point: cross.point, kind: 'plan', guides: cross.lines.map(guide) };
+
+  let end: { point: Vec2; d: number; line: GuideLine } | null = null;
+  for (const n of near)
+    for (const q of [n.line.a, n.line.b]) {
+      const d = dist(q, p);
+      if (d <= radius && (!end || d < end.d)) end = { point: q, d, line: n.line };
+    }
+  if (end) return { point: end.point, kind: 'plan', guides: [guide(end.line)] };
+
+  near.sort((u, v) => u.d - v.d);
+  const best = near[0];
+  if (best.d > radius) return null;
+  if (ray) {
+    const x = lineIntersect(ray.o, ray.d, best.line.a, sub(best.line.b, best.line.a));
+    if (x && projectOnSegment(x, best.line.a, best.line.b).distance < 1e-6 && dist(x, p) <= reach) return { point: x, kind: 'plan', guides: [guide(best.line), { from: ray.o, to: x }] };
+  }
+  return { point: best.point, kind: 'plan', guides: [guide(best.line)] };
 }
 
 const STEP = Math.PI / 12;
@@ -84,6 +140,11 @@ export function snapPoint(plan: Plan, p: Vec2, opts: SnapOptions): SnapResult {
       }
     }
     return { point: wallHit.point, kind: 'wall', guides: [], wallId: w.id };
+  }
+
+  if (opts.lines?.length) {
+    const onPlan = snapToLines(opts.lines, p, opts.radius, ray);
+    if (onPlan) return onPlan;
   }
 
   if (ray) {

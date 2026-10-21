@@ -12,19 +12,26 @@ import { buildFromVector, vectorPlanFor } from './pdfVector';
 import { RailButton } from './Toolbar';
 import { traceUnderlay } from './traceUnderlay';
 import { closeLooseEnds, mergeDoubledWalls } from '../model/trace/close';
+import { EMPTY_ENTRY } from './entry';
+import { useGuides } from './planGuides';
 
 /** Doors a scale read off a picture must agree on before it is taken without asking. */
 const TRUSTED_DOORS = 4;
 import { storeUnderlayFile, UNDERLAY_ACCEPT } from './underlayFile';
 
-/** Where the upload-and-trace flow stands; `needScale` waits for a measured span, then traces by itself. */
+/**
+ * Where the upload flow stands. `needScale` waits for a measured span, then carries on with what asked for it: the
+ * room tool over the picture (`draw`), or the automatic build (`build`). `ready` is the picture placed and scaled,
+ * with the room tool out to draw over it.
+ */
 type Status =
   | { kind: 'idle' }
   | { kind: 'reading' }
   | { kind: 'tracing' }
+  | { kind: 'ready' }
   | { kind: 'traced'; walls: number; doors: number; windows: number; scaleDoors: number }
   | { kind: 'built'; walls: number; doors: number; windows: number; columns: number; zones: number; machines: number; scaleDoors: number; gridPitch?: number }
-  | { kind: 'needScale' }
+  | { kind: 'needScale'; then: 'draw' | 'build' }
   | { kind: 'failed'; message: string };
 
 const STYLE_LABEL: Record<WallStyle | 'auto', string> = { auto: 'อัตโนมัติ', solid: 'ทึบ / แรเงา', hollow: 'เส้นคู่', sketch: 'ร่างด้วยมือ' };
@@ -72,7 +79,7 @@ export function UnderlayMenu() {
     });
     const b = result.built;
     if (!b) {
-      setStatus({ kind: 'needScale' });
+      setStatus({ kind: 'needScale', then: 'build' });
       measure();
       return true;
     }
@@ -104,7 +111,7 @@ export function UnderlayMenu() {
       if (activeUnderlay(useProject.getState().project!)?.imageId !== from.imageId) return setStatus({ kind: 'idle' });
       // A scale read off a few doors is a guess (a tag or a cupboard read as a door doubles it): the user measures instead.
       if (!result || (!from.calibrated && result.doors < TRUSTED_DOORS)) {
-        setStatus({ kind: 'needScale' });
+        setStatus({ kind: 'needScale', then: 'build' });
         return measure();
       }
       let counts = { walls: 0, doors: 0, windows: 0 };
@@ -125,12 +132,39 @@ export function UnderlayMenu() {
     }
   };
 
-  // Once the span asked for is measured, carry on with the trace.
+  /** The room tool out over the plan: rooms are drawn as boxes over it, their corners pulled onto its lines. */
+  const startDrawing = () => {
+    setStatus({ kind: 'ready' });
+    useUi.getState().setTool({ kind: 'drawRoomRect', start: null, entry: EMPTY_ENTRY });
+  };
+
+  /**
+   * What a plan just placed on an empty storey gets: a CAD drawing is built into walls by itself, as its lines are
+   * exact; a picture is only put to scale, then rooms are drawn over it by hand (the automatic build stays a button).
+   */
+  const prepare = async (from: Underlay) => {
+    let drawing = false;
+    try {
+      drawing = !!(await vectorPlanFor(from.imageId));
+    } catch {
+      /* unreadable: treated as a picture */
+    }
+    if (drawing) return trace(from);
+    useImport.getState().done();
+    setOpen(true);
+    if (from.calibrated) return startDrawing();
+    setStatus({ kind: 'needScale', then: 'draw' });
+    measure();
+  };
+
+  // Once the span asked for is measured, carry on with what asked for it.
   useEffect(() => {
-    if (status.kind === 'needScale' && u?.calibrated) void trace(u);
+    if (status.kind !== 'needScale' || !u?.calibrated) return;
+    if (status.then === 'build') void trace(u);
+    else startDrawing();
   }, [u?.calibrated, u?.mmPerPx]);
 
-  // A plan image put on an empty storey from elsewhere (a project started from one) is built once, as an upload here is.
+  // A plan image put on an empty storey from elsewhere (a project started from one) is prepared once, as an upload here is.
   const tried = useRef(new Set<string>());
   useEffect(() => {
     // A build already started for this image (the effect run again) keeps the loading screen; one with nothing to build
@@ -139,7 +173,7 @@ export function UnderlayMenu() {
     if (!u || u.calibrated || hasWalls || status.kind !== 'idle') return useImport.getState().done();
     tried.current.add(u.imageId);
     setOpen(true);
-    void trace(u);
+    void prepare(u);
   }, [u?.imageId]);
 
   const upload = async (file: File) => {
@@ -153,8 +187,8 @@ export function UnderlayMenu() {
         placed = d.underlay = placeUnderlay(image, d.plan);
       });
       if (placed) tried.current.add(placed.imageId);
-      // An empty storey is built straight away; one with walls waits to be asked, as building replaces them.
-      if (!hasWalls && placed) await trace(placed);
+      // An empty storey takes the plan straight away; one with walls waits to be asked, as a build replaces them.
+      if (!hasWalls && placed) await prepare(placed);
       else setStatus({ kind: 'idle' });
     } catch (e) {
       setStatus({ kind: 'failed', message: message(e) });
@@ -163,12 +197,18 @@ export function UnderlayMenu() {
     }
   };
 
-  // A result is worth a glance, not a permanent line on the plan.
+  // A result is worth a glance, not a permanent line on the plan; the how-to for drawing over a picture stays a while longer.
   useEffect(() => {
-    if (status.kind !== 'traced' && status.kind !== 'built') return;
-    const t = setTimeout(() => setStatus({ kind: 'idle' }), status.kind === 'built' ? 10000 : 6000);
+    if (status.kind !== 'traced' && status.kind !== 'built' && status.kind !== 'ready') return;
+    const t = setTimeout(() => setStatus({ kind: 'idle' }), status.kind === 'ready' ? 20000 : status.kind === 'built' ? 10000 : 6000);
     return () => clearTimeout(t);
   }, [status]);
+
+  const peek = useUi((s) => s.peek);
+  const setPeek = (on: boolean) => {
+    if (useUi.getState().peek !== on) useUi.getState().set({ peek: on });
+  };
+  const guides = useGuides((s) => (s.key?.startsWith(u?.imageId ?? '—') ? s.lines.length : 0));
 
   const [more, setMore] = useState(false);
   const note = statusNote(status);
@@ -218,7 +258,26 @@ export function UnderlayMenu() {
           </button>
         ) : (
           <>
-            <button className="ul-btn ul-primary" onClick={() => void trace(u)} disabled={busy} aria-label="สร้างผนังจากแปลน" data-tip={hasWalls ? 'สร้างผนังใหม่จากแปลน (แทนผนังเดิม)' : 'สร้างผนังจากแปลน'} data-testid="underlay-trace">
+            <button className={`ul-btn ul-primary ul-wide${tool.kind === 'drawRoomRect' ? ' on' : ''}`} onClick={startDrawing} disabled={busy} data-tip={guides ? `ลากกรอบทับห้องในแปลนทีละห้อง · มุมดูดเข้าหาเส้นในรูป (${guides} เส้น)` : 'ลากกรอบทับห้องในแปลนทีละห้อง'} data-testid="underlay-draw">
+              <Glyph name="room" />
+              <span>วาดห้องทับแปลน</span>
+            </button>
+            <button
+              className={`ul-btn${peek ? ' on' : ''}`}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                setPeek(true);
+              }}
+              onPointerUp={() => setPeek(false)}
+              onPointerLeave={() => setPeek(false)}
+              onPointerCancel={() => setPeek(false)}
+              aria-label="กดค้างเพื่อดูแปลน"
+              data-tip="กดค้างเพื่อดูแปลน (หรือกดค้างปุ่ม \)"
+              data-testid="underlay-peek"
+            >
+              <Glyph name="peek" />
+            </button>
+            <button className="ul-btn" onClick={() => void trace(u)} disabled={busy} aria-label="สร้างผนังอัตโนมัติ" data-tip={hasWalls ? 'ลองให้แอปสร้างผนังให้ (แทนผนังเดิม · เลิกทำได้)' : 'ลองให้แอปสร้างผนังให้ (เลิกทำได้)'} data-testid="underlay-trace">
               <Glyph name={busy ? 'busy' : 'build'} />
             </button>
             <span className="ul-sep" />
@@ -295,8 +354,13 @@ function statusNote(status: Status): { text: string; tip?: string; error?: boole
         tip: `อ่านจากเส้นในไฟล์ PDF · ${status.scaleDoors ? `สเกลจากประตู ${status.scaleDoors} บาน${status.gridPitch ? ` ปรับตามระยะเสา ${status.gridPitch / 1000} ม.` : ''}` : 'สเกลจากที่วัดไว้'} · กดเลิกทำเพื่อย้อน`,
         testId: 'underlay-built',
       };
+    case 'ready':
+      return { text: 'ลากกรอบทับห้องในแปลนทีละห้อง · มุมจะดูดเข้าหาเส้นในรูปเอง · กดค้าง \\ เพื่อดูแปลน', tip: 'ผนังที่วาดแก้ขนาดได้ที่แผงขวา · ปุ่มสร้างผนังอัตโนมัติอยู่ถัดไป', testId: 'underlay-ready' };
     case 'needScale':
-      return { text: 'หาสเกลจากแบบไม่ชัด: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ) แล้วพิมพ์ระยะ', testId: 'underlay-need-scale' };
+      return {
+        text: status.then === 'draw' ? 'ตั้งสเกลก่อน: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ หรือประตู 0.9 ม.) แล้วพิมพ์ระยะ' : 'หาสเกลจากแบบไม่ชัด: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ) แล้วพิมพ์ระยะ',
+        testId: 'underlay-need-scale',
+      };
     case 'failed':
       return { text: status.message, error: true, testId: 'underlay-error' };
     case 'idle':
@@ -307,6 +371,8 @@ function statusNote(status: Status): { text: string; tip?: string; error?: boole
 const GLYPHS: Record<string, string> = {
   upload: 'M12 15V4 M7 9l5-5 5 5 M4 15v5h16v-5',
   build: 'M4 20V9h9 M8 20v-7h5 M4 20h9 M18 3v6 M15 6h6',
+  room: 'M4 6h16v12H4z M4 12h8v6 M12 6v6',
+  peek: 'M4 5h16v14H4z M7 12s2-3.5 5-3.5 5 3.5 5 3.5-2 3.5-5 3.5-5-3.5-5-3.5z M12 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2z',
   busy: 'M12 3a9 9 0 1 0 9 9',
   ruler: 'M3 16L16 3l5 5L8 21z M7 12l2 2 M10 9l2 2 M13 6l2 2',
   move: 'M12 3v18 M3 12h18 M9 6l3-3 3 3 M9 18l3 3 3-3 M6 9l-3 3 3 3 M18 9l3 3-3 3',

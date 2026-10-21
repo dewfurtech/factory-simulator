@@ -25,16 +25,16 @@ function useBlobUrl(id: Id | undefined): string | null {
   return url;
 }
 
-/** The active storey's plan image under the drawing; outlined while it is being moved. */
-export function UnderlayImage({ px }: { px: number }) {
+/** The active storey's plan image under the drawing; outlined while it is being moved, shown in full while peeked at. */
+export function UnderlayImage({ px, peek }: { px: number; peek?: boolean }) {
   const u = useProject((s) => activeUnderlay(s.project!));
   const moving = useUi((s) => s.tool.kind === 'moveUnderlay');
   const url = useBlobUrl(u?.imageId);
-  if (!u || u.hidden || !url) return null;
+  if (!u || (u.hidden && !peek) || !url) return null;
   const r = underlayRect(u);
   return (
     <g transform={`rotate(${u.rotation} ${u.x} ${u.y})`} pointerEvents="none" data-testid="underlay">
-      <image href={url} x={r.x} y={r.y} width={r.w} height={r.h} preserveAspectRatio="none" opacity={u.opacity} />
+      <image href={url} x={r.x} y={r.y} width={r.w} height={r.h} preserveAspectRatio="none" opacity={peek ? 1 : u.opacity} />
       {moving && <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="none" stroke="#2563eb" strokeWidth={2 * px} strokeDasharray={`${8 * px} ${5 * px}`} />}
     </g>
   );

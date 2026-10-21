@@ -27,6 +27,7 @@ import { editProject, useProject } from '../store/project';
 import { levelZ } from '../model/levels';
 import { SELECT, useUi, type ColumnSpec, type Drag, type Selection, type Tool, type ToolKind } from '../store/ui';
 import { boxSelect, hitTest } from './hit';
+import { guideLines, snapToInk } from './planGuides';
 import { EMPTY_ENTRY, ENTRY_FIELDS, entryKey, hasTyped, rectCorner, typedNum, wallEnd } from './entry';
 
 export interface PointerInput {
@@ -50,9 +51,15 @@ const edit = (recipe: (d: Project) => void) => useProject.getState().apply(recip
 const ui = () => useUi.getState();
 const setTool = (tool: Tool) => useUi.setState({ tool });
 
+/** Snaps to the drawing first, then to the lines of the plan image beneath it (or its ink, when it gave no lines). */
 function snap(input: PointerInput, extra: { from?: Vec2; excludeCorners?: Id[]; excludeWalls?: Id[] } = {}): SnapResult {
   const { snapOn, grid } = ui();
-  return snapPoint(project().plan, input.p, { grid, radius: input.radius, free: input.alt || !snapOn, ...extra });
+  const free = input.alt || !snapOn;
+  const u = project().underlay;
+  const lines = free ? [] : guideLines(u);
+  const s = snapPoint(project().plan, input.p, { grid, radius: input.radius, free, lines, ...extra });
+  if (free || !(s.kind === 'grid' || s.kind === 'align' || s.kind === 'angle')) return s;
+  return snapToInk(u, input.p, input.radius) ?? s;
 }
 
 const snapping = (input: Pick<PointerInput, 'alt'>) => !input.alt && ui().snapOn;
