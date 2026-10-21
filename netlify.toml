@@ -1,0 +1,13 @@
+# Netlify builds the app from main and serves the Vite output; these settings win over the ones in the site's UI.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Module scripts must come with a JavaScript type, whatever their extension (the PDF worker is an .mjs).
+[[headers]]
+  for = "/assets/*.mjs"
+  [headers.values]
+    Content-Type = "text/javascript; charset=utf-8"
