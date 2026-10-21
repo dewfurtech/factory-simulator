@@ -3,6 +3,7 @@ import { Editor } from './Editor';
 import type { Id } from './model/types';
 import { ImportOverlay } from './projects/ImportOverlay';
 import { ProjectList } from './projects/ProjectList';
+import { useImport } from './store/importProgress';
 import { flushAutosave, loadProject, startAutosave } from './store/persist';
 import { useProject } from './store/project';
 import { SELECT, useUi } from './store/ui';
@@ -34,6 +35,8 @@ export function App() {
       if (!live) return;
       if (!p) return setMissing(true);
       useUi.setState({ tool: SELECT, selection: null, boxed: [], mode: 'layout', agent: null });
+      // A project started from a plan is built by the plan editor's underlay menu, which the 3D-only view leaves out.
+      if (useImport.getState().job && useUi.getState().view === '3d') useUi.setState({ view: 'split' });
       useProject.getState().open(p);
       setOpenId(routeId);
     });
