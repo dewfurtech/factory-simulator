@@ -69,6 +69,8 @@ interface UiState {
   areasHidden: boolean;
   /** A request from the layers panel to bring the views to this thing; n makes each request distinct. */
   goto: { sel: Selection; n: number } | null;
+  /** Holding the peek key or button: the drawing fades so the plan image beneath it can be checked against. */
+  peek: boolean;
   /** Selects something and asks the open views to move to it. */
   goTo(sel: Selection): void;
   set(patch: Partial<Omit<UiState, 'set' | 'setTool' | 'toggleDock' | 'goTo'>>): void;
@@ -115,6 +117,7 @@ export const useUi = create<UiState>((set) => ({
   island: true,
   areasHidden: false,
   goto: null,
+  peek: false,
   goTo: (sel) => set((s) => ({ selection: sel, boxed: [], goto: { sel, n: (s.goto?.n ?? 0) + 1 } })),
   set: (patch) => set('selection' in patch && !('boxed' in patch) ? { ...patch, boxed: [] } : patch),
   setTool: (tool) => set({ tool, cursor: null, objectGuides: [] }),

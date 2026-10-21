@@ -5,7 +5,7 @@ import { obbCorners, objectObb } from '../model/objects';
 import { wallFootprints } from '../model/miter';
 import { openingOffsetAt, roomLabelPoint, roomPolygon, roomStats, setWallLength, wallDir, wallLength } from '../model/plan';
 import { OPENING_PRESETS, openingSymbol, type OpeningSymbol } from '../model/openings';
-import type { Column, Id, PlacedObject, Plan, Project, Vec2, Wall } from '../model/types';
+import type { Column, Id, PlacedObject, Plan, Project, Underlay, Vec2, Wall } from '../model/types';
 import { add, bounds, lerp, perp, scale, signedArea } from '../model/vec';
 import { zoneColor } from '../model/zones';
 import { fmtArea, fmtLen, fmtSize } from '../format';
@@ -17,6 +17,7 @@ import { locate } from '../model/locate';
 import { areaCenter, areaStats, boxOutline, extendOutline, planAreas } from '../model/areas';
 import { columnOutline, hitTest, isCrossing, isOutdoor, SNAP_PX } from './hit';
 import { addDoorAt, columnGridPoints, dispatchPointer, finishArea, objectAt, placeObjectAt, presetOutline, roomOutline } from './tools';
+import { ensureGuides, guideLines, useGuides } from './planGuides';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
 
 export const ASSET_MIME = 'application/x-factory-asset';
@@ -64,6 +65,14 @@ export function PlanEditor() {
     const r = underlayRect(u);
     setView({ cx: u.x, cy: u.y, s: Math.min(size.w / r.w, size.h / r.h) * 0.9 });
   }, [underlayId]);
+
+  // The plan image's lines, for snapping to: read once it is placed and, for a picture, once its scale is known.
+  const scaleKey = project.underlay?.calibrated ? project.underlay.mmPerPx : null;
+  useEffect(() => {
+    const u = project.underlay;
+    if (u) void ensureGuides(u);
+  }, [underlayId, scaleKey]);
+  const peek = useUi((s) => s.peek);
 
   // A go-to from the layers panel: pan to the thing, zooming only when it would be too small or too big to see whole.
   const goto = useUi((s) => s.goto);
@@ -221,15 +230,19 @@ export function PlanEditor() {
           </pattern>
         </defs>
         <rect x={-1e7} y={-1e7} width={2e7} height={2e7} fill="url(#grid-major)" />
-        <UnderlayImage px={px} />
-        <g mask="url(#outside-rooms)">
-          <ObjectLayer objects={objects} outdoor {...shared} />
+        <UnderlayImage px={px} peek={peek} />
+        {/* Peeking at the plan image, the drawing fades to an outline over it. */}
+        <g opacity={peek ? 0.18 : undefined} data-testid="drawing" data-peek={peek || undefined}>
+          <g mask="url(#outside-rooms)">
+            <ObjectLayer objects={objects} outdoor {...shared} />
+          </g>
+          <PlanBase {...shared} />
+          <ObjectLayer objects={objects} outdoor={false} {...shared} />
+          <AreaLayer {...shared} />
+          <ColumnLayer columns={columns} {...shared} />
+          <PlanLabels onEditDim={onEditDim} {...shared} />
         </g>
-        <PlanBase {...shared} />
-        <ObjectLayer objects={objects} outdoor={false} {...shared} />
-        <AreaLayer {...shared} />
-        <ColumnLayer columns={columns} {...shared} />
-        <PlanLabels onEditDim={onEditDim} {...shared} />
+        <GuideLayer underlay={project.underlay} px={livePx} />
         <ToolOverlay px={livePx} />
         {dragGhost && (
           <g opacity={0.7} pointerEvents="none" data-testid="drag-ghost">
@@ -513,7 +526,7 @@ function CursorOverlay({ px }: { px: number }) {
   return (
     <>
       {cursor?.guides.map((g, i) => (
-        <line key={i} x1={g.from.x} y1={g.from.y} x2={g.to.x} y2={g.to.y} stroke="#db2777" strokeDasharray={`${4 * px} ${4 * px}`} strokeWidth={px} />
+        <line key={i} x1={g.from.x} y1={g.from.y} x2={g.to.x} y2={g.to.y} stroke={cursor.kind === 'plan' ? '#ea580c' : '#db2777'} strokeDasharray={`${4 * px} ${4 * px}`} strokeWidth={cursor.kind === 'plan' ? 1.5 * px : px} />
       ))}
       {objectGuides.map((g, i) => (
         <line key={`o${i}`} x1={g.from.x} y1={g.from.y} x2={g.to.x} y2={g.to.y} stroke="#db2777" strokeWidth={2.5 * px} />
@@ -521,6 +534,12 @@ function CursorOverlay({ px }: { px: number }) {
       {cursor && cursor.kind !== 'free' && tool.kind !== 'addOpening' && (
         <g pointerEvents="none">
           {cursor.kind === 'corner' && <circle cx={cursor.point.x} cy={cursor.point.y} r={7 * px} fill="none" stroke="#db2777" strokeWidth={2 * px} />}
+          {cursor.kind === 'plan' && (
+            <g stroke="#ea580c" strokeWidth={2 * px} fill="none">
+              <circle cx={cursor.point.x} cy={cursor.point.y} r={7 * px} />
+              <circle cx={cursor.point.x} cy={cursor.point.y} r={2 * px} fill="#ea580c" />
+            </g>
+          )}
           {(cursor.kind === 'wall' || cursor.kind === 'midpoint') && (
             <rect x={cursor.point.x - 5 * px} y={cursor.point.y - 5 * px} width={10 * px} height={10 * px} fill="none" stroke="#db2777" strokeWidth={2 * px} transform={cursor.kind === 'midpoint' ? `rotate(45 ${cursor.point.x} ${cursor.point.y})` : undefined} />
           )}
@@ -530,6 +549,24 @@ function CursorOverlay({ px }: { px: number }) {
         </g>
       )}
     </>
+  );
+}
+
+const DRAWING_TOOLS = new Set<Tool['kind']>(['drawRoomRect', 'drawWall', 'drawArea', 'placePreset', 'placeColumn', 'columnGrid']);
+
+/** The plan image's lines the drawing snaps to, shown faintly while a drawing tool is out so it is clear where a corner will land. */
+function GuideLayer({ underlay, px }: { underlay: Underlay | undefined; px: number }) {
+  const drawing = useUi((s) => DRAWING_TOOLS.has(s.tool.kind));
+  const peek = useUi((s) => s.peek);
+  const ready = useGuides((s) => s.key);
+  const lines = useMemo(() => (drawing && !peek ? guideLines(underlay) : []), [drawing, peek, ready, underlay]);
+  if (!lines.length) return null;
+  return (
+    <g stroke="#ea580c" strokeOpacity={0.35} strokeWidth={1.5 * px} strokeLinecap="round" pointerEvents="none" data-testid="plan-guides">
+      {lines.map((l, i) => (
+        <line key={i} x1={l.a.x} y1={l.a.y} x2={l.b.x} y2={l.b.y} />
+      ))}
+    </g>
   );
 }
 
@@ -707,7 +744,7 @@ function OpeningShape({ symbol, px, stroke }: { symbol: OpeningSymbol; px: numbe
 const HINTS: Record<string, string> = {
   select: 'คลิกเพื่อเลือก • ดับเบิลคลิกผนัง = ใส่ประตู • ลากมุม/ผนัง/วัตถุ/เสาเพื่อย้าย • R หมุน 90° • Ctrl+D ทำสำเนา • คลิกขวาลากเพื่อเลื่อน • Alt = ไม่ Snap',
   drawWall: 'คลิกเพื่อวางจุด • พิมพ์ความยาว (ซม.) • Tab แล้วพิมพ์มุม (°) • Enter วางผนัง • Esc จบ',
-  drawRoomRect: 'คลิกมุมแรก แล้วคลิกมุมตรงข้าม หรือพิมพ์กว้าง • Tab • ลึก (ซม.) แล้ว Enter',
+  drawRoomRect: 'คลิกมุมแรก แล้วคลิกมุมตรงข้าม หรือพิมพ์กว้าง • Tab • ลึก (ซม.) แล้ว Enter • มีภาพแปลน: มุมดูดเข้าหาเส้นในรูป • กดค้าง \\ ดูแปลน',
   placePreset: 'พิมพ์กว้าง • Tab • ลึก (ซม.) แล้วคลิกเพื่อวางโซน',
   drawArea: 'กล่อง: คลิก 2 มุม • ทีละจุด: คลิกวางจุด กลับมาจุดแรกหรือลากตัดเส้นเดิมเพื่อปิดรอบ • Enter / ดับเบิลคลิก ปิดรอบตรงนี้ • Esc จบ',
   placeObject: 'คลิกเพื่อวาง (ติดผนังให้เอง) • วางต่อได้หลายตัว • Alt = ไม่ติดผนัง • Esc จบ',
@@ -718,13 +755,17 @@ const HINTS: Record<string, string> = {
   moveUnderlay: 'ลากเพื่อย้ายแปลนพื้นหลัง • Esc จบ',
 };
 
+const SNAP_LABEL: Record<string, string> = { corner: 'มุม', midpoint: 'กึ่งกลางผนัง', wall: 'ผนัง', plan: 'เส้นในแปลน', angle: 'มุมองศา', align: 'แนวเดียวกัน', grid: 'ตาราง' };
+
 function Hud() {
   const tool = useUi((s) => s.tool);
   const cursor = useUi((s) => s.cursor);
+  const peek = useUi((s) => s.peek);
+  if (peek) return <div className="hud glass">กำลังดูแปลน • ปล่อยปุ่มเพื่อกลับ</div>;
   return (
     <div className="hud glass">
       {HINTS[tool.kind]}
-      {cursor && cursor.kind !== 'free' ? ` • Snap: ${cursor.kind}` : ''}
+      {cursor && cursor.kind !== 'free' ? ` • Snap: ${SNAP_LABEL[cursor.kind] ?? cursor.kind}` : ''}
     </div>
   );
 }

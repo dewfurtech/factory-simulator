@@ -112,7 +112,7 @@ export function ProjectList() {
         <button className="action" onClick={() => planRef.current?.click()} disabled={!!reading} data-testid="new-from-plan">
           <Icon name="underlay" />
           <b>เริ่มจากแบบแปลน</b>
-          <span>{reading ? `กำลังอ่านไฟล์แปลน… (${reading})` : 'อัปโหลดรูป / PDF ของ layout แล้วสร้างผนังให้อัตโนมัติ'}</span>
+          <span>{reading ? `กำลังอ่านไฟล์แปลน… (${reading})` : 'อัปโหลดรูป / PDF ของ layout แล้ววาดห้องทับ (PDF จาก CAD สร้างผนังให้เอง)'}</span>
         </button>
         <button className="action" onClick={() => void create(newProject('โรงงานใหม่'))} data-testid="new-blank">
           <Icon name="plus" />

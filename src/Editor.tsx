@@ -22,6 +22,12 @@ function useKeyboard() {
       if (isTyping(e)) return;
       const ui = useUi.getState();
       const mod = e.ctrlKey || e.metaKey;
+      // Held down, the backslash fades the drawing to show the plan image beneath; released, it comes back.
+      if (e.key === '\\' && !mod) {
+        e.preventDefault();
+        if (!e.repeat && !ui.peek) ui.set({ peek: true });
+        return;
+      }
       if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
         useProject.getState().undo();
@@ -44,8 +50,18 @@ function useKeyboard() {
         else if (ui.panelOpen) ui.set({ panelOpen: false });
       }
     };
+    const endPeek = (e?: KeyboardEvent) => {
+      if ((!e || e.key === '\\') && useUi.getState().peek) useUi.getState().set({ peek: false });
+    };
+    const onBlur = () => endPeek();
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', endPeek);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', endPeek);
+      window.removeEventListener('blur', onBlur);
+    };
   }, []);
 }
 
