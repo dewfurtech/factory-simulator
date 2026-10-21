@@ -4,12 +4,9 @@ import { Icon, Toolbar } from './editor2d/Toolbar';
 import { deleteSelection, dispatchKey, objectKey } from './editor2d/tools';
 import { CatalogPanel } from './panels/CatalogPanel';
 import { PropertiesPanel } from './panels/PropertiesPanel';
-import { SimBar, Timeline, TrackingPanel } from './panels/SimPanels';
-import { StaffPanel } from './panels/StaffPanel';
 import { exportProject } from './store/persist';
 import { useProject } from './store/project';
-import { startSimLoop, useSim } from './store/sim';
-import { SELECT, useUi, type Dock, type Mode, type ViewMode } from './store/ui';
+import { SELECT, useUi, type ViewMode } from './store/ui';
 
 const View3D = lazy(() => import('./view3d/View3D'));
 
@@ -23,14 +20,6 @@ function useKeyboard() {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e)) return;
       const ui = useUi.getState();
-      if (ui.mode === 'sim') {
-        if (e.key === ' ') {
-          e.preventDefault();
-          useSim.getState().set({ playing: !useSim.getState().playing });
-        }
-        if (e.key === 'Escape') ui.set({ agent: null, selection: null });
-        return;
-      }
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -49,8 +38,9 @@ function useKeyboard() {
       if (mod) return;
       if (e.key === 'Delete') deleteSelection();
       if (e.key === 'Escape') {
-        if (ui.tool.kind === 'select') ui.set({ selection: null });
-        else ui.setTool(SELECT);
+        if (ui.tool.kind !== 'select') ui.setTool(SELECT);
+        else if (ui.selection || ui.boxed.length) ui.set({ selection: null });
+        else if (ui.panelOpen) ui.set({ panelOpen: false });
       }
     };
     window.addEventListener('keydown', onKey);
@@ -114,45 +104,23 @@ function MainMenu() {
   );
 }
 
-const MODES: { id: Mode; label: string; icon: string }[] = [
-  { id: 'layout', label: 'ออกแบบผัง', icon: 'edit' },
-  { id: 'sim', label: 'จำลองการทำงาน', icon: 'play' },
-];
-
-function setMode(mode: Mode) {
-  const ui = useUi.getState();
-  if (ui.mode === mode) return;
-  if (mode === 'sim') {
-    useSim.getState().start(useProject.getState().project!);
-    useSim.getState().set({ playing: true });
-    ui.set({ mode, tool: SELECT, selection: null, agent: null, view: ui.view === '2d' ? 'split' : ui.view });
-  } else {
-    useSim.getState().stop();
-    ui.set({ mode, agent: null, selection: null });
-  }
-}
-
 export function Editor() {
   useKeyboard();
   const name = useProject((s) => s.project!.name);
   const canUndo = useProject((s) => s.past.length > 0);
   const canRedo = useProject((s) => s.future.length > 0);
   const view = useUi((s) => s.view);
-  const mode = useUi((s) => s.mode);
   const dock = useUi((s) => s.dock);
   const panelOpen = useUi((s) => s.panelOpen);
-  const timeline = useUi((s) => s.timeline);
   const hasSelection = useUi((s) => !!s.selection || s.boxed.length > 0);
   const snapOn = useUi((s) => s.snapOn);
   const level = useProject((s) => s.level);
   const set = useUi.getState().set;
-  const sim = mode === 'sim';
-  useEffect(() => startSimLoop(), []);
-  useEffect(() => () => setMode('layout'), []);
-  const showDock = !sim && dock;
+  // The right panel slides out whenever something is picked, and on demand for the factory's own settings.
+  const showPanel = hasSelection || panelOpen;
 
   return (
-    <div className={`editor mode-${mode}${showDock ? ' with-dock' : ''}${panelOpen ? ' with-panel' : ''}`}>
+    <div className={`editor${dock ? ' with-dock' : ''}${showPanel ? ' with-panel' : ''}`}>
       <header className="topbar">
         <div className="tb-group">
           <MainMenu />
@@ -162,44 +130,27 @@ export function Editor() {
           <span className="title" title={name}>
             {name}
           </span>
-          {!sim && (
-            <>
-              <span className="tb-sep" />
-              <BarButton icon="undo" label="เลิกทำ (Ctrl+Z)" disabled={!canUndo} onClick={() => useProject.getState().undo()} />
-              <BarButton icon="redo" label="ทำซ้ำ (Ctrl+Y)" disabled={!canRedo} onClick={() => useProject.getState().redo()} />
-              <BarButton icon="trash" label="ลบที่เลือก (Delete)" disabled={!hasSelection} onClick={deleteSelection} />
-              <BarButton icon="snap" label={`Snap ${snapOn ? 'เปิด' : 'ปิด'}`} on={snapOn} onClick={() => set({ snapOn: !snapOn })} />
-            </>
-          )}
-        </div>
-        <div className="tb-group tb-center">
-          <div className="mode-switch" role="tablist" aria-label="โหมด">
-            {MODES.map((m) => (
-              <button key={m.id} role="tab" aria-selected={mode === m.id} className={mode === m.id ? 'on' : ''} onClick={() => setMode(m.id)} data-testid={`mode-${m.id}`}>
-                <Icon name={m.icon} />
-                <span>{m.label}</span>
-              </button>
-            ))}
-          </div>
+          <span className="tb-sep" />
+          <BarButton icon="undo" label="เลิกทำ (Ctrl+Z)" disabled={!canUndo} onClick={() => useProject.getState().undo()} />
+          <BarButton icon="redo" label="ทำซ้ำ (Ctrl+Y)" disabled={!canRedo} onClick={() => useProject.getState().redo()} />
+          <BarButton icon="trash" label="ลบที่เลือก (Delete)" disabled={!hasSelection} onClick={deleteSelection} />
+          <BarButton icon="snap" label={`Snap ${snapOn ? 'เปิด' : 'ปิด'}`} on={snapOn} onClick={() => set({ snapOn: !snapOn })} />
         </div>
         <div className="tb-group tb-right">
-          {!sim && (
-            <div className="seg seg-icons" role="tablist" aria-label="แผงซ้าย">
-              {(
-                [
-                  ['catalog', 'เครื่องจักร', 'machine'],
-                  ['staff', 'พนักงาน', 'users'],
-                ] as [Dock, string, string][]
-              ).map(([id, label, icon]) => (
-                <button key={id} className={dock === id ? 'on' : ''} onClick={() => useUi.getState().toggleDock(id)} title={label} data-testid={`dock-${id}`}>
-                  <Icon name={icon} />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {sim && <BarButton icon="timeline" label="ไทม์ไลน์ทั้งวัน" on={timeline} onClick={() => set({ timeline: !timeline })} />}
-          <BarButton icon="props" label="แผงขวา" on={panelOpen} onClick={() => set({ panelOpen: !panelOpen })} />
+          <button className={`tb-toggle${dock === 'catalog' ? ' on' : ''}`} onClick={() => useUi.getState().toggleDock('catalog')} aria-pressed={dock === 'catalog'} data-testid="dock-catalog">
+            <Icon name="machine" />
+            <span>คลังโมเดล</span>
+          </button>
+          <button
+            className={`tb-toggle${showPanel ? ' on' : ''}`}
+            onClick={() => (showPanel ? set({ panelOpen: false, selection: null }) : set({ panelOpen: true }))}
+            aria-pressed={showPanel}
+            title="รายละเอียด / ตั้งค่าโรงงาน"
+            data-testid="panel-toggle"
+          >
+            <Icon name="props" />
+            <span>รายละเอียด</span>
+          </button>
           <span className="tb-sep" />
           {view !== '3d' && (
             <div className="seg" role="tablist" aria-label="ชั้น" title="ชั้นที่แสดงในแปลน 2D">
@@ -220,12 +171,16 @@ export function Editor() {
           </div>
         </div>
       </header>
-      {showDock && <div className="dock-col">{dock === 'staff' ? <StaffPanel /> : <CatalogPanel />}</div>}
+      {dock && (
+        <div className="dock-col">
+          <CatalogPanel />
+        </div>
+      )}
       <main className="viewport">
         <div className={`panes view-${view}`}>
           {view !== '3d' && (
             <div className="pane">
-              {!sim && <Toolbar />}
+              <Toolbar />
               <PlanEditor />
             </div>
           )}
@@ -237,10 +192,8 @@ export function Editor() {
             </div>
           )}
         </div>
-        {sim && <SimBar />}
-        {sim && timeline && <Timeline />}
       </main>
-      {panelOpen && (sim ? <TrackingPanel /> : <PropertiesPanel />)}
+      {showPanel && <PropertiesPanel />}
     </div>
   );
 }

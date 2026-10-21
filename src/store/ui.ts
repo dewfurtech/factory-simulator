@@ -39,12 +39,9 @@ export type Tool =
 
 export type ToolKind = Tool['kind'];
 export type ViewMode = '2d' | '3d' | 'split';
-/** The two halves of the app: drawing the factory, and watching a working day in it. */
-export type Mode = 'layout' | 'sim';
-export type Dock = 'catalog' | 'staff';
+export type Dock = 'catalog';
 
 interface UiState {
-  mode: Mode;
   view: ViewMode;
   tool: Tool;
   selection: Selection | null;
@@ -54,18 +51,13 @@ interface UiState {
   cursor: SnapResult | null;
   objectGuides: { from: Vec2; to: Vec2 }[];
   dock: Dock | null;
+  /** The right panel with nothing selected (factory settings); picking something opens it on its own. */
   panelOpen: boolean;
-  /** The agent picked in the simulation: its card, path and timeline are shown. */
-  agent: string | null;
   /** 3D walls cut down to waist height so the floor reads from above. */
   cutaway: boolean;
   shadows: boolean;
-  /** 3D in the realistic look (detailed people, PBR, AO) rather than low poly. */
+  /** 3D in the realistic look (PBR, AO) rather than low poly. */
   realistic: boolean;
-  /** Paths and trails of everyone, not only the picked agent. */
-  showPaths: boolean;
-  /** Bottom timeline of the simulation. */
-  timeline: boolean;
   set(patch: Partial<Omit<UiState, 'set' | 'setTool' | 'toggleDock'>>): void;
   setTool(tool: Tool): void;
   toggleDock(dock: Dock): void;
@@ -91,7 +83,6 @@ export function rememberRealistic(on: boolean) {
 export const SELECT: Tool = { kind: 'select', drag: null };
 
 export const useUi = create<UiState>((set) => ({
-  mode: 'layout',
   view: 'split',
   tool: SELECT,
   selection: null,
@@ -100,14 +91,11 @@ export const useUi = create<UiState>((set) => ({
   grid: 100,
   cursor: null,
   objectGuides: [],
-  dock: 'catalog',
-  panelOpen: true,
-  agent: null,
+  dock: null,
+  panelOpen: false,
   cutaway: false,
   shadows: false,
   realistic: storedRealistic(),
-  showPaths: false,
-  timeline: true,
   set: (patch) => set('selection' in patch && !('boxed' in patch) ? { ...patch, boxed: [] } : patch),
   setTool: (tool) => set({ tool, cursor: null, objectGuides: [] }),
   toggleDock: (dock) => set((s) => ({ dock: s.dock === dock ? null : dock })),

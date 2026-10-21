@@ -84,8 +84,8 @@ export function createAuroraOpen() {
   }
   for (const x of [-0.95, -0.2, 0.55, 1.15]) lidBody.add(box(0.14, 0.03, 0.05, M.orange, x, 0.14, zf + 0.02));
   for (const x of [-1.2, -0.35, 0.4, 1.2]) {
-    lidBody.add(box(0.04, 0.12, 0.04, M.steel, x, 0.0, zf + 0.04));
-    lidBody.add(box(0.03, 0.09, 0.03, M.red, x, -0.08, zf + 0.07));
+    lidBody.add(box(0.04, 0.12, 0.04, M.steel, x, 0.0, zf + 0.02));
+    lidBody.add(box(0.03, 0.09, 0.03, M.red, x, -0.08, zf + 0.045));
   }
   lid.add(lidBody);
   root.add(lid);
@@ -105,8 +105,8 @@ export function createAuroraOpen() {
   function placeStruts() {
     lid.updateMatrixWorld(true);
     for (const { s, barrel, rod } of struts) {
-      const a = new THREE.Vector3(s * (L / 2 + 0.03), 0.45, ZF - 0.25);
-      const b = new THREE.Vector3(s * (L / 2 + 0.03), lidAnchor.y, lidAnchor.z).applyMatrix4(lid.matrix);
+      const a = new THREE.Vector3(s * (L / 2 + 0.005), 0.45, ZF - 0.25); // against the cabinet's end
+      const b = new THREE.Vector3(s * (L / 2 + 0.005), lidAnchor.y, lidAnchor.z).applyMatrix4(lid.matrix);
       const dir = b.clone().sub(a);
       const len = dir.length();
       const q = new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize());

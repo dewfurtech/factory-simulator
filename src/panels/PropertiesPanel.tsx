@@ -1,18 +1,15 @@
 import { deg, fmtArea, fmtLen, fmtSize, rad } from '../format';
-import { CATALOG, catalogItem, GROUP_LABEL, GROUP_ORDER, needsOperator } from '../model/catalog';
-import { newId } from '../model/id';
+import { CATALOG, catalogItem, GROUP_LABEL, GROUP_ORDER } from '../model/catalog';
 import { DOOR_STYLE_LABEL } from '../model/openings';
 import { moveCorner, roomStats, setWallAngle, setWallLength, wallDir, wallLength } from '../model/plan';
-import { useEffect, useState } from 'react';
-import { fmtClock, hm, parseClock, projectFacts } from '../model/project';
-import { ROLES } from '../model/roles';
-import type { Column, DoorStyle, Id, OpeningKind, PlacedObject, Project, ZoneKind } from '../model/types';
+import { projectFacts } from '../model/project';
+import type { Column, DoorStyle, OpeningKind, PlacedObject, Project, ZoneKind } from '../model/types';
 import { ZONE_IDS, ZONES, zoneColor } from '../model/zones';
 import { applyEdit, useEditProject } from '../store/project';
 import { useUi, type Selection } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
 import { deleteSelection, duplicateSelection, rotateObject } from '../editor2d/tools';
-import { ColorField, Field, NumberField, SelectField, TextField, TimeField } from './fields';
+import { ColorField, Field, NumberField, SelectField, TextField } from './fields';
 import { MachineSpec } from './MachineSpec';
 
 const KIND_LABEL: Record<OpeningKind, string> = { door: 'ประตู', window: 'หน้าต่าง', opening: 'ช่องเปิด' };
@@ -84,6 +81,8 @@ export function PropertiesPanel() {
   );
 }
 
+const closePanel = () => useUi.getState().set({ selection: null, panelOpen: false });
+
 function Header({ icon, title, sub, actions }: { icon: string; title: string; sub?: string; actions?: boolean }) {
   return (
     <div className="panel-head">
@@ -99,7 +98,7 @@ function Header({ icon, title, sub, actions }: { icon: string; title: string; su
           <Icon name="trash" />
         </button>
       )}
-      <button className="ib" onClick={() => useUi.getState().set({ selection: null })} title="ปิด" aria-label="ปิด">
+      <button className="ib" onClick={closePanel} title="ปิด (Esc)" aria-label="ปิด">
         <Icon name="close" />
       </button>
     </div>
@@ -255,7 +254,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
                   }
                   data-testid="entrance-toggle"
                 />{' '}
-                ทางเข้า-ออกหลักของพนักงาน / ลูกค้า
+                ทางเข้า-ออกหลัก
               </label>
             )}
           </div>
@@ -296,14 +295,13 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
           if (x) recipe(x);
         });
       const machine = item?.use === 'machine';
-      const crew = project.staff.filter((s) => s.stationId === o.id);
-      const operators = project.staff.filter((s) => s.role === 'operator');
       return (
         <>
           <Header icon={machine ? 'machine' : 'box'} title={o.name} sub={item?.label} actions />
           <div className="panel-body">
+            {machine ? <MachineSpec assetId={o.assetId} placed={o.size} /> : item?.summary && <p className="muted small">{item.summary}</p>}
             {(machine || o.assetId === 'box') && <MachineModelPicker o={o} />}
-            {machine ? <MachineSpec assetId={o.assetId} /> : item?.summary && <p className="muted small">{item.summary}</p>}
+            <h5>บนผัง</h5>
             <TextField label="ชื่อ" value={o.name} onChange={(v) => set((x) => void (x.name = v))} />
             <div className="two">
               <NumberField label="X" value={o.x} scale={10} suffix="ซม." onChange={(v) => set((x) => void (x.x = v))} />
@@ -325,38 +323,6 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
                 <NumberField label="สูง" value={o.size.h} scale={10} suffix="ซม." min={1} onChange={(v) => set((x) => void (x.size.h = v))} />
               </div>
             )}
-            {machine && (
-              <>
-                <div className="stats">
-                  <div>
-                    <b>{fmtSize(o.size.w, o.size.d)}</b>
-                    <span>ขนาดฐาน</span>
-                  </div>
-                  <div>
-                    <b>{(o.size.h / 1000).toFixed(2)} ม.</b>
-                    <span>สูง</span>
-                  </div>
-                </div>
-                {needsOperator(o) ? (
-                  <SelectField
-                    label="ช่างคุมเครื่อง"
-                    value={(crew.find((s) => s.role === 'operator')?.id ?? '') as string}
-                    options={[{ id: '', label: '— ไม่มี —' }, ...operators.map((s) => ({ id: s.id as string, label: `${s.name}${s.stationId && s.stationId !== o.id ? ' (ย้ายจากเครื่องอื่น)' : ''}` }))]}
-                    onChange={(v) =>
-                      applyEdit((d) => {
-                        for (const s of d.staff) if (s.stationId === o.id && s.role === 'operator') s.stationId = null;
-                        const s = d.staff.find((x) => x.id === v);
-                        if (s) s.stationId = o.id as Id;
-                      })
-                    }
-                  />
-                ) : (
-                  <p className="muted small">เดินเครื่องเองตลอดเวลางาน ไม่ต้องมีคนคุม</p>
-                )}
-                <NumberField label="เสียเฉลี่ย (ครั้ง/วัน)" value={o.breakdownsPerDay ?? project.sim.breakdownsPerDay} step={0.1} min={0} onChange={(v) => set((x) => void (x.breakdownsPerDay = v))} />
-              </>
-            )}
-            {!machine && crew.length > 0 && <p className="muted small">ประจำโดย: {crew.map((s) => `${s.name} (${ROLES[s.role].label})`).join(', ')}</p>}
           </div>
         </>
       );
@@ -364,12 +330,10 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
   }
 }
 
-/** With nothing selected: the factory's own settings, the working day, and what the simulation assumes. */
+/** With nothing selected: the factory's own name and totals. */
 function ProjectProps({ project }: { project: Project }) {
   const facts = projectFacts(project);
-  const sch = project.schedule;
   const tool = useUi((s) => s.tool);
-  const setSch = (recipe: (s: typeof sch) => void) => applyEdit((d) => recipe(d.schedule));
   return (
     <>
       <div className="panel-head">
@@ -380,6 +344,9 @@ function ProjectProps({ project }: { project: Project }) {
           <div className="panel-title">{project.name}</div>
           <div className="panel-sub">ตั้งค่าโรงงาน</div>
         </div>
+        <button className="ib" onClick={closePanel} title="ปิด (Esc)" aria-label="ปิด">
+          <Icon name="close" />
+        </button>
       </div>
       <div className="panel-body">
         <div className="stats">
@@ -395,69 +362,13 @@ function ProjectProps({ project }: { project: Project }) {
             <b>{facts.machines}</b>
             <span>เครื่องจักร</span>
           </div>
-          <div>
-            <b>{facts.staff}</b>
-            <span>พนักงาน</span>
-          </div>
         </div>
         <TextField label="ชื่อโครงการ" value={project.name} onChange={(v) => applyEdit((d) => void (d.name = v))} />
         {tool.kind === 'columnGrid' && (
           <NumberField label="ระยะห่างเสา (ตาราง)" value={tool.spacing} scale={1000} step={0.5} suffix="ม." min={1} onChange={(v) => useUi.getState().set({ tool: { ...tool, spacing: v } })} />
         )}
-        <h5>เวลาทำงาน</h5>
-        <div className="two">
-          <TimeField label="เข้างาน" value={sch.start} onChange={(v) => setSch((s) => void (s.start = v))} />
-          <TimeField label="เลิกงาน" value={sch.end} onChange={(v) => setSch((s) => void (s.end = v))} />
-        </div>
-        <div className="breaks">
-          {sch.breaks.map((b) => (
-            <div key={b.id} className="break-row">
-              <input className="grow" value={b.label} onChange={(e) => setSch((s) => void (s.breaks.find((x) => x.id === b.id)!.label = e.target.value))} aria-label="ชื่อช่วงพัก" />
-              <ClockInput value={b.start} onChange={(v) => setSch((s) => void (s.breaks.find((x) => x.id === b.id)!.start = v))} label="เริ่มพัก" />
-              <span>–</span>
-              <ClockInput value={b.end} onChange={(v) => setSch((s) => void (s.breaks.find((x) => x.id === b.id)!.end = v))} label="หมดเวลาพัก" />
-              <label className="check" title="พักทานข้าว: ไปโรงอาหาร">
-                <input type="checkbox" checked={!!b.meal} onChange={(e) => setSch((s) => void (s.breaks.find((x) => x.id === b.id)!.meal = e.target.checked || undefined))} />
-                ข้าว
-              </label>
-              <button className="ib sm" onClick={() => setSch((s) => void (s.breaks = s.breaks.filter((x) => x.id !== b.id)))} aria-label="ลบช่วงพัก">
-                <Icon name="close" />
-              </button>
-            </div>
-          ))}
-          <button className="btn btn-sm btn-ghost" onClick={() => setSch((s) => void s.breaks.push({ id: newId('b'), label: 'พัก', start: hm(14), end: hm(14, 10) }))}>
-            <Icon name="plus" /> เพิ่มช่วงพัก
-          </button>
-        </div>
-        <h5>สมมติฐานการจำลอง</h5>
-        <div className="two">
-          <NumberField label="ลูกค้าต่อวัน" value={project.sim.customersPerDay} min={0} onChange={(v) => applyEdit((d) => void (d.sim.customersPerDay = Math.round(v)))} />
-          <NumberField label="เครื่องเสีย/เครื่อง/วัน" value={project.sim.breakdownsPerDay} step={0.1} min={0} onChange={(v) => applyEdit((d) => void (d.sim.breakdownsPerDay = v))} />
-          <NumberField label="ซ่อมเร็วสุด" value={project.sim.repairMin[0]} min={1} suffix="นาที" onChange={(v) => applyEdit((d) => void (d.sim.repairMin = [v, Math.max(v, d.sim.repairMin[1])]))} />
-          <NumberField label="ซ่อมนานสุด" value={project.sim.repairMin[1]} min={1} suffix="นาที" onChange={(v) => applyEdit((d) => void (d.sim.repairMin = [Math.min(v, d.sim.repairMin[0]), v]))} />
-        </div>
-        <p className="muted small">คลิกโซน ผนัง ประตู เสา หรือเครื่องจักรบนแปลนเพื่อแก้ไข • ประตูที่ติ๊ก “ทางเข้า-ออกหลัก” คือทางที่พนักงานและลูกค้าเดินเข้า</p>
+        <p className="muted small">คลิกเครื่องจักร โซน ผนัง ประตู หรือเสาบนแปลน เพื่อดูรายละเอียดและแก้ไข</p>
       </div>
     </>
-  );
-}
-
-/** A compact HH:MM box that commits once the text reads as a time. */
-function ClockInput({ value, onChange, label }: { value: number; onChange: (v: number) => void; label: string }) {
-  const [text, setText] = useState(fmtClock(value));
-  useEffect(() => setText(fmtClock(value)), [value]);
-  return (
-    <input
-      className="clock-in"
-      value={text}
-      inputMode="numeric"
-      aria-label={label}
-      onChange={(e) => {
-        setText(e.target.value);
-        const v = parseClock(e.target.value);
-        if (v !== null) onChange(v);
-      }}
-      onBlur={() => setText(fmtClock(value))}
-    />
   );
 }

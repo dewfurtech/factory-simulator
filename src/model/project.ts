@@ -1,7 +1,7 @@
 import { newId } from './id';
 import { emptyPlan } from './plan';
 import type { BreakPeriod, Id, Project, Schedule, SimSettings } from './types';
-import { isMachine } from './catalog';
+import { catalogItem, isMachine } from './catalog';
 
 export const hm = (h: number, m = 0) => h * 60 + m;
 export const fmtClock = (min: number) => {
@@ -47,7 +47,8 @@ export function migrate(p: Project): Project {
     ...p,
     plan,
     columns: p.columns ?? {},
-    objects: p.objects ?? [],
+    // A machine's footprint is its 3D model's: when a model is re-imported, placed copies take its new size.
+    objects: (p.objects ?? []).map((o) => (isMachine(o) ? { ...o, size: { ...catalogItem(o.assetId)!.size } } : o)),
     staff: p.staff ?? [],
     schedule: p.schedule ?? defaultSchedule(),
     sim: { ...DEFAULT_SIM, ...p.sim },

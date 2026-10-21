@@ -95,19 +95,19 @@ export function ProjectList() {
         </div>
         <div>
           <h1>Factory Simulator</h1>
-          <p>ออกแบบผังโรงงาน วางเครื่องจักร Mastrox แล้วดูพนักงานทำงานทั้งวัน 08:00–17:00</p>
+          <p>ออกแบบผังโรงงาน วางเครื่องจักร Mastrox แล้วดูรายละเอียดและขนาดของแต่ละเครื่อง</p>
         </div>
       </header>
       <section className="home-actions">
         <button className="action primary" onClick={() => void create(sampleFactory())} data-testid="new-sample">
           <Icon name="factory" />
           <b>โรงงานตัวอย่าง</b>
-          <span>ผังพร้อมเครื่องจักร 10 เครื่อง และพนักงาน 20 คน</span>
+          <span>ผังพร้อมเครื่องจักร 10 เครื่อง</span>
         </button>
         <button className="action primary" onClick={() => void create(mastroxLayout())} data-testid="new-mastrox">
           <Icon name="factory" />
           <b>Layout Mastrox</b>
-          <span>ผัง 42 × 48 ม. ตามแบบที่ส่งมา พร้อมเครื่องจักรและพนักงาน</span>
+          <span>ผัง 42 × 48 ม. ตามแบบที่ส่งมา พร้อมเครื่องจักร</span>
         </button>
         <button className="action" onClick={() => planRef.current?.click()} disabled={!!reading} data-testid="new-from-plan">
           <Icon name="underlay" />
@@ -151,7 +151,7 @@ export function ProjectList() {
               <div className="card-body">
                 <b>{p.name}</b>
                 <span className="muted small">
-                  {p.machines ?? 0} เครื่อง · {p.staff ?? 0} คน · {Math.round((p.area ?? 0) / 1e6)} ม² · {ago(p.updatedAt)}
+                  {p.machines ?? 0} เครื่อง · {Math.round((p.area ?? 0) / 1e6)} ม² · {ago(p.updatedAt)}
                 </span>
               </div>
               <div className="card-actions" onClick={(e) => e.stopPropagation()}>

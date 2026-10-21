@@ -34,7 +34,7 @@ export function App() {
     void loadProject(routeId).then((p) => {
       if (!live) return;
       if (!p) return setMissing(true);
-      useUi.setState({ tool: SELECT, selection: null, boxed: [], mode: 'layout', agent: null });
+      useUi.setState({ tool: SELECT, selection: null, boxed: [], dock: null, panelOpen: false });
       // A project started from a plan is built by the plan editor's underlay menu, which the 3D-only view leaves out.
       if (useImport.getState().job && useUi.getState().view === '3d') useUi.setState({ view: 'split' });
       useProject.getState().open(p);

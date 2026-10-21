@@ -19,7 +19,7 @@ export function createNebula() {
   const alu = M.alu;
 
   // Main cabinet with the orange name plate, control strip and e-stop.
-  root.add(box(1.5, TABLE_Y - 0.08, 0.85, body, 0.1, (TABLE_Y - 0.08) / 2, 0.2));
+  root.add(box(1.5, TABLE_Y - 0.025, 0.85, body, 0.1, (TABLE_Y - 0.025) / 2, 0.2)); // up to the cast table's underside
   const plate = decal('Nebula', { w: 0.32, color: '#1d1f22', bg: '#f07a22' });
   plate.rotation.y = Math.PI / 2;
   plate.position.set(0.851, TABLE_Y - 0.2, 0.4);
@@ -58,7 +58,7 @@ export function createNebula() {
   const hood = new THREE.Group();
   hood.add(box(0.38, 0.12, 0.12, std('#e3e5e7', { roughness: 0.5 }), 0, 0, 0));
   hood.add(box(0.2, 0.03, 0.124, M.redOrange, 0.05, 0.03, 0));
-  hood.add(cyl(0.05, 0.12, M.frame, 0.1, 0.1, 0, 'y', 16)); // dust port
+  hood.add(cyl(0.05, 0.2, M.frame, 0.1, 0.14, 0, 'y', 16)); // dust port, up into the hood arm
   hood.position.set(0, TABLE_Y + 0.2, 0.0);
   root.add(hood);
   root.add(box(0.03, 0.03, 0.75, M.frame, 0.1, TABLE_Y + 0.42, 0.37));

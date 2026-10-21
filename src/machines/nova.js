@@ -36,24 +36,33 @@ function gridTable(w, d) {
 }
 
 // One spindle unit hanging from the bridge. 'h' drills into the panel's back edge, 'v' drills down
-// into its face, 'd' is tilted 45°. Returns the parts that move during a drilling stroke.
-function head(kind) {
+// into its face, 'd' is tilted 45°. The group's origin is the top of the unit (the bridge's
+// underside, at world height topY, depth z). The spindle is placed so its bit tip rests just clear
+// of the panel and reaches into it on the plunge stroke. Returns the parts that move.
+const PANEL_TOP = TABLE_Y + 0.018;
+function head(kind, topY, z, backEdgeZ) {
   const g = new THREE.Group();
-  g.add(box(0.12, 0.26, 0.14, M.alu, 0, 0, 0));
-  g.add(box(0.03, 0.03, 0.03, M.yellow, 0.05, 0.08, 0.075)); // tool number tag
+  // Body: from the bridge down to just above the panel (shorter on the low-bridge X4 / X6).
+  const bodyH = Math.min(0.26, topY - (PANEL_TOP + 0.045));
+  g.add(box(0.12, bodyH, 0.14, M.alu, 0, -bodyH / 2, 0));
+  g.add(box(0.03, 0.03, 0.03, M.yellow, 0.05, -0.05, 0.075)); // tool number tag
   const spindle = new THREE.Group();
   spindle.add(cyl(0.045, 0.16, M.motor, 0, 0, 0));
   const bit = cyl(0.005, 0.07, M.chrome, 0, -0.115, 0, 'y', 8);
   spindle.add(bit);
-  if (kind === 'h') { spindle.rotation.x = -Math.PI / 2; spindle.position.set(0, -0.17, 0.05); }
-  if (kind === 'v') spindle.position.set(0, -0.2, 0.06);
-  if (kind === 'd') { spindle.rotation.x = -Math.PI / 4; spindle.position.set(0, -0.19, 0.06); }
-  g.add(spindle);
-  g.add(cyl(0.035, 0.05, M.brass, 0, -0.12, -0.03, 'y', 16)); // dust brush ring
-  // Where the spindle rests, and which way it plunges (along its own −y).
-  const rest = spindle.position.clone();
+  const TIP = 0.15, CLEAR = 0.008; // spindle center to bit tip; gap to the panel at rest
+  let tip;
+  if (kind === 'h') { spindle.rotation.x = -Math.PI / 2; tip = new THREE.Vector3(0, TABLE_Y + 0.009, backEdgeZ - CLEAR); }
+  if (kind === 'v') tip = new THREE.Vector3(0, PANEL_TOP + CLEAR, z + 0.12);
+  if (kind === 'd') { spindle.rotation.x = -Math.PI / 4; tip = new THREE.Vector3(0, PANEL_TOP + CLEAR, z + 0.17); }
   const plunge = new THREE.Vector3(0, -1, 0).applyQuaternion(spindle.quaternion);
-  return { group: g, spindle, bit, rest, plunge };
+  // Spindle center in the head's local frame.
+  spindle.position.copy(tip).addScaledVector(plunge, -TIP).sub(new THREE.Vector3(0, topY, z));
+  g.add(spindle);
+  if (kind === 'h') g.add(box(0.05, Math.max(0.01, -bodyH - spindle.position.y), 0.04, M.alu, 0, (-bodyH + spindle.position.y) / 2, Math.min(-0.05, spindle.position.z + 0.06))); // hanger
+  g.add(cyl(0.035, 0.03, M.brass, 0, -bodyH - 0.012, -0.03, 'y', 16)); // dust brush ring
+  const rest = spindle.position.clone();
+  return { group: g, spindle, bit, rest, plunge, tipRest: tip, kind };
 }
 
 export function createNova(id) {
@@ -76,14 +85,15 @@ export function createNova(id) {
   root.add(letters);
 
   // Gridded table with a wing at the front left.
-  const tableMat = gridTable(L - 0.2, D - 0.25);
-  const table = new THREE.Mesh(new THREE.BoxGeometry(L - 0.2, 0.04, D - 0.25), [M.frame, M.frame, tableMat, M.frame, M.frame, M.frame]);
-  table.position.set(0.05, TABLE_Y - 0.02, -0.02);
+  // The table starts just behind the back fence, leaving room for the horizontal spindles.
+  const tz0 = ZB + 0.22, tz1 = -0.02 + (D - 0.25) / 2;
+  const tableMat = gridTable(L - 0.2, tz1 - tz0);
+  const table = new THREE.Mesh(new THREE.BoxGeometry(L - 0.2, 0.04, tz1 - tz0), [M.frame, M.frame, tableMat, M.frame, M.frame, M.frame]);
+  table.position.set(0.05, TABLE_Y - 0.02, (tz0 + tz1) / 2);
   table.receiveShadow = table.castShadow = true;
   root.add(table);
   root.add(box(0.75, 0.035, 0.42, tableMat, X0 + 0.35, TABLE_Y - 0.02, ZF - 0.15));
   root.add(box(0.05, 0.12, 0.35, M.frame, X0 + 0.05, TABLE_Y - 0.1, ZF - 0.15));
-  root.add(box(L - 0.25, 0.05, 0.03, M.steel, 0.05, TABLE_Y + 0.02, ZB + 0.2)); // back fence
 
   // Bridge along the back on two end posts.
   const bz = ZB + 0.18;
@@ -114,19 +124,35 @@ export function createNova(id) {
   }
   root.add(screen);
 
-  // Spindle heads in pairs under the bridge, plus pneumatic panel presses between them.
-  const heads = cfg.heads.map((kind, i, a) => {
-    const pair = Math.floor(i / 2), pairs = Math.ceil(a.length / 2);
-    const x = -1.0 + (pairs === 1 ? 0.6 : 2.0 * pair / (pairs - 1)) + (i % 2) * 0.16;
-    const h = head(kind);
-    h.group.position.set(x, beamY - 0.25, bz + 0.03);
+  // Spindle heads in pairs under the bridge, spread over the panel, plus pneumatic panel presses.
+  const PIECE_L = 0.9, PIECE_D = 0.4;
+  const pieceZ = bz + 0.07 + PIECE_D / 2; // back edge 70 mm in front of the bridge's center line
+  const backEdge = pieceZ - PIECE_D / 2;
+  const pairs = Math.ceil(cfg.heads.length / 2);
+  const heads = cfg.heads.map((kind, i) => {
+    const pair = Math.floor(i / 2);
+    const x = (pairs === 1 ? 0 : -0.27 + 0.54 * pair / (pairs - 1)) + (i % 2 ? 0.08 : -0.08);
+    const top = beamY - 0.12;
+    const h = head(kind, top, bz + 0.03, backEdge);
+    h.group.position.set(x, top, bz + 0.03);
     root.add(h.group);
-    root.add(tube([[x, beamY - 0.12, bz - 0.05], [x + 0.05, beamY + 0.05, bz - 0.15], [x + 0.1, beamY + 0.1, bz - 0.1]], 0.02, M.hose, 12));
+    root.add(tube([[x, top - 0.02, bz - 0.05], [x + 0.05, beamY + 0.05, bz - 0.15], [x + 0.1, beamY + 0.1, bz - 0.1]], 0.02, M.hose, 12));
     return h;
   });
-  for (const x of [-1.25, -0.15, 0.85]) {
-    root.add(cyl(0.025, 0.2, M.alu, x, beamY - 0.22, bz + 0.12, 'y', 12));
-    root.add(box(0.06, 0.02, 0.06, M.rubber, x, beamY - 0.33, bz + 0.12));
+  for (const x of [-0.5, 0.5]) {
+    const len = beamY - 0.12 - (PANEL_TOP + 0.03);
+    root.add(cyl(0.025, len, M.alu, x, PANEL_TOP + 0.03 + len / 2, bz + 0.09, 'y', 12)); // hangs from the bridge
+    root.add(box(0.06, 0.02, 0.06, M.rubber, x, PANEL_TOP + 0.02, bz + 0.09));
+  }
+  // Back fence behind the panel, with gaps where the horizontal spindles reach through.
+  {
+    const fx0 = X0 + 0.15, fx1 = X1 - 0.05, gaps = heads.filter(h => h.kind === 'h').map(h => h.group.position.x).sort((a, b) => a - b);
+    let from = fx0;
+    for (const gx of [...gaps, null]) {
+      const to = gx === null ? fx1 : gx - 0.05;
+      if (to - from > 0.02) root.add(box(to - from, 0.05, 0.03, M.steel, (from + to) / 2, TABLE_Y + 0.025, backEdge - 0.025));
+      if (gx !== null) from = gx + 0.05;
+    }
   }
 
   // Left-end unit: spindle motor on a slide with its dust hose (the machine's end-drilling station).
@@ -136,8 +162,8 @@ export function createNova(id) {
   root.add(cyl(0.05, 0.14, M.red, X0 + 0.12, H - 0.15, bz + 0.12, 'y', 16)); // signal tower
   root.add(cyl(0.05, 0.05, M.green, X0 + 0.12, H - 0.055, bz + 0.12, 'y', 16));
 
-  // A 700 × 400 × 18 mm door panel slides in against the back fence, gets drilled, slides out.
-  const piece = box(0.7, 0.018, 0.4, M.panel, 0, TABLE_Y + 0.009, bz + 0.25);
+  // A 900 × 400 × 18 mm cabinet side slides in against the back fence, gets drilled, slides out.
+  const piece = box(PIECE_L, 0.018, PIECE_D, M.panel, 0, TABLE_Y + 0.009, pieceZ);
   root.add(piece);
 
   // Holes each head leaves in the panel, shown once its stroke bottoms out: dowel holes in the
@@ -146,16 +172,22 @@ export function createNova(id) {
   const holes = new THREE.Group();
   piece.add(holes);
   function drillHoles() {
-    heads.forEach((h, i) => {
-      const x = h.group.position.x;
+    // A pair of holes where each bit went in, in the panel's own frame.
+    piece.updateMatrixWorld(true);
+    const inv = piece.matrixWorld.clone().invert();
+    for (const h of heads) {
       for (const dx of [-0.016, 0.016]) {
-        if (cfg.heads[i] === 'h') holes.add(cyl(0.004, 0.003, holeMat, x + dx, 0, -0.2 - 0.001, 'z', 12));
-        else holes.add(cyl(cfg.heads[i] === 'v' ? 0.005 : 0.0065, 0.003, holeMat, x + dx, 0.0095, cfg.heads[i] === 'v' ? -0.165 : -0.185, 'y', 14));
+        const at = h.tipRest.clone().add(new THREE.Vector3(h.group.position.x + dx, 0, 0));
+        if (h.kind === 'h') at.z = backEdge - 0.001; else at.y = PANEL_TOP + 0.0005;
+        if (h.kind === 'd') at.addScaledVector(new THREE.Vector3(0, 0, 1), 0.01);
+        at.applyMatrix4(inv);
+        holes.add(h.kind === 'h' ? cyl(0.004, 0.003, holeMat, at.x, at.y, at.z, 'z', 12)
+          : cyl(h.kind === 'v' ? 0.005 : 0.0065, 0.003, holeMat, at.x, at.y, at.z, 'y', 14));
       }
-    });
+    }
   }
   const clearHoles = () => holes.clear();
-  const stops = { in: X0 - 0.1, drill: 0, out: X1 + 0.1 };
+  const stops = { in: X0 - 0.1, drill: 0, out: X1 + 0.1 }; // panel center x
   const cycle = [['in', 3], ['drill', 2.5], ['out', 3], ['reset', 0.5]];
   const total = cycle.reduce((a, [, t]) => a + t, 0);
   let t = 0, phase = 'in';
@@ -165,7 +197,7 @@ export function createNova(id) {
     workpiece: piece,
     pieceLabel: 'แผ่นงาน',
     info: () => `หัวเจาะ ${cfg.heads.length} หัว · ${{ in: 'ป้อนแผ่น', drill: 'กำลังเจาะ', out: 'ส่งออก', reset: 'รอแผ่นถัดไป' }[phase]}`,
-    labels: heads.map((h, i) => ({ text: { h: 'แนวนอน', v: 'แนวตั้ง', d: 'ทแยง' }[cfg.heads[i]], at: [h.group.position.x, beamY + 0.25 + (i % 2) * 0.08, bz] })),
+    labels: heads.map((h, i) => ({ text: { h: 'แนวนอน', v: 'แนวตั้ง', d: 'ทแยง' }[cfg.heads[i]], at: [h.group.position.x, beamY + 0.25 + (i % 3) * 0.09, bz] })),
     views: { a: [L * 0.45, 2.3, 3.6], b: [-L * 0.55, 2.2, -3.2], target: [0, 0.9, 0] },
     update(dt) {
       t = (t + dt) % total;
@@ -179,7 +211,7 @@ export function createNova(id) {
             : name === 'out' ? THREE.MathUtils.lerp(stops.drill, stops.out, e) : stops.in;
           if (name === 'in') clearHoles();
           if (name === 'drill' && k > 0.5 && !holes.children.length) drillHoles();
-          const stroke = name === 'drill' ? Math.sin(k * Math.PI) * 0.03 : 0;
+          const stroke = name === 'drill' ? Math.sin(k * Math.PI) * 0.02 : 0; // 8 mm clearance + 12 mm into the panel
           for (const h of heads) {
             h.bit.rotation.y += (name === 'drill' ? 60 : 0) * dt;
             h.spindle.position.copy(h.rest).addScaledVector(h.plunge, stroke);
@@ -217,10 +249,12 @@ export function createNovaXS() {
   side.position.set(X1 + 0.002, 1.25, hzc);
   root.add(side);
   for (const x of [hx0 + 0.1, X1 - 0.15]) for (const z of [hz0 + 0.1, hz1 - 0.1]) root.add(box(0.12, 1.15, 0.12, dark, x, 0.575, z));
-  root.add(box(hw - 0.2, 0.12, hd - 0.2, dark, hxc, 0.95, hzc)); // lower bed
+  root.add(box(hw - 0.2, 0.12, hd - 0.2, dark, hxc, 0.885, hzc)); // lower bed, flush with the feed table so the panel slides over it
   // Mechanics visible under the housing: vacuum receiver, motor, hoses.
   root.add(cyl(0.16, 0.5, std('#5f6a75', { metalness: 0.4 }), hxc - 0.3, 0.55, hzc + 0.2, 'x', 24));
+  for (const dx of [-0.18, 0.18]) root.add(box(0.06, 0.39, 0.2, dark, hxc - 0.3 + dx, 0.195, hzc + 0.2)); // receiver saddles
   root.add(cyl(0.1, 0.22, M.motor, hxc + 0.3, 0.45, hzc + 0.3, 'x', 20));
+  root.add(box(0.26, 0.35, 0.2, dark, hxc + 0.3, 0.175, hzc + 0.3)); // motor stand
   const copper = std('#b8693a', { metalness: 0.5, roughness: 0.5 });
   root.add(tube([[hxc - 0.6, 0.3, hz1 - 0.1], [hxc - 0.9, 0.6, hz1 + 0.3], [hxc - 0.4, 0.9, hz1 + 0.1], [hxc + 0.2, 0.8, hz1 - 0.2]], 0.045, copper, 30));
   root.add(tube([[hxc + 0.5, 0.2, hz1 - 0.2], [hxc + 0.7, 0.5, hz1 + 0.1], [hxc + 0.3, 0.95, hz1 - 0.1]], 0.04, copper, 30));
@@ -231,13 +265,14 @@ export function createNovaXS() {
   root.add(box(tx1 - tx0, 0.04, 0.06, M.steel, (tx0 + tx1) / 2, 0.96, tz0 + 0.05)); // gripper rail
   root.add(box(tx1 - tx0, 0.12, 0.08, dark, (tx0 + tx1) / 2, 0.84, tz1 - 0.04));
   root.add(box(0.5, 0.85, 0.5, dark, X0 + 0.5, 0.45, (tz0 + tz1) / 2)); // pedestal
-  root.add(box(tx1 - tx0 - 0.6, 0.08, 0.08, dark, (tx0 + tx1) / 2 + 0.2, 0.25, tz0 + 0.1));
+  root.add(box(tx1 - tx0 - 0.6, 0.08, 0.08, dark, (tx0 + tx1) / 2 + 0.2, 0.25, 0.25)); // tie bar, pedestal to housing leg
   // Second, narrower outfeed table in front of the housing.
-  root.add(box(1.2, 0.05, 0.9, std('#4a4f57'), hx0 - 0.3, 0.92, D / 2 - 0.45));
-  root.add(box(0.08, 0.9, 0.08, dark, hx0 - 0.85, 0.45, D / 2 - 0.1));
+  // (Starts where the feed table ends, so the two tops don't overlap and flicker.)
+  root.add(box(1.2, 0.05, D / 2 - 0.05 - tz1, std('#4a4f57'), hx0 - 0.3, 0.92, (tz1 + D / 2 - 0.05) / 2));
+  for (const x of [hx0 - 0.85, hx0 + 0.25]) root.add(box(0.08, 0.895, 0.08, dark, x, 0.4475, D / 2 - 0.1));
 
   // Touch screen on a pivot arm at the infeed side of the housing.
-  root.add(box(0.06, 0.5, 0.06, M.frame, hx0 - 0.9, 1.25, tz0 + 0.1));
+  root.add(box(0.06, 0.555, 0.06, M.frame, hx0 - 0.9, 0.945 + 0.555 / 2, tz0 + 0.1)); // screen post, standing on the table
   const screen = new THREE.Group();
   screen.add(box(0.48, 0.34, 0.07, M.body, 0, 0, 0));
   const face = decal('mastrox', { w: 0.36, color: '#1d1f22', bg: '#f07a22' });

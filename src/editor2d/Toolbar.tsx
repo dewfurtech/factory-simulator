@@ -45,6 +45,7 @@ const PATHS: Record<string, string> = {
   plus: 'M12 5v14 M5 12h14',
   edit: 'M4 20h4L19 9l-4-4L4 16z M14 6l4 4',
   fit: 'M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5',
+  expand: 'M14 4h6v6 M20 4l-7 7 M10 20H4v-6 M4 20l7-7',
   follow: 'M12 2v4 M12 18v4 M2 12h4 M18 12h4 M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z',
   close: 'M6 6l12 12 M18 6L6 18',
   forward: 'M9 6l6 6-6 6',

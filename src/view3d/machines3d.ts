@@ -1,24 +1,35 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { lowPolyMachine } from '../machines/lowpoly.js';
 import { MODELS } from '../machines/registry.js';
 import { catalogItem } from '../model/catalog';
 import { FLAT, paint } from './lowpoly';
 
 /**
- * Mastrox machines baked for the factory floor: the detailed model is built once, its moving parts
- * stopped, and every opaque part merged into one vertex-colored, flat-shaded geometry; see-through
- * covers keep their own material and text decals stay as they are. Placing a machine clones the
- * baked template, which shares all its geometry, so each one costs only a few draw calls.
+ * Mastrox machines baked for the factory floor: the model is built once, reduced by the model
+ * project's own low-poly pass (small parts dropped, round parts with fewer sides, merged by colour),
+ * and every opaque part merged into one vertex-colored, flat-shaded geometry; see-through covers
+ * keep their own material and text decals stay as they are. Placing a machine clones the baked
+ * template, which shares all its geometry, so each one costs only a few draw calls.
  */
 
 const templates = new Map<string, THREE.Group>();
 
+type Made = { object: THREE.Object3D; workpiece?: THREE.Object3D | null; update?: (dt: number) => void };
+const build = (assetId: string) => (MODELS as Record<string, () => Made>)[assetId]();
+
 export const hasModel = (assetId: string) => assetId in (MODELS as Record<string, unknown>);
 
+/** The yellow "stand here" floor pads the models carry: left off the plan, where the footprint is the machine itself. */
+function dropZones(root: THREE.Object3D) {
+  for (const c of [...root.children]) if (c.userData.operatorZone) c.removeFromParent();
+}
+
 function bake(assetId: string): THREE.Group {
-  const made = (MODELS as Record<string, () => { object: THREE.Object3D; workpiece?: THREE.Object3D }>)[assetId]();
+  const made = build(assetId);
   made.workpiece?.removeFromParent();
-  const root = made.object;
+  dropZones(made.object);
+  const root = (lowPolyMachine(made) as Made).object;
   root.updateMatrixWorld(true);
   const opaque: THREE.BufferGeometry[] = [];
   const clear = new Map<THREE.Material, THREE.BufferGeometry[]>();
@@ -94,11 +105,12 @@ export interface LiveMachine {
 
 /**
  * The full, unbaked model with its moving parts and workpiece, for a machine someone is running.
- * Heavier than the baked copy, so the scene swaps it in only while the machine works.
+ * Heavier than the baked copy. `zones` keeps the yellow pad marking where the operator stands.
  */
-export function liveMachine(assetId: string): LiveMachine | null {
+export function liveMachine(assetId: string, { zones = false } = {}): LiveMachine | null {
   if (!hasModel(assetId)) return null;
-  const made = (MODELS as Record<string, () => { object: THREE.Object3D; update?: (dt: number) => void }>)[assetId]();
+  const made = build(assetId);
+  if (!zones) dropZones(made.object);
   const [cx, cz] = catalogItem(assetId)?.modelCenter ?? [0, 0];
   made.object.position.set(-cx / 1000, 0, -cz / 1000);
   made.object.traverse((x) => {
