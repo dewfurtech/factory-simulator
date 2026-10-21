@@ -10,7 +10,7 @@ createRoot(document.getElementById('root')!).render(
 );
 
 if (import.meta.env.DEV) {
-  void Promise.all([import('./store/project'), import('./store/ui'), import('./store/sim')]).then(([p, u, s]) => {
-    Object.assign(window, { __factory: { project: p.useProject, ui: u.useUi, sim: s.useSim } });
+  void Promise.all([import('./store/project'), import('./store/ui')]).then(([p, u]) => {
+    Object.assign(window, { __factory: { project: p.useProject, ui: u.useUi } });
   });
 }

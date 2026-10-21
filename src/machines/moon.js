@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { M, box, cyl, decal, logo, warning, tube, button, lowSeg } from './lib.js';
-import { STATIONS, STATION_NAMES, DUSTY } from './booster.js';
+import { M, box, cyl, decal, logo, warning, tube, button } from './lib.js';
+import { STATIONS, STATION_NAMES, DUSTY, stationRib } from './booster.js';
 
 // Mastrox Moon edge banders (Moon 10 / 40 / 40d / 80), the professional line above the Booster.
 // Sizes and station lists come from the brochures; the brochures only show the amber-window side,
@@ -77,7 +77,7 @@ export function createMoon(id) {
   const zr = Z_FRONT - 0.07;
   root.add(box(L + 0.1, 0.07, 0.12, M.rail, 0, WORK_Y - 0.06, zr));
   const nRoll = Math.floor((L + 0.1) / 0.05);
-  const roll = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.019, 0.019, 0.05, lowSeg(14)), M.roller, nRoll);
+  const roll = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.019, 0.019, 0.05, 14), M.roller, nRoll);
   const rot = new THREE.Matrix4().makeRotationX(Math.PI / 2);
   for (let i = 0; i < nRoll; i++) roll.setMatrixAt(i, new THREE.Matrix4().makeTranslation(X0 - 0.1 + i * 0.05, WORK_Y - 0.02, Z_FRONT - 0.16).multiply(rot));
   root.add(roll);
@@ -95,6 +95,7 @@ export function createMoon(id) {
     g.position.set(s.x, WORK_Y - 0.88 * TOOL_SCALE, -0.09 - -0.09 * TOOL_SCALE);
     g.scale.setScalar(TOOL_SCALE);
     spin.push(...STATIONS[s.id](g, 0));
+    stationRib(g, 0, (H - 0.08 - g.position.y) / TOOL_SCALE);
     root.add(g);
     if (DUSTY.has(s.id)) root.add(tube([[s.x, WORK_Y + 0.1, -0.25], [s.x + 0.08, H - 0.3, Z_BACK + 0.1], [s.x + 0.12, H - 0.12, -0.2]], 0.035));
   }
@@ -128,7 +129,7 @@ export function createMoon(id) {
   // Infeed: edge coil table, the three-knob edge feed box, and the touch screen on a swing arm.
   const cx = X0 + 0.45, cz = -0.25;
   root.add(cyl(0.38, 0.008, M.disc, cx, WORK_Y + 0.05, cz, 'y', 48));
-  const coil = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.03, 4, 12), M.orange);
+  const coil = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.03, 8, 40), M.orange);
   coil.rotation.x = Math.PI / 2;
   coil.scale.z = 0.7;
   coil.position.set(cx, WORK_Y + 0.08, cz);

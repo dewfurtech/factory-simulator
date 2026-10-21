@@ -120,9 +120,10 @@ export function createColdPress() {
   const cycle = [['down', 4], ['hold', 4], ['up', 4], ['wait', 3]];
   const total = cycle.reduce((a, [, t]) => a + t, 0);
   const topY = BED_TOP + OPEN, pressY = BED_TOP + STACK, squeezedY = BED_TOP + STACK * SQUEEZE;
-  let t = 0, auto = true, phase = 'wait';
+  let t = 0, auto = true, phase = 'wait', curY = 0;
 
   function place(y) {
+    curY = y;
     platen.position.y = y + 0.12;
     for (const rod of rods) {
       const len = BEAM_Y0 - (y + 0.12);
@@ -136,7 +137,11 @@ export function createColdPress() {
     object: root,
     workpiece: stack,
     pieceLabel: 'แผ่นงาน',
-    open: { label: 'รอบอัด', on: 'วนอัต.', off: 'หยุด', initial: true, set(v) { auto = v; if (!v) { place(topY); phase = 'up'; } } },
+    open: { label: 'รอบอัด', on: 'วนอัต.', off: 'หยุด', initial: true, set(v) {
+      if (v && !auto) t = total - 3; // pick up at the start of the pause, with the platen up
+      auto = v;
+      if (!v) phase = 'up';
+    } },
     info: () => `แรงอัด 60 ตัน · ช่องเปิด ${OPEN * 1000} mm · สถานะ: ${{ down: 'กำลังลง', hold: 'กำลังอัด', up: 'กำลังขึ้น', wait: 'พัก' }[phase]}`,
     labels: [
       { text: 'กระบอกไฮดรอลิก ×4', at: [0.62, BEAM_Y0 - 0.3, 0.2] },
@@ -144,7 +149,12 @@ export function createColdPress() {
     ],
     views: { a: [2.6, 2.3, 4.2], b: [-3.0, 2.2, -3.6], target: [0, 1.1, 0] },
     update(dt) {
-      if (!auto) return;
+      if (!auto) {
+        // Stopped: open the press smoothly and leave it there.
+        if (Math.abs(topY - curY) > 1e-4) place(curY + (topY - curY) * Math.min(1, dt * 2));
+        else phase = 'wait';
+        return;
+      }
       t = (t + dt) % total;
       let acc = 0;
       for (const [name, dur] of cycle) {

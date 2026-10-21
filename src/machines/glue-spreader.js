@@ -36,7 +36,7 @@ function perforatedCover(w, h) {
 
 function handwheel(x, y, z, side) {
   const g = new THREE.Group();
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.01, 4, 12), M.frame);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.01, 8, 32), M.frame);
   g.add(rim);
   for (let i = 0; i < 3; i++) {
     const spoke = box(0.006, 0.075, 0.008, M.frame, 0, 0, 0);
@@ -97,7 +97,7 @@ export function createGlueSpreader() {
     root.add(box(0.14, 0.1, 0.14, M.gearGreen, s * xs, 1.31, -0.05));
     root.add(cyl(0.04, 0.06, M.gearGreen, s * xs, 1.33, 0.04, 'z', 16));
   }
-  root.add(cyl(0.012, W - 0.2, M.steel, 0, 1.33, -0.05, 'x', 10));
+  root.add(cyl(0.012, 2 * (xs + 0.11), M.steel, 0, 1.33, -0.05, 'x', 10)); // out to the handwheel hub
   root.add(handwheel(xs + 0.15, 1.33, -0.05, 1));
   root.add(handwheel(-(xs + 0.15), 1.0, -0.05, -1));
   root.add(handwheel(xs + 0.15, 0.96, -0.05, 1));

@@ -81,7 +81,7 @@ export function createVAir(id) {
   const yc = legs + 0.2 + shell / 2;
   root.add(cyl(tr, shell, M.lime, tx, yc, tz, 'y', 40));
   for (const s of [-1, 1]) {
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(tr, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2), M.lime);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(tr, 40, 16, 0, Math.PI * 2, 0, Math.PI / 2), M.lime);
     cap.scale.y = 0.55;
     cap.position.set(tx, yc + s * shell / 2, tz);
     if (s < 0) cap.rotation.x = Math.PI;
@@ -122,7 +122,7 @@ export function createVAir(id) {
   v3.position.set(dx + dl / 2 - 0.004 - V_W / 2, v3H / 2 + 0.005, dfz + 0.004); // flush right and bottom
   root.add(v3);
   // Slot vents on the left side, in staggered columns.
-  const slotGeo = new THREE.CapsuleGeometry(0.005, 0.035, 1, 4);
+  const slotGeo = new THREE.CapsuleGeometry(0.005, 0.035, 4, 8);
   const cols = 10, rows = 11;
   const slots = new THREE.InstancedMesh(slotGeo, std('#101112', { roughness: 0.9 }), cols * rows);
   const m4 = new THREE.Matrix4(), rot = new THREE.Matrix4().makeRotationX(0.35);

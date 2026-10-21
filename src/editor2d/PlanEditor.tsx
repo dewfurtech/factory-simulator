@@ -1,18 +1,16 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { catalogItem, isMachine } from '../model/catalog';
+import { catalogItem } from '../model/catalog';
 import { levelOf, onLevel } from '../model/levels';
 import { obbCorners, objectObb } from '../model/objects';
 import { wallFootprints } from '../model/miter';
 import { openingOffsetAt, roomLabelPoint, roomPolygon, roomStats, setWallLength, wallDir, wallLength } from '../model/plan';
 import { OPENING_PRESETS, openingSymbol, type OpeningSymbol } from '../model/openings';
 import type { Column, Id, PlacedObject, Plan, Project, Vec2, Wall } from '../model/types';
-import { add, bounds, dist, lerp, perp, scale, signedArea } from '../model/vec';
+import { add, bounds, lerp, perp, scale, signedArea } from '../model/vec';
 import { zoneColor } from '../model/zones';
 import { fmtArea, fmtLen, fmtSize } from '../format';
 import { editProject, useEditProject, useProject } from '../store/project';
-import { useSim } from '../store/sim';
 import { useUi, type Selection, type Tool } from '../store/ui';
-import { actColor, MACHINE_STATES } from '../sim/activities';
 import { CalibrateInput, CalibrateOverlay, UnderlayImage } from './Underlay';
 import { underlayRect } from '../model/underlay';
 import { columnOutline, isCrossing, isOutdoor, SNAP_PX } from './hit';
@@ -33,8 +31,6 @@ const pts = (ps: Vec2[]) => ps.map((p) => `${p.x},${p.y}`).join(' ');
 export function PlanEditor() {
   const project = useEditProject()!;
   const tool = useUi((s) => s.tool);
-  const mode = useUi((s) => s.mode);
-  const sim = mode === 'sim';
   const selection = useUi((s) => s.selection);
   const boxed = useUi((s) => s.boxed);
   const marked = useMemo(() => new Set(boxed.map((b) => b.id)), [boxed]);
@@ -67,7 +63,7 @@ export function PlanEditor() {
     const ro = new ResizeObserver(() => {
       const pane = { w: el.clientWidth, h: el.clientHeight };
       setSize(pane);
-      if (!fitted && pane.w > 0) setView(initialView(editProject(), pane, sim));
+      if (!fitted && pane.w > 0) setView(initialView(editProject(), pane));
       fitted ||= pane.w > 0;
     });
     ro.observe(el);
@@ -88,26 +84,9 @@ export function PlanEditor() {
     setView({ s, cx: before.x - (e.clientX - r.left - size.w / 2) / s, cy: before.y - (e.clientY - r.top - size.h / 2) / s });
   };
 
-  /** In the simulation the plan is read-only: a click picks a person or a machine, a drag pans. */
-  const simClick = (p: Vec2) => {
-    const e = useSim.getState().engine;
-    const radius = 14 / view.s;
-    if (e) {
-      let best: { id: string; d: number } | null = null;
-      for (const a of e.agents) {
-        if (!a.present || (a.pos.level ?? 0) !== useProject.getState().level) continue;
-        const d = dist(a.pos, p);
-        if (d < Math.max(radius, 450) && (!best || d < best.d)) best = { id: a.id, d };
-      }
-      if (best) return useUi.getState().set({ agent: best.id, selection: null });
-    }
-    const o = [...project.objects].reverse().find((o) => isMachine(o) && pointInObj(o, p));
-    useUi.getState().set({ agent: null, selection: o ? { kind: 'object', id: o.id } : null });
-  };
-
   const onPointerDown = (e: React.PointerEvent) => {
     svgRef.current!.setPointerCapture(e.pointerId);
-    if (e.button === 1 || e.button === 2 || (sim && e.button === 0)) {
+    if (e.button === 1 || e.button === 2) {
       pan.current = { x: e.clientX, y: e.clientY, view, moved: false };
       return;
     }
@@ -120,28 +99,25 @@ export function PlanEditor() {
       setView({ ...v, cx: v.cx - (e.clientX - x) / v.s, cy: v.cy - (e.clientY - y) / v.s });
       return;
     }
-    if (!sim) dispatchPointer('move', input(e));
+    dispatchPointer('move', input(e));
   };
   const onPointerUp = (e: React.PointerEvent) => {
     if (pan.current) {
-      const click = sim && e.button === 0 && !pan.current.moved;
       pan.current = null;
-      if (click) simClick(toPlan(e.clientX, e.clientY));
       return;
     }
-    if (!sim) dispatchPointer('up', input(e));
+    dispatchPointer('up', input(e));
   };
 
   const onDrop = (e: React.DragEvent) => {
     const assetId = e.dataTransfer.getData(ASSET_MIME);
-    if (!assetId || sim) return;
+    if (!assetId) return;
     e.preventDefault();
     placeObjectAt(assetId, toPlan(e.clientX, e.clientY), SNAP_PX / view.s, e.altKey);
   };
 
   const editDim = useRef<(w: Wall, at: Vec2) => void>(() => undefined);
   editDim.current = (w, at) => {
-    if (sim) return;
     const s = toScreen(at);
     setEditing({ wallId: w.id, x: s.x, y: s.y, value: (wallLength(project.plan, w) / 10).toFixed(1) });
   };
@@ -176,7 +152,7 @@ export function PlanEditor() {
         onPointerUp={onPointerUp}
         onPointerLeave={() => useUi.getState().set({ cursor: null })}
         onContextMenu={(e) => e.preventDefault()}
-        style={{ cursor: sim ? 'grab' : tool.kind === 'select' ? 'default' : tool.kind === 'moveUnderlay' ? 'move' : 'crosshair' }}
+        style={{ cursor: tool.kind === 'select' ? 'default' : tool.kind === 'moveUnderlay' ? 'move' : 'crosshair' }}
       >
         <defs>
           <pattern id="grid" width={grid} height={grid} patternUnits="userSpaceOnUse">
@@ -195,19 +171,14 @@ export function PlanEditor() {
         <PlanBase {...shared} />
         <ObjectLayer objects={objects} outdoor={false} {...shared} />
         <ColumnLayer columns={columns} {...shared} />
-        <PlanLabels onEditDim={onEditDim} sim={sim} {...shared} />
-        {sim && <SimLayer px={livePx} />}
-        {!sim && (
-          <>
-            <ToolOverlay px={livePx} />
-            <BoxOverlay px={livePx} />
-            <CursorOverlay px={livePx} />
-            <CalibrateOverlay px={livePx} />
-          </>
-        )}
+        <PlanLabels onEditDim={onEditDim} {...shared} />
+        <ToolOverlay px={livePx} />
+        <BoxOverlay px={livePx} />
+        <CursorOverlay px={livePx} />
+        <CalibrateOverlay px={livePx} />
       </svg>
-      {!sim && <CalibrateInput toScreen={toScreen} />}
-      {!sim && <DrawEntry toScreen={toScreen} size={size} />}
+      <CalibrateInput toScreen={toScreen} />
+      <DrawEntry toScreen={toScreen} size={size} />
       {editing && (
         <input
           className="dim-input"
@@ -227,23 +198,14 @@ export function PlanEditor() {
       <div className="zoom-ctl glass">
         <button onClick={() => zoom(1.25)} aria-label="ซูมเข้า">+</button>
         <button onClick={() => zoom(0.8)} aria-label="ซูมออก">−</button>
-        <button onClick={() => setView(initialView(project, size, sim))} aria-label="พอดีจอ" title="พอดีจอ">
+        <button onClick={() => setView(initialView(project, size))} aria-label="พอดีจอ" title="พอดีจอ">
           ⤢
         </button>
       </div>
-      {!sim && <Hud />}
+      <Hud />
     </div>
   );
 }
-
-const pointInObj = (o: PlacedObject, p: Vec2) => {
-  const c = obbCorners(objectObb(o));
-  let inside = false;
-  for (let i = 0, j = c.length - 1; i < c.length; j = i++) {
-    if (c[i].y > p.y !== c[j].y > p.y && p.x < ((c[j].x - c[i].x) * (p.y - c[i].y)) / (c[j].y - c[i].y) + c[i].x) inside = !inside;
-  }
-  return inside;
-};
 
 interface LayerProps {
   plan: Plan;
@@ -324,7 +286,7 @@ function EntranceMark({ plan, wall, offset, px }: { plan: Plan; wall: Wall; offs
 }
 
 /** Wall dimensions, room names and corner handles, drawn over the objects. */
-const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim, sim }: LayerProps & { onEditDim: (w: Wall, at: Vec2) => void; sim: boolean }) {
+const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim }: LayerProps & { onEditDim: (w: Wall, at: Vec2) => void }) {
   const rooms = useMemo(
     () =>
       Object.values(plan.rooms).map((r) => ({ r, c: roomLabelPoint(plan, r), st: roomStats(plan, r) })),
@@ -333,8 +295,7 @@ const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim, si
   const selCorner = selId(selection, 'corner');
   return (
     <>
-      {!sim &&
-        Object.values(plan.walls).map((w) => {
+      {Object.values(plan.walls).map((w) => {
           if (w.hidden) return null;
           const a = plan.corners[w.a];
           const b = plan.corners[w.b];
@@ -372,15 +333,14 @@ const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim, si
           <text x={c.x} y={c.y - 8 * px} fontWeight={700} fontSize={14 * px} stroke="var(--canvas)" strokeWidth={3 * px} paintOrder="stroke" opacity={0.85}>
             {r.name}
           </text>
-          {!sim && st.width > 130 * px && (
+          {st.width > 130 * px && (
             <text x={c.x} y={c.y + 9 * px} fill="var(--ink-3)" stroke="var(--canvas)" strokeWidth={3 * px} paintOrder="stroke">
               {fmtArea(st.area)} · {fmtSize(st.width, st.depth)}
             </text>
           )}
         </g>
       ))}
-      {!sim &&
-        Object.values(plan.corners).map((c) => (
+      {Object.values(plan.corners).map((c) => (
           <circle key={c.id} cx={c.x} cy={c.y} r={(selCorner === c.id ? 5 : 2.5) * px} fill={selCorner === c.id ? 'var(--select)' : '#fff'} stroke="#18181b" strokeWidth={px} />
         ))}
     </>
@@ -454,71 +414,6 @@ const ObjectShape = memo(function ObjectShape({ o, px, sel, above }: { o: Placed
     </g>
   );
 });
-
-/** People, their paths, and machine states while the day runs. */
-function SimLayer({ px }: { px: number }) {
-  useSim((s) => s.version);
-  const engine = useSim((s) => s.engine);
-  const picked = useUi((s) => s.agent);
-  const showPaths = useUi((s) => s.showPaths);
-  const level = useProject((s) => s.level);
-  const [, setTick] = useState(0);
-  // Smoother than the panels' refresh: redraw people every frame while running.
-  useEffect(() => {
-    let raf = 0;
-    const f = () => {
-      raf = requestAnimationFrame(f);
-      if (useSim.getState().playing) setTick((t) => t + 1);
-    };
-    raf = requestAnimationFrame(f);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  if (!engine) return null;
-  const r = Math.max(260, 7 * px);
-  return (
-    <g>
-      {[...engine.machines.values()].filter((m) => levelOf(m.obj) === level).map((m) => {
-        const c = MACHINE_STATES[m.state].color;
-        return (
-          <g key={m.obj.id} pointerEvents="none">
-            <polygon points={pts(obbCorners(objectObb(m.obj)))} fill={c} fillOpacity={0.18} stroke={c} strokeWidth={2.5 * px} />
-            <circle cx={m.obj.x} cy={m.obj.y} r={Math.max(200, 6 * px)} fill={c} stroke="#fff" strokeWidth={1.5 * px} />
-          </g>
-        );
-      })}
-      {engine.agents.map((a) => {
-        if (!a.present || (a.pos.level ?? 0) !== level) return null;
-        const mine = a.id === picked;
-        if (!mine && !showPaths) return null;
-        return (
-          <g key={`p${a.id}`} pointerEvents="none">
-            {a.trail.length > 1 && <polyline points={pts((mine ? a.trail.slice(-800) : a.trail.slice(-120)).concat([a.pos]))} fill="none" stroke={a.color} strokeOpacity={0.35} strokeWidth={(mine ? 3 : 1.5) * px} strokeLinejoin="round" />}
-            {a.cur?.k === 'goto' && a.path.length > 0 && <polyline points={pts([a.pos, ...a.path])} fill="none" stroke={a.color} strokeWidth={(mine ? 2.5 : 1.2) * px} strokeDasharray={`${6 * px} ${4 * px}`} />}
-            {mine && a.dest && <circle cx={a.dest.x} cy={a.dest.y} r={r * 0.8} fill="none" stroke={a.color} strokeWidth={2 * px} />}
-          </g>
-        );
-      })}
-      {engine.agents.map((a) => {
-        if (!a.present || (a.pos.level ?? 0) !== level) return null;
-        const mine = a.id === picked;
-        const dir = { x: Math.cos(a.facing), y: Math.sin(a.facing) };
-        return (
-          <g key={a.id} pointerEvents="none">
-            {mine && <circle cx={a.pos.x} cy={a.pos.y} r={r * 1.7} fill="none" stroke="var(--select)" strokeWidth={2.5 * px} />}
-            <circle cx={a.pos.x} cy={a.pos.y} r={r * 1.25} fill={actColor(a.act)} fillOpacity={0.35} />
-            <circle cx={a.pos.x} cy={a.pos.y} r={r} fill={a.color} stroke="#fff" strokeWidth={1.5 * px} />
-            <line x1={a.pos.x} y1={a.pos.y} x2={a.pos.x + dir.x * r * 1.4} y2={a.pos.y + dir.y * r * 1.4} stroke="#fff" strokeWidth={2 * px} strokeLinecap="round" />
-            {(mine || px < 8) && (
-              <text x={a.pos.x} y={a.pos.y - r * 1.6} fontSize={11 * px} textAnchor="middle" fill="var(--ink)" stroke="var(--canvas)" strokeWidth={3 * px} paintOrder="stroke" fontWeight={mine ? 700 : 500}>
-                {a.name}
-              </text>
-            )}
-          </g>
-        );
-      })}
-    </g>
-  );
-}
 
 function CursorOverlay({ px }: { px: number }) {
   const tool = useUi((s) => s.tool);
@@ -707,15 +602,12 @@ function Hud() {
 
 const RAIL_PX = 84;
 
-function initialView(project: Project, pane = { w: 800, h: 600 }, sim = false): View {
-  const rail = sim ? 0 : RAIL_PX;
-  // In the simulation the clock bar covers the top of the pane, and the timeline its bottom.
-  const top = sim ? 150 : 0;
-  const bottom = sim ? 200 : 0;
-  const room = { w: Math.max(200, pane.w - rail - 48), h: Math.max(160, pane.h - 96 - top - bottom) };
+function initialView(project: Project, pane = { w: 800, h: 600 }): View {
+  const rail = RAIL_PX;
+  const room = { w: Math.max(200, pane.w - rail - 48), h: Math.max(160, pane.h - 96) };
   const fit = (c: Vec2, w: number, h: number, fill: number): View => {
     const s = Math.min(room.w / w, room.h / h) * fill;
-    return { cx: c.x - rail / 2 / s, cy: c.y - (top - bottom) / 2 / s, s };
+    return { cx: c.x - rail / 2 / s, cy: c.y, s };
   };
   const u = project.underlay;
   const ps = Object.values(project.plan.corners);

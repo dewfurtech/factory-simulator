@@ -74,7 +74,7 @@ export function createAuroraSlide() {
   panel.position.set(0.95, BASE_TOP + sh / 2, sd / 2 + 0.06);
   shell.add(panel);
   shell.add(box(0.22, 0.2, 0.3, M.motor, sl / 2 + 0.11, BASE_TOP + 0.25, -0.5)); // gear motor on the end
-  shell.add(cyl(0.08, 0.22, M.motor, sl / 2 + 0.11, BASE_TOP + 0.25, -0.2, 'z', 16));
+  shell.add(cyl(0.08, 0.22, M.motor, sl / 2 + 0.11, BASE_TOP + 0.25, -0.24, 'z', 16));
   for (const x of [-sl / 2 + 0.2, sl / 2 - 0.2]) for (const z of [-0.88, 0.88]) shell.add(cyl(0.05, 0.05, M.frame, x, BASE_TOP + 0.04, z, 'z', 16));
   const badge = logo(0.6);
   badge.position.set(-sl / 2 + 0.5, BASE_TOP + 0.12, sd / 2 + 0.005);

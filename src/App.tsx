@@ -33,7 +33,7 @@ export function App() {
     void loadProject(routeId).then((p) => {
       if (!live) return;
       if (!p) return setMissing(true);
-      useUi.setState({ tool: SELECT, selection: null, boxed: [], mode: 'layout', agent: null });
+      useUi.setState({ tool: SELECT, selection: null, boxed: [], dock: null, panelOpen: false });
       useProject.getState().open(p);
       setOpenId(routeId);
     });
