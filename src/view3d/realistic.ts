@@ -9,7 +9,7 @@ import { LABEL_LAYER } from './lowpoly';
 
 /**
  * The realistic look, an alternative to the low-poly one: the same meshes, with their flat Lambert
- * materials swapped for smooth PBR twins (muted colours, concrete floors with grain and saw cuts),
+ * materials swapped for smooth PBR twins (muted colours, concrete floors with grain),
  * image-based lighting, soft shadows, tone mapping and ambient occlusion. Swapping back restores
  * the originals, so the low-poly look is exactly as it was.
  */
@@ -43,10 +43,6 @@ function patch(m: THREE.MeshStandardMaterial, variant: Variant) {
         float blot = rFbm(fp * 0.35);
         float fine = rNoise(fp * 60.0);
         diffuseColor.rgb *= 0.62 * (0.86 + blot * 0.2 + fine * 0.05);
-        // Saw cuts every 6 m, as poured concrete slabs have.
-        vec2 cell = abs(fract(fp / 6.0 + 0.5) - 0.5) * 6.0;
-        float cut = 1.0 - smoothstep(0.004, 0.02, min(cell.x, cell.y));
-        diffuseColor.rgb *= 1.0 - cut * 0.35;
         // Faint tyre-worn lanes and stains.
         diffuseColor.rgb *= 1.0 - smoothstep(0.62, 0.8, rFbm(fp * 0.12 + 7.0)) * 0.12;
       `;
