@@ -41,7 +41,8 @@ const MIN_DOORS = 2;
 const SPAN: [Mm, Mm] = [6000, 60000];
 const STEP = 1.3;
 
-const singleDoorWidths = (t: TracedPlan) => t.openings.flatMap((o) => (o.kind === 'door' && !o.double ? [o.width] : []));
+// A sliding door is as wide as the side it closes, not a standard leaf: no measure of the scale.
+const singleDoorWidths = (t: TracedPlan) => t.openings.flatMap((o) => (o.kind === 'door' && !o.double && !o.sliding ? [o.width] : []));
 
 function median(v: number[]): number {
   const s = [...v].sort((p, q) => p - q);

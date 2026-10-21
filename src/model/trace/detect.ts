@@ -43,7 +43,18 @@ export interface TracedWall {
 }
 
 export type TracedOpening =
-  | { kind: 'door'; at: Vec2; width: number; double: boolean; hinge: Vec2; swing: Vec2; /** A rolling shutter or sliding door: no leaf swings. */ rolling?: true }
+  | {
+      kind: 'door';
+      at: Vec2;
+      width: number;
+      double: boolean;
+      hinge: Vec2;
+      swing: Vec2;
+      /** A rolling shutter: no leaf swings. */
+      rolling?: true;
+      /** A sliding door, drawn as thin lines with its panels or an arrow beside them: no leaf swings. */
+      sliding?: true;
+    }
   | { kind: 'window' | 'opening'; at: Vec2; width: number };
 
 export interface TracedPlan {
@@ -101,6 +112,8 @@ export function detectPlan(gray: Gray, o: TraceOptions): TracedPlan {
     openings.push(...doorsPastEnds(kept, thin, ink, o));
     openings.push(...wallDoors(kept, thin, ink, o, openings));
   }
+  // After the doors: a door hung where no wall was drawn closes its gap better than a span read from the lines would.
+  openings.push(...sideSpans(kept, thin, union(ink, lines), o, openings));
   return {
     walls: kept.map((w) => ({ a: pt(w.axis, w.s0, w.c), b: pt(w.axis, w.s1, w.c), thickness: w.t })),
     openings: openings.filter((op) => kept.some((w) => touches(w, op.at, 0))),
@@ -127,11 +140,21 @@ function axisRuns(m: Mask, axis: Axis, o: TraceOptions): Run[] {
     if (t < o.minThick * 0.8 || t > o.maxThick) return [];
     // Bumps where a column or frame touches the wall are fine; a tree or a car is wide and narrow by turns.
     const steady = filled.filter((k) => width[k] >= t * 0.6 && width[k] <= t * 1.6);
-    if (steady.length < len * 0.6) return [];
+    if (steady.length < len * STEADY[0]) return [];
     const c0 = median(steady.map((k) => sum[k] / width[k]));
+    if (steady.length < len * STEADY[1]) {
+      // A fixture drawn hard against the wall for part of its length (a hatched vanity) widens it there; the wall still
+      // runs straight through it. A tree or a car has no line through it.
+      let through = 0;
+      for (let k = 0; k < len; k++) if (m.data[axis === 'h' ? Math.round(c0) * m.w + s0 + k : (s0 + k) * m.w + Math.round(c0)]) through++;
+      if (through < len * 0.95 || !filled.every((k) => width[k] >= t * 0.6)) return [];
+    }
     return [{ axis, c: c0, s0, s1: s0 + len, t }];
   });
 }
+
+/** Share of a wall run that must be its own width: at least the first, and the second unless it runs straight through the rest. */
+const STEADY: [number, number] = [0.45, 0.6];
 
 function median(v: number[]): number {
   const s = [...v].sort((p, q) => p - q);
@@ -614,4 +637,181 @@ function reachWalls(runs: Run[], ink: Mask, o: TraceOptions): TracedOpening[] {
     openings.push(readGap(ink, before, after, o) ?? { kind: 'opening', at: pt(r.axis, (s + face) / 2, r.c), width });
   }
   return openings;
+}
+
+/** Widest side of a room a span drawn in thin lines may close, against the widest doorway. */
+const SIDE_SPAN = 2.2;
+
+/**
+ * Sides of a room drawn without a wall: a wall stops at a corner and the room's side carries on square to it, to the
+ * next wall along, drawn only as a door's swing, or as two thin lines (glazing, or a sliding door with its panels or
+ * an arrow beside them). The wall is carried along that side with the opening in it: a swing door where its arc is
+ * drawn, a sliding door where its panels or arrow are, a window otherwise. Left open where none of these is drawn: a
+ * carport or a terrace has no wall there.
+ */
+function sideSpans(runs: Run[], thin: Mask, any: Mask, o: TraceOptions, found: TracedOpening[]): TracedOpening[] {
+  const openings: TracedOpening[] = [];
+  // A door's swing reads off either of its jambs: read once, it is not read again.
+  const swing = (op: TracedOpening) => op.kind === 'door' && !op.sliding && !op.rolling;
+  const taken = (op: TracedOpening) => swing(op) && [...found, ...openings].some((d) => swing(d) && dist(d.at, op.at) < (d.width + op.width) / 2);
+  const reach = o.maxOpening * SIDE_SPAN;
+  const at = (axis: Axis, s: number, c: number) => {
+    const p = pt(axis, s, c);
+    const x = Math.round(p.x);
+    const y = Math.round(p.y);
+    return x >= 0 && y >= 0 && x < any.w && y < any.h && !!any.data[y * any.w + x];
+  };
+  /** The line strokes run along near `line` from g0 to g1: a side drawn a little off the wall's end, or its centre. */
+  const strokeLine = (axis: Axis, line: number, t: number, g0: number, g1: number) => {
+    let c = line;
+    let best = -1;
+    for (let k = -Math.ceil(t); k <= Math.ceil(t); k++) {
+      let n = 0;
+      for (let s = Math.ceil(g0); s < g1; s++) if (at(axis, s, line + k)) n++;
+      if (n > best) {
+        best = n;
+        c = line + k;
+      }
+    }
+    return c;
+  };
+  for (const e of endsOf(runs)) {
+    const r = e.run;
+    const s = r[e.end];
+    const loose = !attached(e, runs);
+    // A corner, where the wall ahead may carry on drawn thin; a wall crossing r's end (a tee) means r stops there.
+    const corner = !loose && runs.every((q) => q === r || !touches(q, pt(r.axis, s, r.c), r.t / 2 + 1) || (q.axis !== r.axis && Math.min(Math.abs(q.s0 - r.c), Math.abs(q.s1 - r.c)) <= q.t));
+    if (!loose && !corner) continue;
+    // Straight on, past where the doorways reachWalls carries walls across: the wall ahead square to r's line.
+    let ahead: Run | null = null;
+    for (const w of runs) {
+      const d = (w.c - s) * e.dir;
+      if (w.axis === r.axis || d <= 0 || d > reach + w.t / 2 || r.c < w.s0 - w.t / 2 || r.c > w.s1 + w.t / 2) continue;
+      if (!ahead || d < (ahead.c - s) * e.dir) ahead = w;
+    }
+    const walled = (g0: number, g1: number) => runs.some((w) => w !== r && w.axis === r.axis && Math.abs(w.c - r.c) <= r.t && w.s0 < g1 - r.t && w.s1 > g0 + r.t);
+    if (ahead && !walled(Math.min(s, ahead.c), Math.max(s, ahead.c))) {
+      const face = ahead.c - (e.dir * ahead.t) / 2;
+      const [g0, g1] = [Math.min(s, face), Math.max(s, face)];
+      const opening = g1 - g0 >= o.minOpening ? sideOpening(at, thin, r.axis, strokeLine(r.axis, r.c, r.t, g0, g1), r.t, g0, g1, o) : null;
+      if (opening && !taken(opening)) {
+        if (loose) r[e.end] = ahead.c;
+        else runs.push({ ...r, s0: Math.min(s, ahead.c), s1: Math.max(s, ahead.c) });
+        openings.push(opening);
+        continue;
+      }
+    }
+    if (!loose) continue;
+    // Square to r at its end: the room's side carried on to the nearest wall alongside r.
+    const line = s;
+    const side: Axis = r.axis === 'h' ? 'v' : 'h';
+    for (const dir of [1, -1] as const) {
+      let q: Run | null = null;
+      for (const w of runs) {
+        const d = (w.c - r.c) * dir;
+        if (w === r || w.axis !== r.axis || d <= 0 || d > reach || line < w.s0 - w.t || line > w.s1 + w.t) continue;
+        if (!q || d < (q.c - r.c) * dir) q = w;
+      }
+      if (!q) continue;
+      const t = (r.t + q.t) / 2;
+      const g0 = Math.min(r.c + (dir * r.t) / 2, q.c - (dir * q.t) / 2);
+      const g1 = Math.max(r.c + (dir * r.t) / 2, q.c - (dir * q.t) / 2);
+      if (g1 - g0 < o.minOpening) continue;
+      // Already walled along that side.
+      if (runs.some((w) => w.axis === side && Math.abs(w.c - line) <= t && w.s0 < g1 - t && w.s1 > g0 + t)) continue;
+      const c = strokeLine(side, line, t, g0, g1);
+      const opening = sideOpening(at, thin, side, c, t, g0, g1, o);
+      if (!opening || taken(opening)) continue;
+      runs.push({ axis: side, c, s0: Math.min(r.c, q.c), s1: Math.max(r.c, q.c), t });
+      r[e.end] = c;
+      if (c < q.s0) q.s0 = c;
+      if (c > q.s1) q.s1 = c;
+      openings.push(opening);
+      break;
+    }
+  }
+  return openings;
+}
+
+/** Narrowest window or sliding door read off thin lines alone; narrower, the lines are a symbol's or a frame's. */
+const SIDE_MIN: Mm = 600;
+
+/** What closes a room's side from g0 to g1 along the line at c: a door's swing, a sliding door, a window, or nothing drawn. */
+function sideOpening(
+  at: (axis: Axis, s: number, c: number) => boolean,
+  thin: Mask,
+  axis: Axis,
+  c: number,
+  t: number,
+  g0: number,
+  g1: number,
+  o: TraceOptions,
+): TracedOpening | null {
+  const width = g1 - g0;
+  const mid = pt(axis, (g0 + g1) / 2, c);
+  // A door hung where no wall was drawn: its swing is all there is to go on, so it must be a door's width (steps'
+  // edges and an arrow up them come close to a wide one).
+  const pxPerMm = o.minOpening / 450;
+  const door = width <= o.maxOpening ? readGap(thin, { axis, c, s0: g0 - 1, s1: g0, t }, { axis, c, s0: g1, s1: g1 + 1, t }, o) : undefined;
+  if (door?.kind === 'door' && (door.double ? width / 2 : width) <= DOOR_OPENING * 1.2 * pxPerMm) return door;
+  // Two thin lines along the side, most of its length: a grid or dimension line alone is one.
+  let inked = 0;
+  let pair = 0;
+  for (let s = Math.ceil(g0); s < g1; s++) {
+    let strokes = 0;
+    let was = false;
+    let near = false;
+    for (let k = -Math.ceil(t); k <= Math.ceil(t); k++) {
+      const on = at(axis, s, c + k);
+      if (on && !was) strokes++;
+      was = on;
+      near ||= on && Math.abs(k) <= t * 0.6;
+    }
+    if (near) inked++;
+    if (strokes >= 2) pair++;
+  }
+  const n = Math.max(1, Math.floor(g1) - Math.ceil(g0));
+  if (width < SIDE_MIN * pxPerMm || inked / n < 0.75 || pair / n < 0.5) return null;
+  if (!slideMarks(at, axis, c, t, g0, g1, o)) return { kind: 'window', at: mid, width };
+  return { kind: 'door', at: mid, width, double: false, hinge: pt(axis, g0, c), swing: mid, sliding: true };
+}
+
+/**
+ * A sliding door's marks beside the lines it slides in: its panels drawn just off one face, or an arrow along it, each
+ * a stroke running part of the way, not the whole side (a second wall face, a kerb) and not crossing it (steps).
+ */
+function slideMarks(at: (axis: Axis, s: number, c: number) => boolean, axis: Axis, c: number, t: number, g0: number, g1: number, o: TraceOptions): boolean {
+  const n = Math.max(1, Math.floor(g1) - Math.ceil(g0));
+  const cover = (k: number) => {
+    let m = 0;
+    for (let s = Math.ceil(g0); s < g1; s++) if (at(axis, s, c + k)) m++;
+    return m / n;
+  };
+  // A panel or an arrow at least this long; a step's edge crossing the side is a pixel or two.
+  const minRun = (o.minOpening / 450) * 250;
+  for (const side of [1, -1] as const) {
+    // The band's own lines reach out to here.
+    let edge = 0;
+    for (let k = 1; k <= Math.ceil(t); k++) if (cover(side * k) >= 0.5) edge = k;
+    const rows: number[] = [];
+    for (let k = edge + 1; k <= edge + Math.max(3, Math.ceil(t * 0.8)); k++) rows.push(side * k);
+    let longest = 0;
+    let run = 0;
+    let gap = 0;
+    let marked = 0;
+    for (let s = Math.ceil(g0); s < g1; s++) {
+      if (rows.some((k) => at(axis, s, c + k))) {
+        marked++;
+        run += gap + 1;
+        gap = 0;
+      } else if (run && gap < 1) gap++;
+      else {
+        run = 0;
+        gap = 0;
+      }
+      longest = Math.max(longest, run);
+    }
+    if (longest >= minRun && marked / n <= 0.7) return true;
+  }
+  return false;
 }
