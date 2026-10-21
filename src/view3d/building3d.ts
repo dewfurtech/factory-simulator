@@ -2,13 +2,24 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { wallFootprints } from '../model/miter';
 import { roomLabelPoint, roomPolygon, wallDir } from '../model/plan';
-import type { Column, Id, Plan, Project, Vec2 } from '../model/types';
+import type { Column, Id, Plan, Project, Vec2, Mm } from '../model/types';
 import { bounds, dot, pointInPolygon, signedArea, sub } from '../model/vec';
 import { planAreas } from '../model/areas';
 import { zoneColor } from '../model/zones';
 import { GLASS, paint, textSprite } from './lowpoly';
 
 const M = 0.001;
+
+/** Widest a name may be across the space it names, as a share of the space's shorter side, and its smallest height. */
+const LABEL_FIT = 0.75;
+const LABEL_MIN_H = 0.18;
+
+/** Shrinks a name sprite to fit the space under it: a small room keeps its name inside its walls, as the plan does. */
+function fitLabelTo(s: THREE.Sprite, minSide: Mm): void {
+  const aspect = s.scale.x / s.scale.y;
+  const maxH = (LABEL_FIT * minSide * M) / aspect;
+  if (s.scale.y > maxH) s.scale.set(Math.max(LABEL_MIN_H, maxH) * aspect, Math.max(LABEL_MIN_H, maxH), 1);
+}
 const WALL_COLOR = '#eceae5';
 const WALL_TOP = '#9aa0a8';
 const DOOR_MARK = '#d97706';
@@ -197,6 +208,7 @@ export function buildAreas(plan: Plan): THREE.Group {
     g.add(edges);
     const b = bounds(a.points);
     const s = textSprite(a.name, { height: Math.min(0.9, Math.max(0.5, Math.sqrt(Math.abs(signedArea(a.points))) / 14000)), color: '#ffffff', bg: a.color });
+    fitLabelTo(s, Math.min(b.max.x - b.min.x, b.max.y - b.min.y));
     s.position.set(((b.min.x + b.max.x) / 2) * M, a.height * M + 0.35, ((b.min.y + b.max.y) / 2) * M);
     s.userData.baseScale = s.scale.clone();
     g.add(s);
@@ -255,6 +267,8 @@ export function buildZoneLabels(plan: Plan): THREE.Group {
     const a = signedArea(poly);
     const c = roomLabelPoint(plan, r);
     const s = textSprite(r.name, { height: Math.min(1.1, Math.max(0.55, Math.sqrt(Math.abs(a)) / 12000)), color: '#334155', bg: 'rgba(255,255,255,0.78)' });
+    const b = bounds(poly);
+    fitLabelTo(s, Math.min(b.max.x - b.min.x, b.max.y - b.min.y));
     s.position.set(c.x * M, Math.min(r.ceilingHeight, 3200) * M + 0.4, c.y * M);
     // Full size; the scene shrinks it when it would cover another name on screen.
     s.userData.baseScale = s.scale.clone();
