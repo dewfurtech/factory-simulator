@@ -11,7 +11,7 @@ import { useImport } from '../store/importProgress';
 import { buildFromVector, vectorPlanFor } from './pdfVector';
 import { RailButton } from './Toolbar';
 import { traceUnderlay } from './traceUnderlay';
-import { closeLooseEnds } from '../model/trace/close';
+import { closeLooseEnds, mergeDoubledWalls } from '../model/trace/close';
 
 /** Doors a scale read off a picture must agree on before it is taken without asking. */
 const TRUSTED_DOORS = 4;
@@ -112,6 +112,8 @@ export function UnderlayMenu() {
         const u = d.underlay;
         if (u && !u.calibrated) Object.assign(u, { mmPerPx: result.underlayMmPerPx, calibrated: true });
         counts = applyTrace(d.plan, result.traced, result.toPlan, result.mmPerPx);
+        // Two lines of one wall read as two walls side by side leave a sliver of a room between them.
+        mergeDoubledWalls(d.plan);
         // A door the trace could not read leaves a gap a doorway wide: it is closed with an opening, so rooms close.
         closeLooseEnds(d.plan, { doorways: 'doorway', straight: true });
         counts.walls = Object.keys(d.plan.walls).length;
