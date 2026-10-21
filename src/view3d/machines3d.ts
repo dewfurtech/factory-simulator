@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { lowPolyMachine } from '../machines/lowpoly.js';
+import { visibleBounds } from '../machines/bounds.js';
 import { MODELS } from '../machines/registry.js';
-import { catalogItem } from '../model/catalog';
+import { catalogItem, optionFlags, optionKey } from '../model/catalog';
+import type { Size3 } from '../model/types';
 import { FLAT, paint } from './lowpoly';
 
 /**
@@ -16,7 +18,39 @@ import { FLAT, paint } from './lowpoly';
 const templates = new Map<string, THREE.Group>();
 
 type Made = { object: THREE.Object3D; workpiece?: THREE.Object3D | null; update?: (dt: number) => void };
-const build = (assetId: string) => (MODELS as Record<string, () => Made>)[assetId]();
+type Options = readonly string[] | undefined;
+const build = (assetId: string, options: Options) => (MODELS as Record<string, (flags: Record<string, boolean>) => Made>)[assetId](optionFlags(assetId, options));
+const keyOf = (assetId: string, options: Options) => `${assetId}|${optionKey(assetId, options)}`;
+
+export interface Footprint {
+  /** Width (x), depth (z) and height, mm, of what the model shows. */
+  size: Size3;
+  /** Plan-centre offset of the model from its origin, mm, so it sits centred in its box. */
+  center: [number, number];
+}
+
+const footprints = new Map<string, Footprint>();
+
+/**
+ * The floor a machine takes with the given add-ons. Without any, the catalog's measured size; with some, the model is
+ * built and measured (a 3500A with its line is a 10 m machine). Null for things without a model.
+ */
+export function machineFootprint(assetId: string, options: Options): Footprint | null {
+  const item = catalogItem(assetId);
+  if (!item || !hasModel(assetId)) return null;
+  if (!optionKey(assetId, options)) return { size: { ...item.size }, center: item.modelCenter ?? [0, 0] };
+  const key = keyOf(assetId, options);
+  let f = footprints.get(key);
+  if (!f) {
+    const made = build(assetId, options);
+    made.workpiece?.removeFromParent();
+    dropZones(made.object);
+    const b = visibleBounds(made.object);
+    f = { size: { w: Math.round((b.max.x - b.min.x) * 1000), d: Math.round((b.max.z - b.min.z) * 1000), h: Math.round(b.max.y * 1000) }, center: [Math.round(((b.max.x + b.min.x) / 2) * 1000), Math.round(((b.max.z + b.min.z) / 2) * 1000)] };
+    footprints.set(key, f);
+  }
+  return f;
+}
 
 export const hasModel = (assetId: string) => assetId in (MODELS as Record<string, unknown>);
 
@@ -25,8 +59,8 @@ function dropZones(root: THREE.Object3D) {
   for (const c of [...root.children]) if (c.userData.operatorZone) c.removeFromParent();
 }
 
-function bake(assetId: string): THREE.Group {
-  const made = build(assetId);
+function bake(assetId: string, options: Options): THREE.Group {
+  const made = build(assetId, options);
   made.workpiece?.removeFromParent();
   dropZones(made.object);
   const root = (lowPolyMachine(made) as Made).object;
@@ -69,8 +103,7 @@ function bake(assetId: string): THREE.Group {
   });
 
   const out = new THREE.Group();
-  const item = catalogItem(assetId);
-  const [cx, cz] = item?.modelCenter ?? [0, 0];
+  const [cx, cz] = machineFootprint(assetId, options)?.center ?? [0, 0];
   const shift = new THREE.Matrix4().makeTranslation(-cx / 1000, 0, -cz / 1000);
   if (opaque.length) {
     const g = mergeGeometries(opaque, false)!;
@@ -107,11 +140,11 @@ export interface LiveMachine {
  * The full, unbaked model with its moving parts and workpiece, for a machine someone is running.
  * Heavier than the baked copy. `zones` keeps the yellow pad marking where the operator stands.
  */
-export function liveMachine(assetId: string, { zones = false } = {}): LiveMachine | null {
+export function liveMachine(assetId: string, { zones = false, options = undefined as Options } = {}): LiveMachine | null {
   if (!hasModel(assetId)) return null;
-  const made = build(assetId);
+  const made = build(assetId, options);
   if (!zones) dropZones(made.object);
-  const [cx, cz] = catalogItem(assetId)?.modelCenter ?? [0, 0];
+  const [cx, cz] = machineFootprint(assetId, options)?.center ?? [0, 0];
   made.object.position.set(-cx / 1000, 0, -cz / 1000);
   made.object.traverse((x) => {
     const mesh = x as THREE.Mesh;
@@ -122,13 +155,14 @@ export function liveMachine(assetId: string, { zones = false } = {}): LiveMachin
   return { object, update: (dt) => made.update?.(dt) };
 }
 
-/** A placeable copy of the machine model, centred on its footprint, metres, front toward +z. */
-export function machineObject(assetId: string): THREE.Group | null {
+/** A placeable copy of the machine model with its add-ons, centred on its footprint, metres, front toward +z. */
+export function machineObject(assetId: string, options?: Options): THREE.Group | null {
   if (!hasModel(assetId)) return null;
-  let t = templates.get(assetId);
+  const key = keyOf(assetId, options);
+  let t = templates.get(key);
   if (!t) {
-    t = bake(assetId);
-    templates.set(assetId, t);
+    t = bake(assetId, options);
+    templates.set(key, t);
   }
   return t.clone();
 }

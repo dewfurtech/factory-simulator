@@ -127,7 +127,24 @@ export interface MachineInfo {
   modelNote?: string;
   stations?: string[];
   specs: Record<string, string>;
+  options?: MachineOption[];
 }
+
+/** An add-on a customer can tick for a placed machine: what it costs, and the model flags it switches on. */
+export interface MachineOption {
+  id: string;
+  name: string;
+  note?: string;
+  price: number;
+  flags: Record<string, boolean>;
+}
+
+export const machineOptions = (assetId: string): MachineOption[] => INFO.get(assetId)?.options ?? [];
+/** The chosen options in a fixed order, as the key a built model is cached under. */
+export const optionKey = (assetId: string, chosen: readonly string[] | undefined): string => machineOptions(assetId).filter((o) => chosen?.includes(o.id)).map((o) => o.id).join('+');
+/** What the chosen options switch on in the model. */
+export const optionFlags = (assetId: string, chosen: readonly string[] | undefined): Record<string, boolean> => Object.assign({}, ...machineOptions(assetId).filter((o) => chosen?.includes(o.id)).map((o) => o.flags));
+export const optionsPrice = (assetId: string, chosen: readonly string[] | undefined): number => machineOptions(assetId).filter((o) => chosen?.includes(o.id)).reduce((sum, o) => sum + o.price, 0);
 const INFO = new Map((MACHINES as unknown as MachineInfo[]).map((m) => [m.id, m]));
 export const machineInfo = (assetId: string): MachineInfo | undefined => INFO.get(assetId);
 

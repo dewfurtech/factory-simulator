@@ -140,6 +140,8 @@ export interface PlacedObject extends LayerFlags {
   /** Radians, plan rotation of the object's local +x axis. Its front (where people stand) is local +y. */
   rotation: number;
   size: Size3;
+  /** Machines only: ids of the add-ons ticked for this one (see catalog machineOptions); the size then covers them. */
+  options?: string[];
   /** Machines only: average breakdowns per working day, overriding the project default. */
   breakdownsPerDay?: number;
 }

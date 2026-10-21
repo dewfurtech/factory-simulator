@@ -5,6 +5,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { Icon } from '../editor2d/Toolbar';
 import { visibleBounds } from '../machines/bounds.js';
 import { disposeTree } from './lowpoly';
+import { optionKey } from '../model/catalog';
 import { liveMachine } from './machines3d';
 
 /**
@@ -14,7 +15,8 @@ import { liveMachine } from './machines3d';
  */
 type ViewKind = 'front' | 'top';
 
-export default function ModelViewer({ assetId, name }: { assetId: string; name: string }) {
+export default function ModelViewer({ assetId, name, options }: { assetId: string; name: string; options?: readonly string[] }) {
+  const optKey = optionKey(assetId, options);
   const host = useRef<HTMLDivElement>(null);
   const api = useRef<{ reset(): void; setRunning(on: boolean): void; setView(v: ViewKind): void } | null>(null);
   const [running, setRunning] = useState(true);
@@ -24,7 +26,7 @@ export default function ModelViewer({ assetId, name }: { assetId: string; name: 
 
   useEffect(() => {
     const el = host.current!;
-    const live = liveMachine(assetId, { zones: true });
+    const live = liveMachine(assetId, { zones: true, options });
     if (!live) {
       setFailed(true);
       return;
@@ -193,10 +195,10 @@ export default function ModelViewer({ assetId, name }: { assetId: string; name: 
       renderer.domElement.remove();
       api.current = null;
     };
-  }, [assetId]);
+  }, [assetId, optKey]);
 
-  useEffect(() => api.current?.setRunning(running), [running, assetId]);
-  useEffect(() => api.current?.setView(view), [view, assetId]);
+  useEffect(() => api.current?.setRunning(running), [running, assetId, optKey]);
+  useEffect(() => api.current?.setView(view), [view, assetId, optKey]);
 
   useEffect(() => {
     if (!big) return;

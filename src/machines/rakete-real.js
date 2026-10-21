@@ -35,8 +35,10 @@ try {
   ]);
 } catch (e) {}
 
-export function createRealRakete(id = 'rakete-3500a') {
-  const V = RAKETE_VARIANTS[id];
+// `overrides` switch optional parts on for a stand-alone machine: { line: true } adds the infeed lift table and
+// outfeed conveyor (the 10 m line), { loader: true } the suction-cup loader on the gantry.
+export function createRealRakete(id = 'rakete-3500a', overrides = {}) {
+  const V = { ...RAKETE_VARIANTS[id], ...overrides };
   const MAX_ANISO = 8;
   // ---------- textures ----------
   function canvasTex(w, h, draw, { srgb = true, repeat } = {}) {

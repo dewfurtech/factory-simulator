@@ -48,7 +48,7 @@ export function migrate(p: Project): Project {
     plan,
     columns: p.columns ?? {},
     // A machine's footprint is its 3D model's: when a model is re-imported, placed copies take its new size.
-    objects: (p.objects ?? []).map((o) => (isMachine(o) ? { ...o, size: { ...catalogItem(o.assetId)!.size } } : o)),
+    objects: (p.objects ?? []).map((o) => (isMachine(o) && !o.options?.length ? { ...o, size: { ...catalogItem(o.assetId)!.size } } : o)),
     staff: p.staff ?? [],
     schedule: p.schedule ?? defaultSchedule(),
     sim: { ...DEFAULT_SIM, ...p.sim },

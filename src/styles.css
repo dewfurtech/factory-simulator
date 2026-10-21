@@ -236,6 +236,14 @@ input[type='color'] { width: 44px; height: 30px; border: 1px solid var(--line-2)
 .stepper button:nth-of-type(1) { right: 26px; }
 .stepper button:nth-of-type(2) { right: 3px; }
 .list { display: flex; flex-wrap: wrap; gap: 6px; }
+.ms-addons { display: flex; flex-direction: column; gap: 6px; }
+.addon { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--card); cursor: pointer; font-size: 12.5px; }
+.addon.on { border-color: var(--accent); background: #fff7ed; }
+.addon input { margin: 0; }
+.addon-name { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.addon-name b { font-weight: 600; color: var(--ink); }
+.addon-name small { color: var(--ink-3); }
+.addon-price { white-space: nowrap; color: var(--accent); font-weight: 600; }
 .issues { margin: 0; padding: 8px 10px 8px 24px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); font-size: 12.5px; display: flex; flex-direction: column; gap: 4px; }
 .list-item.issue { color: var(--danger); border-color: #fecaca; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list-item { height: 28px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--card); cursor: pointer; font-size: 12.5px; }

@@ -42,9 +42,10 @@ const ZONES = {
 // Builds the machine and adds its operator zone as the root's last child (so editor paths of the
 // existing parts don't move). Also exposed as machine.operatorZones / root.userData.operatorZones.
 function withZone(id, create) {
-  return () => {
-    const m = create();
-    const spec = ZONES[id];
+  return (options = {}) => {
+    const m = create(options);
+    // A stand-alone Rakete given its line stands its operator where the line machines do.
+    const spec = (options.line && ZONES[id.replace(/a$/, 'ant')]) || ZONES[id];
     if (spec) {
       m.object.add(operatorZone(spec));
       m.operatorZones = operatorZonesOf(m.object);
@@ -56,10 +57,10 @@ function withZone(id, create) {
 
 const BUILDERS = {
   // Rakete family: one detailed builder (machines/rakete-real.js)
-  'rakete-3500a': () => createRealRakete('rakete-3500a'),
-  'rakete-3500ant': () => createRealRakete('rakete-3500ant'),
-  'rakete-4800ant': () => createRealRakete('rakete-4800ant'),
-  'rakete-5000af': () => createRealRakete('rakete-5000af'),
+  'rakete-3500a': (options) => createRealRakete('rakete-3500a', options),
+  'rakete-3500ant': (options) => createRealRakete('rakete-3500ant', options),
+  'rakete-4800ant': (options) => createRealRakete('rakete-4800ant', options),
+  'rakete-5000af': (options) => createRealRakete('rakete-5000af', options),
   'booster-e6': () => createBooster('booster-e6'),
   'booster-e7': () => createBooster('booster-e7'),
   'booster-e10': () => createBooster('booster-e10'),
@@ -80,5 +81,6 @@ const BUILDERS = {
   'vair-20': () => createVAir('vair-20'),
 };
 
-// Every machine that has a 3D model, keyed by its id in data/machines.js, in lineup order.
+// Every machine that has a 3D model, keyed by its id in data/machines.js, in lineup order. Each builder takes the
+// chosen options' model flags (see data.js `options[].flags`); builders without options ignore them.
 export const MODELS = Object.fromEntries(Object.entries(BUILDERS).map(([id, create]) => [id, withZone(id, create)]));

@@ -373,7 +373,27 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
                 ))}
               </ul>
             )}
-            {machine ? <MachineSpec assetId={o.assetId} placed={o.size} /> : item?.summary && <p className="muted small">{item.summary}</p>}
+            {machine ? (
+              <MachineSpec
+                assetId={o.assetId}
+                placed={o.size}
+                options={o.options}
+                onOptions={(next) =>
+                  // The model with its add-ons is measured in the 3D module, loaded only once a machine is picked.
+                  void import('../view3d/machines3d').then(({ machineFootprint }) => {
+                    const f = machineFootprint(o.assetId, next);
+                    applyEdit((d) => {
+                      const x = d.objects.find((y) => y.id === sel.id);
+                      if (!x) return;
+                      x.options = next.length ? next : undefined;
+                      if (f) x.size = { ...f.size };
+                    });
+                  })
+                }
+              />
+            ) : (
+              item?.summary && <p className="muted small">{item.summary}</p>
+            )}
             {(machine || o.assetId === 'box') && <MachineModelPicker o={o} />}
             <h5>บนผัง</h5>
             <TextField label="ชื่อ" value={o.name} onChange={(v) => set((x) => void (x.name = v))} />

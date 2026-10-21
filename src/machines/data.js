@@ -16,6 +16,12 @@ export const MACHINES = [
     id: 'rakete-3500a', model3d: 'index.html?m=rakete-3500a', cat: 'nesting', name: 'Rakete 3500A', tier: 'Built-in Startup', price: 780000,
     size: [3350, 1960, 2210], weight: 2700,
     summary: 'เครื่องเดี่ยว เปลี่ยนทูลอัตโนมัติ 12 ตัว',
+    // Add-ons a customer can tick per placed machine. Prices split the 3500A → 3500Ant difference (400,000) until the
+    // price list gives each its own; `flags` are what they switch on in the model (rakete-real.js RAKETE_VARIANTS).
+    options: [
+      { id: 'line', name: 'โต๊ะยกไม้ + สายพานลำเลียงออก', note: 'เป็นไลน์ยาว 10.3 ม.', price: 250000, flags: { line: true } },
+      { id: 'loader', name: 'ชุดดูดแผ่นป้อนอัตโนมัติ', note: 'บนแกนทรี ใช้คู่กับโต๊ะยก', price: 150000, flags: { loader: true } },
+    ],
     look: 'โต๊ะ 1220×2450, ตู้คอนโทรลแยก (ตู้สูงมีไฟสัญญาณ), หัว ATC ฝาส้ม, ท่อดูดฝุ่น, แม็กกาซีนทูลเรียงเส้น 12 ตัว, หมุดดันขึ้น (popup pin)',
     specs: { 'Working area': '1320×2550×200 mm', 'Spindle': 'ATC 9 kW 24,000 rpm', 'Servo': '1000 W ×4', 'Control': 'Industrial PC / Windows', 'Total power': '26 kW' },
   },

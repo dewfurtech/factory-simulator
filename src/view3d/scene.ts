@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { catalogItem } from '../model/catalog';
 import type { Id, Place, PlacedObject, Project } from '../model/types';
 import { roomPolygon } from '../model/plan';
 import { bounds, pointInPolygon } from '../model/vec';
@@ -9,7 +8,7 @@ import { MACHINE_STATES } from '../sim/activities';
 import { buildAreas, buildBuilding, buildIsland, buildZoneLabels } from './building3d';
 import { builtinGeometry } from './furniture3d';
 import { disposeTree, FLAT, LABEL_LAYER } from './lowpoly';
-import { hasModel, liveMachine, machineObject, type LiveMachine } from './machines3d';
+import { hasModel, liveMachine, machineFootprint, machineObject, type LiveMachine } from './machines3d';
 import { heightOf, PersonMesh } from './people3d';
 import { RealPersonMesh } from './people3dReal';
 import { applyLook, environment, RealPipeline } from './realistic';
@@ -275,7 +274,7 @@ export class FactoryScene {
       const prev = this.objectKeys.get(o.id);
       if (prev === o) continue;
       const old = this.objectMeshes.get(o.id);
-      const sameShape = prev && old && prev.assetId === o.assetId && prev.size.w === o.size.w && prev.size.d === o.size.d && prev.size.h === o.size.h;
+      const sameShape = prev && old && prev.assetId === o.assetId && prev.size.w === o.size.w && prev.size.d === o.size.d && prev.size.h === o.size.h && (prev.options ?? []).join() === (o.options ?? []).join();
       let node = sameShape ? old! : null;
       if (!node) {
         if (old) {
@@ -316,10 +315,10 @@ export class FactoryScene {
   private makeObject(o: PlacedObject): THREE.Object3D {
     const holder = new THREE.Group();
     holder.userData.objectId = o.id;
-    const item = catalogItem(o.assetId);
     if (hasModel(o.assetId)) {
-      const m = machineObject(o.assetId)!;
-      if (item) m.scale.set(o.size.w / item.size.w, o.size.h / item.size.h, o.size.d / item.size.d);
+      const m = machineObject(o.assetId, o.options)!;
+      const base = machineFootprint(o.assetId, o.options)!.size;
+      m.scale.set(o.size.w / base.w, o.size.h / base.h, o.size.d / base.d);
       holder.add(m);
     } else {
       const mesh = new THREE.Mesh(builtinGeometry(o.assetId, o.size), FLAT);
@@ -496,7 +495,7 @@ export class FactoryScene {
     if (!holder || !o || !hasModel(o.assetId)) return;
     let live = this.liveMachines.get(id);
     if (running && !live) {
-      live = liveMachine(o.assetId)!;
+      live = liveMachine(o.assetId, { options: o.options })!;
       live.object.scale.copy(holder.children[0].scale);
       live.object.traverse((x) => (x.userData.objectId = id));
       this.liveMachines.set(id, live);

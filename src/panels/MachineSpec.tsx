@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { MACHINE_CATEGORIES, machineInfo } from '../model/catalog';
+import { MACHINE_CATEGORIES, machineInfo, machineOptions, optionsPrice } from '../model/catalog';
 import type { Size3 } from '../model/types';
 
 const baht = (n: number) => `${n.toLocaleString('th-TH')} บาท`;
@@ -56,24 +56,49 @@ function SizeDiagram({ size }: { size: [number, number, number] }) {
 }
 
 /** A Mastrox machine's details: its 3D model, size, price and brochure specs. Nothing for other objects. */
-export function MachineSpec({ assetId, placed }: { assetId: string; placed?: Size3 }) {
+export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: string; placed?: Size3; options?: readonly string[]; onOptions?: (next: string[]) => void }) {
   const m = machineInfo(assetId);
   if (!m) return null;
+  const addons = machineOptions(assetId);
+  const chosen = options ?? [];
+  const extra = optionsPrice(assetId, chosen);
   const cat = MACHINE_CATEGORIES.find((c) => c.id === m.cat);
-  const size: [number, number, number] | null = m.size ?? (placed ? [placed.w, placed.d, placed.h] : null);
+  // With add-ons ticked the brochure size no longer applies: the placed size is the model measured with them.
+  const withAddons = chosen.length > 0 && !!placed;
+  const size: [number, number, number] | null = withAddons ? [placed.w, placed.d, placed.h] : m.size ?? (placed ? [placed.w, placed.d, placed.h] : null);
   const rows: [string, string][] = [
     ...(cat ? [['ประเภท', m.kind ?? cat.name] as [string, string]] : []),
     ...(m.tier ? [['ระดับ', m.tier] as [string, string]] : []),
-    ['ราคา', m.price != null ? baht(m.price) : '—'],
+    [extra ? 'ราคาเครื่อง' : 'ราคา', m.price != null ? baht(m.price) : '—'],
+    ...(extra ? ([['อุปกรณ์เสริม', `+ ${baht(extra)}`], ['รวม', m.price != null ? baht(m.price + extra) : baht(extra)]] as [string, string][]) : []),
     ...(m.weight ? [['น้ำหนัก', `${mm(m.weight)} กก.`] as [string, string]] : []),
   ];
   const specs = Object.entries(m.specs ?? {});
   return (
     <div className="machine-spec" data-testid="machine-spec">
       <Suspense fallback={<div className="model-viewer loading"><span className="thumb-wait" /></div>}>
-        <ModelViewer assetId={m.id} name={m.name} />
+        <ModelViewer assetId={m.id} name={m.name} options={chosen} />
       </Suspense>
       {m.summary && <p className="ms-summary">{m.summary}</p>}
+      {addons.length > 0 && onOptions && (
+        <section className="ms-addons" data-testid="machine-addons">
+          <h5>อุปกรณ์เสริม</h5>
+          {addons.map((a) => {
+            const on = chosen.includes(a.id);
+            return (
+              <label key={a.id} className={`addon${on ? ' on' : ''}`}>
+                <input type="checkbox" checked={on} onChange={(ev) => onOptions(ev.target.checked ? [...chosen, a.id] : chosen.filter((x) => x !== a.id))} data-testid={`addon-${a.id}`} />
+                <span className="addon-name">
+                  <b>{a.name}</b>
+                  {a.note && <small>{a.note}</small>}
+                </span>
+                <span className="addon-price">+{baht(a.price)}</span>
+              </label>
+            );
+          })}
+          <p className="muted small">ติ๊กแล้วโมเดล 3D และพื้นที่บนผังจะขยายตาม ราคาเป็นค่าประมาณ แก้ได้ที่รายการราคา</p>
+        </section>
+      )}
       {size && (
         <section className="ms-size">
           <h5>ขนาดเครื่อง</h5>
@@ -93,8 +118,8 @@ export function MachineSpec({ assetId, placed }: { assetId: string; placed?: Siz
           </div>
           <SizeDiagram size={size} />
           <p className="muted small">
-            หน่วย มม. {m.size ? 'ตามโบรชัวร์' : 'จากโมเดล 3D'}
-            {m.size && placed && ` · พื้นที่ที่วางบนผัง ${mm(placed.w)} × ${mm(placed.d)} (รวมส่วนยื่นของโมเดล)`}
+            หน่วย มม. {withAddons ? 'จากโมเดล 3D รวมอุปกรณ์เสริม' : m.size ? 'ตามโบรชัวร์' : 'จากโมเดล 3D'}
+            {!withAddons && m.size && placed && ` · พื้นที่ที่วางบนผัง ${mm(placed.w)} × ${mm(placed.d)} (รวมส่วนยื่นของโมเดล)`}
           </p>
         </section>
       )}
