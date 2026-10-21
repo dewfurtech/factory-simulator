@@ -1,5 +1,6 @@
 import { applyPdfImport, readPdfPlan, type PdfImportCounts } from '../model/pdfplan/apply';
 import { readScale } from '../model/pdfplan/scale';
+import { structureLayers } from '../model/pdfplan/structure';
 import type { VectorPlan } from '../model/pdfplan/types';
 import type { Id, Project, Underlay, Vec2 } from '../model/types';
 import { vectorAssetId } from '../model/underlay';
@@ -20,6 +21,15 @@ export async function vectorPlanFor(imageId: Id): Promise<VectorPlan | null> {
   const plan = blob ? (JSON.parse(await blob.text()) as VectorPlan) : null;
   drawings.set(imageId, plan);
   return plan;
+}
+
+/**
+ * Whether the drawing has layers the vector builder reads walls from. A PDF drawn on one layer ("Layer 1") or with
+ * layer names in another language has lines but none it knows as walls: such a plan is traced as a picture instead.
+ */
+export function hasWallLayers(drawing: VectorPlan): boolean {
+  const { wall, hatch, section } = structureLayers(drawing);
+  return wall.length + hatch.length + section.length > 0;
 }
 
 export interface VectorBuild {
