@@ -107,7 +107,22 @@ input[type='color'] { width: 44px; height: 30px; border: 1px solid var(--line-2)
 .dock-body { display: flex; flex-direction: column; min-height: 0; height: 100%; }
 .dock-scroll { flex: 1; overflow: auto; padding: 4px 12px 12px; }
 .dock-foot { padding: 10px 12px; font-size: 12px; border-top: 1px solid var(--line); }
-.search { display: flex; align-items: center; gap: 8px; margin: 12px; padding: 0 10px; height: 36px; border: 1px solid var(--line-2); border-radius: 10px; color: var(--ink-3); }
+.shelf-tabs { display: grid; grid-template-columns: 1.15fr 1fr; gap: 4px; margin: 12px 12px 0; padding: 4px; border-radius: 12px; background: var(--bg); }
+.shelf-tab { display: flex; align-items: center; justify-content: center; gap: 6px; height: 34px; border: none; border-radius: 9px; background: transparent; color: var(--ink-3); font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.shelf-tab:hover { color: var(--ink); }
+.shelf-tab.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12); }
+.shelf-tab.mastrox.on { background: #1d1f22; color: #f2f2f2; }
+.mx-word { font-family: Comfortaa, 'IBM Plex Sans Thai', sans-serif; font-weight: 400; font-size: 16px; letter-spacing: 0.01em; }
+.mx-word b { font-weight: 400; color: #f07a22; }
+.shelf-count { min-width: 20px; padding: 0 6px; border-radius: 99px; background: #f07a22; color: #1d1f22; font-size: 11px; font-weight: 700; line-height: 18px; }
+.cat-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 8px; }
+.chip { height: 26px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 99px; background: var(--card); color: var(--ink-2); font-size: 12px; cursor: pointer; }
+.chip:hover { border-color: var(--ink-3); }
+.chip.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.chip.mx.on { background: #f07a22; border-color: #f07a22; color: #1d1f22; font-weight: 600; }
+.cat-group h4.mx { color: #c2570c; }
+.cat-none { padding: 24px 4px; text-align: center; font-size: 13px; }
+.search { display: flex; align-items: center; gap: 8px; margin: 10px 12px;padding: 0 10px; height: 36px; border: 1px solid var(--line-2); border-radius: 10px; color: var(--ink-3); }
 .search input { border: none; height: 100%; flex: 1; padding: 0; outline: none; }
 .search svg { width: 17px; height: 17px; }
 .cat-group h4 { font-size: 12px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.02em; margin: 12px 2px 8px; }
