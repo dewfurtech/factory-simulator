@@ -3,6 +3,7 @@ import { PlanEditor } from './editor2d/PlanEditor';
 import { Icon, Toolbar } from './editor2d/Toolbar';
 import { deleteSelection, dispatchKey, objectKey } from './editor2d/tools';
 import { CatalogPanel } from './panels/CatalogPanel';
+import { LayersPanel } from './panels/LayersPanel';
 import { PropertiesPanel } from './panels/PropertiesPanel';
 import { exportProject } from './store/persist';
 import { useProject } from './store/project';
@@ -141,6 +142,10 @@ export function Editor() {
             <Icon name="machine" />
             <span>คลังโมเดล</span>
           </button>
+          <button className={`tb-toggle${dock === 'layers' ? ' on' : ''}`} onClick={() => useUi.getState().toggleDock('layers')} aria-pressed={dock === 'layers'} title="เลเยอร์: รายการห้อง ผนัง เสา เครื่องจักร ซ่อน/ล็อก และไปดูได้" data-testid="dock-layers">
+            <Icon name="layers" />
+            <span>เลเยอร์</span>
+          </button>
           <button
             className={`tb-toggle${showPanel ? ' on' : ''}`}
             onClick={() => (showPanel ? set({ panelOpen: false, selection: null }) : set({ panelOpen: true }))}
@@ -172,9 +177,7 @@ export function Editor() {
         </div>
       </header>
       {dock && (
-        <div className="dock-col">
-          <CatalogPanel />
-        </div>
+        <div className="dock-col">{dock === 'catalog' ? <CatalogPanel /> : <LayersPanel />}</div>
       )}
       <main className="viewport">
         <div className={`panes view-${view}`}>

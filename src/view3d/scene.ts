@@ -17,6 +17,8 @@ import { applyLook, environment, RealPipeline } from './realistic';
 FLAT.userData.shared = true;
 
 const M = 0.001;
+/** Height (mm) walls are cut to in the low-walls view: still read as walls, doorways show as gaps. */
+const LOW_WALL = 300;
 
 export interface SceneOptions {
   cutaway: boolean;
@@ -194,7 +196,7 @@ export class FactoryScene {
       disposeTree(g);
       g.clear();
     }
-    this.building.add(buildBuilding(p.plan, p.columns, { cutaway: this.opts.cutaway ? 1200 : null }));
+    this.building.add(buildBuilding(p.plan, p.columns, { cutaway: this.opts.cutaway ? LOW_WALL : null }));
     const ground = buildZoneLabels(p.plan);
     // Names of ground-floor rooms under the second floor would show through it; they come back with the cutaway.
     if (p.upper && !this.opts.cutaway) {
@@ -543,9 +545,40 @@ export class FactoryScene {
     }
     if (!this.dirty) return;
     this.dirty = false;
+    this.fitLabels();
     if (this.pipeline) this.pipeline.render();
     else this.renderer.render(this.scene, this.camera);
   };
+
+  /** Shrinks zone names that would overlap on screen so each stays readable; they grow back when zoomed in. */
+  private fitLabels() {
+    const el = this.renderer.domElement;
+    const H = el.clientHeight;
+    if (!H) return;
+    const t = 2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const cam = this.camera.position;
+    const v = new THREE.Vector3();
+    const items: { s: THREE.Sprite; x: number; y: number; w: number; h: number; f: number }[] = [];
+    this.labels.traverseVisible((o) => {
+      const base = o.userData.baseScale as THREE.Vector3 | undefined;
+      if (!base) return;
+      o.getWorldPosition(v);
+      const k = H / (v.distanceTo(cam) * t);
+      v.project(this.camera);
+      if (v.z > 1) return;
+      items.push({ s: o as THREE.Sprite, x: ((v.x + 1) / 2) * el.clientWidth, y: ((1 - v.y) / 2) * H, w: base.x * k, h: base.y * k, f: 1 });
+    });
+    for (let i = 0; i < items.length; i++)
+      for (let j = i + 1; j < items.length; j++) {
+        const a = items[i];
+        const b = items[j];
+        // The largest shared scale at which the two boxes just stop overlapping.
+        const need = Math.max(Math.abs(a.x - b.x) / ((a.w + b.w) / 2), Math.abs(a.y - b.y) / ((a.h + b.h) / 2));
+        if (need < a.f) a.f = need;
+        if (need < b.f) b.f = need;
+      }
+    for (const it of items) it.s.scale.copy(it.s.userData.baseScale).multiplyScalar(Math.max(0.3, it.f));
+  }
 
   pick(clientX: number, clientY: number): Picked {
     const r = this.renderer.domElement.getBoundingClientRect();

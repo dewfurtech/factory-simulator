@@ -13,6 +13,7 @@ import { editProject, useEditProject, useProject } from '../store/project';
 import { useUi, type Selection, type Tool } from '../store/ui';
 import { CalibrateInput, CalibrateOverlay, UnderlayImage } from './Underlay';
 import { underlayRect } from '../model/underlay';
+import { locate } from '../model/locate';
 import { columnOutline, hitTest, isCrossing, isOutdoor, SNAP_PX } from './hit';
 import { addDoorAt, columnGridPoints, dispatchPointer, objectAt, placeObjectAt, presetOutline, roomOutline } from './tools';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
@@ -62,6 +63,20 @@ export function PlanEditor() {
     const r = underlayRect(u);
     setView({ cx: u.x, cy: u.y, s: Math.min(size.w / r.w, size.h / r.h) * 0.9 });
   }, [underlayId]);
+
+  // A go-to from the layers panel: pan to the thing, zooming only when it would be too small or too big to see whole.
+  const goto = useUi((s) => s.goto);
+  useEffect(() => {
+    if (!goto) return;
+    const spot = locate(editProject(), goto.sel);
+    if (!spot) return;
+    setView((v) => {
+      const onScreen = spot.extent * v.s;
+      const fit = Math.min(size.w, size.h);
+      const s = onScreen < 60 || onScreen > fit * 0.7 ? Math.min(0.3, Math.max(0.004, (fit * 0.4) / spot.extent)) : v.s;
+      return { cx: spot.center.x, cy: spot.center.y, s };
+    });
+  }, [goto]);
 
   useEffect(() => {
     const el = wrapRef.current!;

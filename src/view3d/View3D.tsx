@@ -3,6 +3,7 @@ import { useProject } from '../store/project';
 import { rememberRealistic, useUi } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
 import { FactoryScene } from './scene';
+import { locate } from '../model/locate';
 
 /** The 3D pane: the factory, with the picked object highlighted. */
 export default function View3D() {
@@ -14,6 +15,14 @@ export default function View3D() {
   const shadows = useUi((s) => s.shadows);
   const realistic = useUi((s) => s.realistic);
   const [top, setTop] = useState(false);
+  const goto = useUi((s) => s.goto);
+
+  // A go-to from the layers panel: fly in over the thing, closer the smaller it is.
+  useEffect(() => {
+    if (!goto) return;
+    const spot = locate(project, goto.sel);
+    if (spot) sceneRef.current?.focus(spot.center.x, spot.center.y, Math.min(80, Math.max(5, spot.extent * 0.0014 + 3)), spot.z * 0.001);
+  }, [goto]);
 
   useEffect(() => {
     const s = new FactoryScene(host.current!);
@@ -39,7 +48,9 @@ export default function View3D() {
     down.current = null;
     if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4 || e.button !== 0) return;
     const hit = sceneRef.current!.pick(e.clientX, e.clientY);
-    useUi.getState().set({ selection: hit.object ? { kind: 'object', id: hit.object as never } : null });
+    // A locked object can't be picked here either, the same as on the plan.
+    const locked = hit.object && project.objects.find((o) => o.id === hit.object)?.locked;
+    useUi.getState().set({ selection: hit.object && !locked ? { kind: 'object', id: hit.object as never } : null });
   };
   const onDouble = (e: React.MouseEvent) => {
     const p = sceneRef.current?.floorPoint(e.clientX, e.clientY);
@@ -52,7 +63,7 @@ export default function View3D() {
     <div className="view3d">
       <div ref={host} className="view3d-canvas" onPointerDown={onPointerDown} onPointerUp={onPointerUp} onDoubleClick={onDouble} data-testid="view3d" />
       <div className="view-tools glass">
-        <button className={`ib sm${cutaway ? ' on' : ''}`} onClick={() => toggle('cutaway')} title="ตัดผนังให้เตี้ย มองเห็นข้างใน" aria-pressed={cutaway}>
+        <button className={`ib sm${cutaway ? ' on' : ''}`} onClick={() => toggle('cutaway')} title="ผนังเตี้ย (เปิด/ปิด): ลดผนังลงเกือบติดพื้น เห็นห้องและประตูชัด" aria-pressed={cutaway}>
           <Icon name="cut" />
         </button>
         <button className={`ib sm${realistic ? ' on' : ''}`} onClick={() => toggle('realistic')} title="โหมดสมจริง: แสงเงาและวัสดุเหมือนจริง (ใช้เครื่องแรงขึ้น)" aria-pressed={realistic}>

@@ -10,6 +10,7 @@ import { GLASS, paint, textSprite } from './lowpoly';
 const M = 0.001;
 const WALL_COLOR = '#eceae5';
 const WALL_TOP = '#9aa0a8';
+const DOOR_MARK = '#d97706';
 
 /** Sutherland–Hodgman: the part of poly where dot(p - origin, u) lies within [t0, t1]. */
 function clipSlab(poly: Vec2[], origin: Vec2, u: Vec2, t0: number, t1: number): Vec2[] {
@@ -94,6 +95,11 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
       const t1 = Math.min(len, o.offset + o.width / 2);
       cuts.push({ t0: t, t1: t0, y0: 0, y1: wall.height, glass: false });
       if (o.sill > 0) cuts.push({ t0, t1, y0: 0, y1: o.sill, glass: false });
+      // With walls cut low, a door gap gets a colored threshold so doorways stand out from above.
+      if (o.kind === 'door' && opts.cutaway !== null) {
+        const g = prism(clipSlab(f.polygon, a, u, t0, t1), 0, 40, DOOR_MARK, DOOR_MARK);
+        if (g) solid.push(g);
+      }
       if (o.kind === 'window') cuts.push({ t0, t1, y0: o.sill, y1: o.sill + o.height, glass: true });
       // A door in a glass partition is a framed glass door (one leaf, or two with a stile between).
       if (o.kind === 'door' && wall.glass) {
@@ -179,6 +185,8 @@ export function buildZoneLabels(plan: Plan): THREE.Group {
     const c = roomLabelPoint(plan, r);
     const s = textSprite(r.name, { height: Math.min(1.1, Math.max(0.55, Math.sqrt(Math.abs(a)) / 12000)), color: '#334155', bg: 'rgba(255,255,255,0.78)' });
     s.position.set(c.x * M, Math.min(r.ceilingHeight, 3200) * M + 0.4, c.y * M);
+    // Full size; the scene shrinks it when it would cover another name on screen.
+    s.userData.baseScale = s.scale.clone();
     g.add(s);
   }
   return g;

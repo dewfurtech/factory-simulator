@@ -325,3 +325,28 @@ input[type='color'] { width: 44px; height: 30px; border: 1px solid var(--line-2)
 .import-steps li.step-done i { background: #16a34a; color: #fff; }
 .import-steps li.step-now { color: var(--ink); font-weight: 600; }
 .import-steps li.step-now i { background: var(--accent); color: #fff; }
+
+/* Layers panel */
+.lyr-head { display: flex; align-items: center; gap: 8px; margin: 14px 12px 0; font-size: 14px; }
+.lyr-head svg { width: 18px; height: 18px; color: var(--ink-2); }
+.lyr-head .muted { margin-left: auto; font-size: 12px; }
+.lyr-scroll { padding: 0 8px 12px; }
+.lyr-group { margin-top: 6px; }
+.lyr-group-head { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 4px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; user-select: none; }
+.lyr-group-head:hover { background: rgba(15, 23, 42, 0.04); }
+.lyr-group-name { flex: 1; }
+.lyr-caret { display: inline-grid; place-items: center; width: 16px; height: 16px; color: var(--ink-3); transition: transform 0.12s; }
+.lyr-caret svg { width: 14px; height: 14px; }
+.lyr-caret.open { transform: rotate(90deg); }
+.lyr-row { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 26px; border-radius: 8px; font-size: 13px; cursor: pointer; user-select: none; }
+.lyr-row:hover { background: rgba(15, 23, 42, 0.05); }
+.lyr-row.on { background: var(--accent-soft); color: var(--ink); box-shadow: inset 0 0 0 1px var(--accent); }
+.lyr-row.hidden .lyr-name, .lyr-row.hidden .lyr-note { opacity: 0.45; }
+.lyr-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lyr-note { font-size: 11.5px; white-space: nowrap; }
+.lyr-flags { display: inline-flex; gap: 2px; flex: none; }
+.lyr-flag { display: inline-grid; place-items: center; width: 24px; height: 24px; border: none; border-radius: 6px; background: transparent; color: var(--ink-3); cursor: pointer; opacity: 0.55; }
+.lyr-row:hover .lyr-flag, .lyr-group-head:hover .lyr-flag, .lyr-flag.on { opacity: 1; }
+.lyr-flag:hover { background: rgba(15, 23, 42, 0.08); color: var(--ink); }
+.lyr-flag.on { color: var(--accent); }
+.lyr-flag svg { width: 15px; height: 15px; }

@@ -39,7 +39,7 @@ export type Tool =
 
 export type ToolKind = Tool['kind'];
 export type ViewMode = '2d' | '3d' | 'split';
-export type Dock = 'catalog';
+export type Dock = 'catalog' | 'layers';
 
 interface UiState {
   view: ViewMode;
@@ -53,12 +53,16 @@ interface UiState {
   dock: Dock | null;
   /** The right panel with nothing selected (factory settings); picking something opens it on its own. */
   panelOpen: boolean;
-  /** 3D walls cut down to waist height so the floor reads from above. */
+  /** 3D walls cut down near the floor (on by default) so the layout and doorways read from above. */
   cutaway: boolean;
   shadows: boolean;
   /** 3D in the realistic look (PBR, AO) rather than low poly. */
   realistic: boolean;
-  set(patch: Partial<Omit<UiState, 'set' | 'setTool' | 'toggleDock'>>): void;
+  /** A request from the layers panel to bring the views to this thing; n makes each request distinct. */
+  goto: { sel: Selection; n: number } | null;
+  /** Selects something and asks the open views to move to it. */
+  goTo(sel: Selection): void;
+  set(patch: Partial<Omit<UiState, 'set' | 'setTool' | 'toggleDock' | 'goTo'>>): void;
   setTool(tool: Tool): void;
   toggleDock(dock: Dock): void;
 }
@@ -83,7 +87,7 @@ export function rememberRealistic(on: boolean) {
 export const SELECT: Tool = { kind: 'select', drag: null };
 
 export const useUi = create<UiState>((set) => ({
-  view: 'split',
+  view: '2d',
   tool: SELECT,
   selection: null,
   boxed: [],
@@ -93,9 +97,11 @@ export const useUi = create<UiState>((set) => ({
   objectGuides: [],
   dock: null,
   panelOpen: false,
-  cutaway: false,
+  cutaway: true,
   shadows: false,
   realistic: storedRealistic(),
+  goto: null,
+  goTo: (sel) => set((s) => ({ selection: sel, boxed: [], goto: { sel, n: (s.goto?.n ?? 0) + 1 } })),
   set: (patch) => set('selection' in patch && !('boxed' in patch) ? { ...patch, boxed: [] } : patch),
   setTool: (tool) => set({ tool, cursor: null, objectGuides: [] }),
   toggleDock: (dock) => set((s) => ({ dock: s.dock === dock ? null : dock })),
