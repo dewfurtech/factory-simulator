@@ -72,7 +72,12 @@ interface Run {
 }
 
 /** The flags two runs joined into one keep: glazed only if both were, outer if either was. */
-const joined = (p: Run, q: Run) => ({ glazed: p.glazed && q.glazed ? true : undefined, outer: p.outer || q.outer ? true : undefined, thick: p.thick && q.thick ? true : undefined, chord: p.chord || q.chord ? true : undefined });
+const joined = (p: Run, q: Run) => ({
+  glazed: p.glazed && q.glazed ? true : undefined,
+  outer: p.outer || q.outer ? true : undefined,
+  thick: p.thick && q.thick ? true : undefined,
+  chord: p.chord || q.chord ? true : undefined,
+});
 
 export function readStructure(plan: VectorPlan, options: Partial<StructureOptions> = {}): PdfStructure {
   const o = { ...DEFAULT_STRUCTURE_OPTIONS, ...options };
@@ -99,8 +104,18 @@ export function readStructure(plan: VectorPlan, options: Partial<StructureOption
   // The ticks drawn inside a window chain like dashes; a dashed line inside a window is not a shutter.
   const bands = [...windows, ...dashedRuns(dw, t).filter((d) => !windows.some((w) => alongside(w, d, t)))];
   const glazed: Run[] = bands.map((b) => ({ ...b, glazed: true }));
-  const dotted = dottedWalls(plan.paths.filter((p) => layers.section.includes(p.layer)), t);
-  runs.push(...connected([...outlines, ...dotted, ...glazed].filter((b) => !runs.some((r) => alongside(r, b, t * 2.5))), [...runs, ...posts], t * 3, maxOpening));
+  const dotted = dottedWalls(
+    plan.paths.filter((p) => layers.section.includes(p.layer)),
+    t,
+  );
+  runs.push(
+    ...connected(
+      [...outlines, ...dotted, ...glazed].filter((b) => !runs.some((r) => alongside(r, b, t * 2.5))),
+      [...runs, ...posts],
+      t * 3,
+      maxOpening,
+    ),
+  );
   // What the closing chord of an outer wall spans with nothing drawn on it is open: a gate, a dock front.
   const chordGaps = chords.filter((c) => runs.includes(c)).flatMap((c) => uncovered(c, runs, t).map(([lo, hi]) => ({ c, lo, hi })));
   mergeCollinear(runs, t);
@@ -131,8 +146,22 @@ export function readStructure(plan: VectorPlan, options: Partial<StructureOption
   linkOffsetEnds(bridged, t);
 
   // A window looks out: a glazed band with walls on both sides of it before the outer wall is a glass partition.
-  const final = glassPartitions(bridged.filter((r) => dist(r.a, r.b) >= t), openings, t, minOpening);
-  const walls: TracedWall[] = final.map((r): TracedWall => ({ a: r.a, b: r.b, thickness: r.t, ...(r.glass && { glass: true as const }), ...(r.outer && { outer: true as const }), ...(r.chord && { chord: true as const }) }));
+  const final = glassPartitions(
+    bridged.filter((r) => dist(r.a, r.b) >= t),
+    openings,
+    t,
+    minOpening,
+  );
+  const walls: TracedWall[] = final.map(
+    (r): TracedWall => ({
+      a: r.a,
+      b: r.b,
+      thickness: r.t,
+      ...(r.glass && { glass: true as const }),
+      ...(r.outer && { outer: true as const }),
+      ...(r.chord && { chord: true as const }),
+    }),
+  );
   return { walls, openings: openings.filter((op) => walls.some((w) => onWall(w, op.at, t))), columns, wallThickness };
 }
 
@@ -262,7 +291,8 @@ class Grid<T extends { m: Vec2 }> {
   /** Items whose cell meets the box. */
   inBox(min: Vec2, max: Vec2): T[] {
     const out: T[] = [];
-    for (let x = Math.floor(min.x / this.size); x <= Math.floor(max.x / this.size); x++) for (let y = Math.floor(min.y / this.size); y <= Math.floor(max.y / this.size); y++) for (const it of this.cells.get(`${x},${y}`) ?? []) out.push(it);
+    for (let x = Math.floor(min.x / this.size); x <= Math.floor(max.x / this.size); x++)
+      for (let y = Math.floor(min.y / this.size); y <= Math.floor(max.y / this.size); y++) for (const it of this.cells.get(`${x},${y}`) ?? []) out.push(it);
     return out;
   }
 }
@@ -552,7 +582,10 @@ function readColumns(plan: VectorPlan, layers: string[], maxSize: number, minSiz
     const w = box.max.x - box.min.x;
     const d = box.max.y - box.min.y;
     if (Math.max(w, d) > maxSize || Math.min(w, d) < maxSize * 0.08) continue;
-    const column = shapeOf(members.map((m) => m.p), box);
+    const column = shapeOf(
+      members.map((m) => m.p),
+      box,
+    );
     if (!column) continue;
     if (Math.max(column.w, column.d) > maxSize || Math.max(column.w, column.d) < minSize || Math.max(column.w, column.d) > Math.min(column.w, column.d) * 2.5) continue;
     out.push(column);
@@ -573,7 +606,10 @@ function rectangle(p: VecPath): { c: Vec2; u: Vec2; w: number; d: number } | nul
   const tol = (a: number, b: number) => Math.max(Math.max(a, b) * 0.1, 0.25);
   if (Math.abs(l[0] - l[2]) > tol(l[0], l[2]) || Math.abs(l[1] - l[3]) > tol(l[1], l[3])) return null;
   for (let i = 0; i < 4; i++) if (Math.abs(dot(e[i], e[(i + 1) % 4])) > Math.max(l[i] * l[(i + 1) % 4] * 0.1, Math.max(l[i], l[(i + 1) % 4]) * 0.25)) return null;
-  const c = scale(pts.reduce((s, q) => add(s, q), { x: 0, y: 0 }), 0.25);
+  const c = scale(
+    pts.reduce((s, q) => add(s, q), { x: 0, y: 0 }),
+    0.25,
+  );
   const u = scale(e[0], 1 / l[0]);
   return { c, u, w: l[0], d: l[1] };
 }
@@ -685,7 +721,9 @@ function doorSymbols(dw: VecPath[], t: number, maxLeaf: number, runs: Run[]): Do
   const link = t * 0.9;
   // A pane's glass line passes for a leaf outline too; outlines never chain to each other, so a row of panes stays apart.
   const reach = Math.max(...items.map((it) => dist(it.box.min, it.box.max))) / 2 + t * 5;
-  for (const it of items) for (const other of grid.within(it.m, reach)) if (other !== it && !(it.outline && other.outline) && boxesTouch(it.box, other.box, link)) group[find(index.get(it)!)] = find(index.get(other)!);
+  for (const it of items)
+    for (const other of grid.within(it.m, reach))
+      if (other !== it && !(it.outline && other.outline) && boxesTouch(it.box, other.box, link)) group[find(index.get(it)!)] = find(index.get(other)!);
   const clusters = new Map<number, VecPath[]>();
   items.forEach((it, i) => {
     const g = find(i);
@@ -738,7 +776,10 @@ function doorSymbols(dw: VecPath[], t: number, maxLeaf: number, runs: Run[]): Do
       const u = unit(wall);
       const n = { x: -u.y, y: u.x };
       // Where the cluster meets the wall's line: each run of strokes there is a hinge candidate.
-      const onLine = pts.filter((q) => Math.abs(frame(wall, q).d) <= t * 2).map((q) => frame(wall, q).s).sort((p, q) => p - q);
+      const onLine = pts
+        .filter((q) => Math.abs(frame(wall, q).d) <= t * 2)
+        .map((q) => frame(wall, q).s)
+        .sort((p, q) => p - q);
       const hinges: number[] = [];
       for (let i = 0; i < onLine.length; ) {
         let j = i;
@@ -784,7 +825,8 @@ function windowBands(dw: VecPath[], t: number, maxLeaf: number, runs: Run[]): Ba
   // square on its wall, so it is told apart by where it is, not how it is drawn.
   const bands = parallelPairs(dw, t * 3, t * 0.2, t * 1.6, t * 3, true).filter((b) => dist(b.a, b.b) >= t * 4);
   mergeCollinear(bands, t * 2.5);
-  for (let i = bands.length - 1; i >= 0; i--) if (dist(bands[i].a, bands[i].b) <= maxLeaf && standsOn(bands[i], runs, t) && !runs.some((r) => alongside(r, bands[i], t * 2.5))) bands.splice(i, 1);
+  for (let i = bands.length - 1; i >= 0; i--)
+    if (dist(bands[i].a, bands[i].b) <= maxLeaf && standsOn(bands[i], runs, t) && !runs.some((r) => alongside(r, bands[i], t * 2.5))) bands.splice(i, 1);
   // A band with thin dashed strokes hanging off one side along most of its length carries a rolling shutter's symbol.
   const thin = dw.filter((p) => isThinPiece(p, t)).flatMap((p) => p.points);
   for (const b of bands) {
@@ -891,7 +933,9 @@ function outlineRuns(wallPaths: VecPath[], t: number, envelope: number): { runs:
   mergeCollinear(outer, t);
   // An outer wall left open (a yard or a dock open to the road) closes along the chord between its two ends: the
   // inner and outer lines each give one, a wall's thickness apart, and their middle is the wall.
-  const ends = long.filter((p) => !p.closed && p.points.length >= 4 && dist(p.points[0], p.points[p.points.length - 1]) >= t * 4).map((p) => [p.points[0], p.points[p.points.length - 1]] as const);
+  const ends = long
+    .filter((p) => !p.closed && p.points.length >= 4 && dist(p.points[0], p.points[p.points.length - 1]) >= t * 4)
+    .map((p) => [p.points[0], p.points[p.points.length - 1]] as const);
   const chords: Run[] = [];
   const used = new Set<number>();
   ends.forEach(([a, b], i) => {
@@ -1040,7 +1084,11 @@ function bridgeGaps(runs: Run[], g: GapContext, openings: TracedOpening[]): Run[
         cur = meet === null ? { ...next } : { s0: meet, s1: next.s1, run: { ...next.run, ...ends(next.run, at(meet), at(next.s1)) } };
         continue;
       }
-      cur = { s0: cur.s0, s1: Math.max(cur.s1, next.s1), run: { a: at(cur.s0), b: at(Math.max(cur.s1, next.s1)), t: Math.max(cur.run.t, next.run.t), ...joined(cur.run, next.run) } };
+      cur = {
+        s0: cur.s0,
+        s1: Math.max(cur.s1, next.s1),
+        run: { a: at(cur.s0), b: at(Math.max(cur.s1, next.s1)), t: Math.max(cur.run.t, next.run.t), ...joined(cur.run, next.run) },
+      };
     }
     out.push(cur.run);
   }
@@ -1106,7 +1154,15 @@ function placeDoors(doors: DoorSymbol[], runs: Run[], existing: TracedOpening[],
     const u = unit(wall);
     const dir = dot(u, d.along) > 0 ? 1 : -1;
     const hinge = add(wall.a, scale(u, frame(wall, d.hinge).s));
-    const pair = doors.find((o) => o !== d && !o.used && dot(o.along, d.along) < 0 && dot(o.out, d.out) > 0 && covers(wall, o.hinge, t * 1.5) && Math.abs(dist(o.hinge, d.hinge) - d.r - o.r) <= (d.r + o.r) * 0.3);
+    const pair = doors.find(
+      (o) =>
+        o !== d &&
+        !o.used &&
+        dot(o.along, d.along) < 0 &&
+        dot(o.out, d.out) > 0 &&
+        covers(wall, o.hinge, t * 1.5) &&
+        Math.abs(dist(o.hinge, d.hinge) - d.r - o.r) <= (d.r + o.r) * 0.3,
+    );
     const width = pair ? dist(pair.hinge, d.hinge) : d.r;
     const at = add(hinge, scale(u, (dir * width) / 2));
     // A symbol read against the wrong wall at an opening already placed, or the same door twice.
@@ -1255,16 +1311,18 @@ function dottedWalls(paths: VecPath[], t: number): Run[] {
 /** Strokes that can mark an open side: everything but hatch, dimensions, text and the grid, bucketed for lookups. */
 function edgeLines(plan: VectorPlan, t: number): Grid<{ m: Vec2; a: Vec2; b: Vec2 }> {
   const skip = (l: string) => /HATCH|DIM|TEXT|GRID|ARROW|SYMBOL/.test(layerKey(l));
-  const segs = plan.paths.filter((p) => !skip(p.layer)).flatMap((path) => {
-    const n = path.points.length;
-    const out: { m: Vec2; a: Vec2; b: Vec2 }[] = [];
-    for (let i = 0; i + 1 < n + (path.closed ? 1 : 0); i++) {
-      const a = path.points[i];
-      const b = path.points[(i + 1) % n];
-      if (dist(a, b) > 0) out.push({ m: scale(add(a, b), 0.5), a, b });
-    }
-    return out;
-  });
+  const segs = plan.paths
+    .filter((p) => !skip(p.layer))
+    .flatMap((path) => {
+      const n = path.points.length;
+      const out: { m: Vec2; a: Vec2; b: Vec2 }[] = [];
+      for (let i = 0; i + 1 < n + (path.closed ? 1 : 0); i++) {
+        const a = path.points[i];
+        const b = path.points[(i + 1) % n];
+        if (dist(a, b) > 0) out.push({ m: scale(add(a, b), 0.5), a, b });
+      }
+      return out;
+    });
   return new Grid(segs, Math.max(t * 4, 1));
 }
 
@@ -1362,7 +1420,11 @@ function windowsOn(runs: Run[], bands: Band[], existing: TracedOpening[], t: num
     const onLine = add(wall.a, scale(u, (s[0] + s[1]) / 2));
     if ([...existing, ...out].some((o) => Math.abs(frame(wall, o.at).d) <= t && Math.abs(frame(wall, o.at).s - frame(wall, at).s) < (o.width + width) / 2)) continue;
     const n = { x: -u.y, y: u.x };
-    out.push(b.shutter ? { kind: 'door', at: onLine, width, double: false, hinge: add(wall.a, scale(u, Math.min(...s))), swing: add(onLine, scale(n, width / 2)), rolling: true } : { kind: 'window', at: onLine, width });
+    out.push(
+      b.shutter
+        ? { kind: 'door', at: onLine, width, double: false, hinge: add(wall.a, scale(u, Math.min(...s))), swing: add(onLine, scale(n, width / 2)), rolling: true }
+        : { kind: 'window', at: onLine, width },
+    );
   }
   return out;
 }

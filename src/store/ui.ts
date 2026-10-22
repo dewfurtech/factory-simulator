@@ -40,6 +40,8 @@ export type Tool =
   /** Drags out a rectangle and fills it with a grid of columns at the given spacing. */
   | { kind: 'columnGrid'; spec: ColumnSpec; start: Vec2 | null; spacing: Mm }
   | { kind: 'calibrate'; a: Vec2 | null; b: Vec2 | null }
+  /** A tape measure: two points on the plan, the distance between them read off. */
+  | { kind: 'measure'; a: Vec2 | null; b: Vec2 | null }
   | { kind: 'moveUnderlay'; grab: Vec2 | null };
 
 export type ToolKind = Tool['kind'];

@@ -123,7 +123,19 @@ export function RangeField({
 }
 
 /** A clock time (HH:MM) stored as minutes after midnight. */
-export function SelectField<T extends string>({ label, value, options, onChange, testId }: { label: string; value: T; options: { id: T; label: string }[]; onChange: (v: T) => void; testId?: string }) {
+export function SelectField<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  testId,
+}: {
+  label: string;
+  value: T;
+  options: { id: T; label: string }[];
+  onChange: (v: T) => void;
+  testId?: string;
+}) {
   return (
     <Field label={label}>
       <select value={value} onChange={(e) => onChange(e.target.value as T)} data-testid={testId}>

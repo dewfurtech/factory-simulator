@@ -11,7 +11,16 @@ const rect = (x0: number, y0: number, x1: number, y1: number): Vec2[] => [
   { x: x0, y: y1 },
 ];
 
-const desk = (id: string, x: number, y: number, h = 750): PlacedObject => ({ id: id as PlacedObject['id'], assetId: 'desk', name: id, x, y, z: 0, rotation: 0, size: { w: 1400, d: 1300, h } });
+const desk = (id: string, x: number, y: number, h = 750): PlacedObject => ({
+  id: id as PlacedObject['id'],
+  assetId: 'desk',
+  name: id,
+  x,
+  y,
+  z: 0,
+  rotation: 0,
+  size: { w: 1400, d: 1300, h },
+});
 
 const room = () => {
   const p = newProject('t');

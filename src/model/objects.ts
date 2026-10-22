@@ -29,12 +29,7 @@ export function wallObb(plan: Plan, wallId: Id): Obb {
 export function obbCorners(o: Obb): Vec2[] {
   const du = scale(o.u, o.hu);
   const dv = scale(o.v, o.hv);
-  return [
-    sub(sub(o.c, du), dv),
-    sub(add(o.c, du), dv),
-    add(add(o.c, du), dv),
-    add(sub(o.c, du), dv),
-  ];
+  return [sub(sub(o.c, du), dv), sub(add(o.c, du), dv), add(add(o.c, du), dv), add(sub(o.c, du), dv)];
 }
 
 /** Separating-axis test; boxes must interpenetrate by more than `tol` on every axis to count. */
@@ -82,7 +77,6 @@ export function findCollisions(plan: Plan, objects: readonly PlacedObject[], tol
   return hits.map(({ a, b }) => (b.wall ? { kind: 'wall', a: a.id, wallId: b.id } : { kind: 'object', a: a.id, b: b.id }));
 }
 
-
 export interface ObjectSnap {
   x: Mm;
   y: Mm;
@@ -97,15 +91,9 @@ export interface ObjectSnap {
  * is dropped on. A ceiling light skips the wall, lines up only with other ceiling lights (so linear
  * bars join end to end), and hangs from the ceiling of the room it is over.
  */
-export function snapObject(
-  plan: Plan,
-  others: readonly PlacedObject[],
-  moving: PlacedObject,
-  target: Vec2,
-  radius: Mm,
-): ObjectSnap {
+export function snapObject(plan: Plan, others: readonly PlacedObject[], moving: PlacedObject, target: Vec2, radius: Mm): ObjectSnap {
   let pos = { ...target };
-  let rotation = moving.rotation;
+  const rotation = moving.rotation;
   const guides: ObjectSnap['guides'] = [];
   const { w: width, d: depth } = moving.size;
   const hanging = false;

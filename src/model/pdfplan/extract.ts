@@ -70,7 +70,10 @@ const apply = (m: Matrix, x: number, y: number): Vec2 => ({ x: m[0] * x + m[2] *
 /** How much a matrix scales lengths, for line widths. */
 const scaleOf = (m: Matrix) => Math.sqrt(Math.abs(m[0] * m[3] - m[1] * m[2]));
 
-const hex = (v: number) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0');
+const hex = (v: number) =>
+  Math.round(Math.max(0, Math.min(255, v)))
+    .toString(16)
+    .padStart(2, '0');
 const rgb = (r: number, g: number, b: number) => `#${hex(r)}${hex(g)}${hex(b)}`;
 const cmyk = (c: number, m: number, y: number, k: number) => rgb(255 * (1 - c) * (1 - k), 255 * (1 - m) * (1 - k), 255 * (1 - y) * (1 - k));
 
@@ -102,7 +105,16 @@ export async function extractVectorPlan(doc: PdfDocLike, page: PdfPageLike): Pro
     if (layer && !layers.includes(layer)) layers.push(layer);
     for (const sp of pending) {
       if (sp.points.length < 2) continue;
-      paths.push({ layer, color: stroked ? g.stroke : g.fill, width: g.lineWidth * scaleOf(g.ctm), points: sp.points, closed: sp.closed || close || filled, stroked, filled, dashed: g.dashed });
+      paths.push({
+        layer,
+        color: stroked ? g.stroke : g.fill,
+        width: g.lineWidth * scaleOf(g.ctm),
+        points: sp.points,
+        closed: sp.closed || close || filled,
+        stroked,
+        filled,
+        dashed: g.dashed,
+      });
     }
     pending = [];
   };

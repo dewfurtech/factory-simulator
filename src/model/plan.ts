@@ -356,8 +356,6 @@ export function openingOffsetAt(plan: Plan, wall: Wall, p: Vec2, width: Mm): Mm 
   return Math.min(Math.max(raw, width / 2), Math.max(width / 2, l - width / 2));
 }
 
-
-
 /** The innermost room containing p, so a point in a core room inside an open-plan floor finds the core room. */
 export function roomAt(plan: Plan, p: Vec2): Room | null {
   let best: Room | null = null;
@@ -399,9 +397,7 @@ export const inRoom = (plan: Plan, room: Room, p: Vec2): boolean => roomAt(plan,
 export function roomHoles(plan: Plan, room: Room): Room[] {
   const poly = roomPolygon(plan, room);
   const own = new Set(room.cornerIds);
-  const inside = Object.values(plan.rooms).filter(
-    (r) => r.id !== room.id && r.cornerIds.every((id) => !own.has(id) && pointInPolygon(plan.corners[id], poly)),
-  );
+  const inside = Object.values(plan.rooms).filter((r) => r.id !== room.id && r.cornerIds.every((id) => !own.has(id) && pointInPolygon(plan.corners[id], poly)));
   const contains = (outer: Room, inner: Room) => inner.cornerIds.every((id) => !outer.cornerIds.includes(id) && pointInPolygon(plan.corners[id], roomPolygon(plan, outer)));
   return inside.filter((r) => !inside.some((o) => o !== r && contains(o, r)));
 }

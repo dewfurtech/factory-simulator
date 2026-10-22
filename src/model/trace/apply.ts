@@ -28,12 +28,20 @@ export function applyTrace(plan: Plan, traced: TracedPlan, toPlan: (p: Vec2) => 
     const wall = plan.walls[hit.wallId];
     // As wide as drawn, to the nearest 5 cm: a house's 70–90 cm doors are not the 1 m door a scale is read from.
     const width = round(o.width * mmPerPx, 50);
-    const preset = OPENING_PRESETS[o.kind === 'door' ? (o.rolling ? 'rollingDoor' : o.sliding ? (width >= 1800 ? 'slidingDoubleDoor' : 'slidingDoor') : o.double ? 'doubleDoor' : 'door') : o.kind];
+    const preset =
+      OPENING_PRESETS[
+        o.kind === 'door' ? (o.rolling ? 'rollingDoor' : o.sliding ? (width >= 1800 ? 'slidingDoubleDoor' : 'slidingDoor') : o.double ? 'doubleDoor' : 'door') : o.kind
+      ];
     const id = newId('o');
     const opening = { id, wallId: wall.id, kind: preset.kind, offset: openingOffsetAt(plan, wall, at, width), width, height: preset.height, sill: preset.sill };
     if (o.kind === 'door') {
       const hinge = toPlan(o.hinge);
-      plan.openings[id] = { ...opening, doorStyle: preset.doorStyle, openB: onSideB(plan, wall, toPlan(o.swing)), hingeEnd: dist(hinge, plan.corners[wall.b]) < dist(at, plan.corners[wall.b]) };
+      plan.openings[id] = {
+        ...opening,
+        doorStyle: preset.doorStyle,
+        openB: onSideB(plan, wall, toPlan(o.swing)),
+        hingeEnd: dist(hinge, plan.corners[wall.b]) < dist(at, plan.corners[wall.b]),
+      };
       doors++;
     } else {
       plan.openings[id] = opening;

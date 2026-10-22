@@ -78,7 +78,8 @@ export function snapToLines(lines: readonly GuideLine[], p: Vec2, radius: Mm, ra
   if (best.d > radius) return null;
   if (ray) {
     const x = lineIntersect(ray.o, ray.d, best.line.a, sub(best.line.b, best.line.a));
-    if (x && projectOnSegment(x, best.line.a, best.line.b).distance < 1e-6 && dist(x, p) <= reach) return { point: x, kind: 'plan', guides: [guide(best.line), { from: ray.o, to: x }] };
+    if (x && projectOnSegment(x, best.line.a, best.line.b).distance < 1e-6 && dist(x, p) <= reach)
+      return { point: x, kind: 'plan', guides: [guide(best.line), { from: ray.o, to: x }] };
   }
   return { point: best.point, kind: 'plan', guides: [guide(best.line)] };
 }
@@ -156,7 +157,14 @@ export function snapPoint(plan: Plan, p: Vec2, opts: SnapOptions): SnapResult {
         const lineDir = axis === 'x' ? { x: 0, y: 1 } : { x: 1, y: 0 };
         const x = lineIntersect(ray.o, ray.d, c, lineDir);
         if (x && dist(x, q) <= opts.radius * 1.5) {
-          return { point: x, kind: 'align', guides: [{ from: ray.o, to: x }, { from: c, to: x }] };
+          return {
+            point: x,
+            kind: 'align',
+            guides: [
+              { from: ray.o, to: x },
+              { from: c, to: x },
+            ],
+          };
         }
       }
     }

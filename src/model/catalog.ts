@@ -141,10 +141,23 @@ export interface MachineOption {
 
 export const machineOptions = (assetId: string): MachineOption[] => INFO.get(assetId)?.options ?? [];
 /** The chosen options in a fixed order, as the key a built model is cached under. */
-export const optionKey = (assetId: string, chosen: readonly string[] | undefined): string => machineOptions(assetId).filter((o) => chosen?.includes(o.id)).map((o) => o.id).join('+');
+export const optionKey = (assetId: string, chosen: readonly string[] | undefined): string =>
+  machineOptions(assetId)
+    .filter((o) => chosen?.includes(o.id))
+    .map((o) => o.id)
+    .join('+');
 /** What the chosen options switch on in the model. */
-export const optionFlags = (assetId: string, chosen: readonly string[] | undefined): Record<string, boolean> => Object.assign({}, ...machineOptions(assetId).filter((o) => chosen?.includes(o.id)).map((o) => o.flags));
-export const optionsPrice = (assetId: string, chosen: readonly string[] | undefined): number => machineOptions(assetId).filter((o) => chosen?.includes(o.id)).reduce((sum, o) => sum + o.price, 0);
+export const optionFlags = (assetId: string, chosen: readonly string[] | undefined): Record<string, boolean> =>
+  Object.assign(
+    {},
+    ...machineOptions(assetId)
+      .filter((o) => chosen?.includes(o.id))
+      .map((o) => o.flags),
+  );
+export const optionsPrice = (assetId: string, chosen: readonly string[] | undefined): number =>
+  machineOptions(assetId)
+    .filter((o) => chosen?.includes(o.id))
+    .reduce((sum, o) => sum + o.price, 0);
 const INFO = new Map((MACHINES as unknown as MachineInfo[]).map((m) => [m.id, m]));
 export const machineInfo = (assetId: string): MachineInfo | undefined => INFO.get(assetId);
 
@@ -195,7 +208,7 @@ export function spotsOf(o: PlacedObject): Spot[] {
     case 'meeting':
     case 'eat': {
       // A meeting table seats one a side per 0.7 m, matching the chairs drawn in 3D.
-      const n = item.use === 'meeting' ? Math.max(item.seats ?? 2, 2 * Math.round((o.size.w - 600) / 700)) : item.seats ?? 2;
+      const n = item.use === 'meeting' ? Math.max(item.seats ?? 2, 2 * Math.round((o.size.w - 600) / 700)) : (item.seats ?? 2);
       const perSide = Math.ceil(n / 2);
       const out: Spot[] = [];
       for (let side = 0; side < 2 && out.length < n; side++) {

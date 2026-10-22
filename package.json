@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit",
     "sizes": "node scripts/bbox.mjs > src/machines/sizes.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "idb-keyval": "6.2.1",
@@ -22,12 +25,18 @@
     "zustand": "4.5.5"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@types/node": "^18.19.64",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@types/three": "0.170.0",
     "@vitejs/plugin-react": "4.3.4",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
     "typescript": "5.6.3",
+    "typescript-eslint": "^8.18.2",
     "vite": "5.4.21",
     "vitest": "^2.1.9"
   },

@@ -78,13 +78,25 @@ export function CatalogPanel() {
   return (
     <div className="dock-body" data-testid="catalog">
       <div className="shelf-tabs" role="tablist">
-        <button role="tab" aria-selected={shelf === 'mastrox'} className={`shelf-tab mastrox${shelf === 'mastrox' ? ' on' : ''}`} onClick={() => setShelf('mastrox')} data-testid="shelf-mastrox">
+        <button
+          role="tab"
+          aria-selected={shelf === 'mastrox'}
+          className={`shelf-tab mastrox${shelf === 'mastrox' ? ' on' : ''}`}
+          onClick={() => setShelf('mastrox')}
+          data-testid="shelf-mastrox"
+        >
           <span className="mx-word">
             mas<b>trox</b>
           </span>
           <span className="shelf-count">{MASTROX_COUNT}</span>
         </button>
-        <button role="tab" aria-selected={shelf === 'general'} className={`shelf-tab${shelf === 'general' ? ' on' : ''}`} onClick={() => setShelf('general')} data-testid="shelf-general">
+        <button
+          role="tab"
+          aria-selected={shelf === 'general'}
+          className={`shelf-tab${shelf === 'general' ? ' on' : ''}`}
+          onClick={() => setShelf('general')}
+          data-testid="shelf-general"
+        >
           อุปกรณ์โรงงาน
         </button>
       </div>

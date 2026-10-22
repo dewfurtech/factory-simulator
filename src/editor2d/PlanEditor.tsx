@@ -257,6 +257,7 @@ export function PlanEditor() {
           <BoxOverlay px={livePx} />
           <CursorOverlay px={livePx} />
           <CalibrateOverlay px={livePx} />
+          <MeasureOverlay px={livePx} />
         </g>
       </svg>
       <CalibrateInput toScreen={toScreen} />
@@ -278,8 +279,12 @@ export function PlanEditor() {
         />
       )}
       <div className="zoom-ctl glass">
-        <button onClick={() => zoom(1.25)} aria-label="ซูมเข้า">+</button>
-        <button onClick={() => zoom(0.8)} aria-label="ซูมออก">−</button>
+        <button onClick={() => zoom(1.25)} aria-label="ซูมเข้า">
+          +
+        </button>
+        <button onClick={() => zoom(0.8)} aria-label="ซูมออก">
+          −
+        </button>
         <button onClick={() => setView(initialView(project, size))} aria-label="พอดีจอ" title="พอดีจอ">
           ⤢
         </button>
@@ -370,59 +375,57 @@ function EntranceMark({ plan, wall, offset, px }: { plan: Plan; wall: Wall; offs
 
 /** Wall dimensions, room names and corner handles, drawn over the objects. */
 const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim }: LayerProps & { onEditDim: (w: Wall, at: Vec2) => void }) {
-  const rooms = useMemo(
-    () =>
-      Object.values(plan.rooms).map((r) => ({ r, c: roomLabelPoint(plan, r), st: roomStats(plan, r) })),
-    [plan],
-  );
+  const rooms = useMemo(() => Object.values(plan.rooms).map((r) => ({ r, c: roomLabelPoint(plan, r), st: roomStats(plan, r) })), [plan]);
   const selCorner = selId(selection, 'corner');
   return (
     <>
       {Object.values(plan.walls).map((w) => {
-          if (w.hidden) return null;
-          const a = plan.corners[w.a];
-          const b = plan.corners[w.b];
-          const n = perp(wallDir(plan, w));
-          const at = add(lerp(a, b, 0.5), scale(n, w.thickness / 2 + 14 * px));
-          let angle = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
-          if (angle > 90 || angle < -90) angle += 180;
-          if (wallLength(plan, w) < 110 * px) return null;
-          return (
-            <text
-              key={w.id}
-              x={at.x}
-              y={at.y}
-              fontSize={11 * px}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              transform={`rotate(${angle} ${at.x} ${at.y})`}
-              fill="var(--ink-2)"
-              stroke="var(--canvas)"
-              strokeWidth={3 * px}
-              paintOrder="stroke"
-              style={{ cursor: 'text' }}
-              onPointerDown={(e) => {
-                if (w.locked) return;
-                e.stopPropagation();
-                onEditDim(w, at);
-              }}
-            >
-              {fmtLen(wallLength(plan, w))}
-            </text>
-          );
-        })}
-      {rooms.filter(({ st }) => st.width > 40 * px).map(({ r, c, st }) => (
-        <g key={r.id} opacity={r.hidden ? 0.15 : undefined} pointerEvents="none" fontSize={12 * px} textAnchor="middle" fill="var(--ink)">
-          <text x={c.x} y={c.y - 8 * px} fontWeight={700} fontSize={14 * px} stroke="var(--canvas)" strokeWidth={3 * px} paintOrder="stroke" opacity={0.85}>
-            {r.name}
+        if (w.hidden) return null;
+        const a = plan.corners[w.a];
+        const b = plan.corners[w.b];
+        const n = perp(wallDir(plan, w));
+        const at = add(lerp(a, b, 0.5), scale(n, w.thickness / 2 + 14 * px));
+        let angle = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+        if (angle > 90 || angle < -90) angle += 180;
+        if (wallLength(plan, w) < 110 * px) return null;
+        return (
+          <text
+            key={w.id}
+            x={at.x}
+            y={at.y}
+            fontSize={11 * px}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            transform={`rotate(${angle} ${at.x} ${at.y})`}
+            fill="var(--ink-2)"
+            stroke="var(--canvas)"
+            strokeWidth={3 * px}
+            paintOrder="stroke"
+            style={{ cursor: 'text' }}
+            onPointerDown={(e) => {
+              if (w.locked) return;
+              e.stopPropagation();
+              onEditDim(w, at);
+            }}
+          >
+            {fmtLen(wallLength(plan, w))}
           </text>
-          {st.width > 130 * px && (
-            <text x={c.x} y={c.y + 9 * px} fill="var(--ink-3)" stroke="var(--canvas)" strokeWidth={3 * px} paintOrder="stroke">
-              {fmtArea(st.area)} · {fmtSize(st.width, st.depth)}
+        );
+      })}
+      {rooms
+        .filter(({ st }) => st.width > 40 * px)
+        .map(({ r, c, st }) => (
+          <g key={r.id} opacity={r.hidden ? 0.15 : undefined} pointerEvents="none" fontSize={12 * px} textAnchor="middle" fill="var(--ink)">
+            <text x={c.x} y={c.y - 8 * px} fontWeight={700} fontSize={14 * px} stroke="var(--canvas)" strokeWidth={3 * px} paintOrder="stroke" opacity={0.85}>
+              {r.name}
             </text>
-          )}
-        </g>
-      ))}
+            {st.width > 130 * px && (
+              <text x={c.x} y={c.y + 9 * px} fill="var(--ink-3)" stroke="var(--canvas)" strokeWidth={3 * px} paintOrder="stroke">
+                {fmtArea(st.area)} · {fmtSize(st.width, st.depth)}
+              </text>
+            )}
+          </g>
+        ))}
       <g data-export="skip">
         {Object.values(plan.corners).map((c) => (
           <circle key={c.id} cx={c.x} cy={c.y} r={(selCorner === c.id ? 5 : 2.5) * px} fill={selCorner === c.id ? 'var(--select)' : '#fff'} stroke="#18181b" strokeWidth={px} />
@@ -447,9 +450,28 @@ const AreaLayer = memo(function AreaLayer({ plan, selection, marked, px }: Layer
           const st = areaStats(a);
           return (
             <g key={a.id} opacity={a.hidden ? 0.15 : undefined} data-testid={`area-${a.id}`}>
-              <polygon points={pts(a.points)} fill={a.color} fillOpacity={sel ? 0.3 : 0.16} stroke={sel ? 'var(--select)' : a.color} strokeWidth={(sel ? 3 : 1.5) * px} strokeLinejoin="round" />
+              <polygon
+                points={pts(a.points)}
+                fill={a.color}
+                fillOpacity={sel ? 0.3 : 0.16}
+                stroke={sel ? 'var(--select)' : a.color}
+                strokeWidth={(sel ? 3 : 1.5) * px}
+                strokeLinejoin="round"
+              />
               {st.width > 40 * px && (
-                <text x={c.x} y={c.y} fontSize={13 * px} fontWeight={700} textAnchor="middle" dominantBaseline="middle" fill={a.color} stroke="var(--canvas)" strokeWidth={3 * px} paintOrder="stroke" pointerEvents="none">
+                <text
+                  x={c.x}
+                  y={c.y}
+                  fontSize={13 * px}
+                  fontWeight={700}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill={a.color}
+                  stroke="var(--canvas)"
+                  strokeWidth={3 * px}
+                  paintOrder="stroke"
+                  pointerEvents="none"
+                >
                   {a.name}
                 </text>
               )}
@@ -471,7 +493,11 @@ const ColumnLayer = memo(function ColumnLayer({ columns, selection, marked, px }
         ) : (
           <g key={c.id} opacity={c.hidden ? 0.2 : 1}>
             <polygon points={pts(columnOutline(c))} fill={fill} stroke="#111827" strokeWidth={px} />
-            <path d={`M ${columnOutline(c)[0].x} ${columnOutline(c)[0].y} L ${columnOutline(c)[2].x} ${columnOutline(c)[2].y} M ${columnOutline(c)[1].x} ${columnOutline(c)[1].y} L ${columnOutline(c)[3].x} ${columnOutline(c)[3].y}`} stroke="#d1d5db" strokeWidth={0.8 * px} />
+            <path
+              d={`M ${columnOutline(c)[0].x} ${columnOutline(c)[0].y} L ${columnOutline(c)[2].x} ${columnOutline(c)[2].y} M ${columnOutline(c)[1].x} ${columnOutline(c)[1].y} L ${columnOutline(c)[3].x} ${columnOutline(c)[3].y}`}
+              stroke="#d1d5db"
+              strokeWidth={0.8 * px}
+            />
           </g>
         );
       })}
@@ -514,24 +540,56 @@ const ObjectShape = memo(function ObjectShape({ o, px, sel, above, bad }: { o: P
   const front = lerp(poly[2], poly[3], 0.5);
   if (item?.overhead && above)
     // An upper floor or its railing: a dashed outline over whatever stands beneath.
-    return <polygon points={pts(poly)} fill="none" stroke={sel ? 'var(--select)' : '#7c3aed'} strokeWidth={(sel ? 2.5 : 1.2) * px} strokeDasharray={`${6 * px} ${4 * px}`}opacity={o.hidden ? 0.15 : 0.8} pointerEvents="none" />;
+    return (
+      <polygon
+        points={pts(poly)}
+        fill="none"
+        stroke={sel ? 'var(--select)' : '#7c3aed'}
+        strokeWidth={(sel ? 2.5 : 1.2) * px}
+        strokeDasharray={`${6 * px} ${4 * px}`}
+        opacity={o.hidden ? 0.15 : 0.8}
+        pointerEvents="none"
+      />
+    );
   if (o.assetId === 'zone-area')
     // A marked-out floor area: its dashed border and name, under whatever stands in it.
     return (
       <g opacity={o.hidden ? 0.15 : undefined}>
-        <polygon points={pts(poly)} fill="#16a34a" fillOpacity={0.06} stroke={sel ? 'var(--select)' : '#16a34a'} strokeWidth={(sel ? 2.5 : 1.5) * px} strokeDasharray={`${8 * px} ${5 * px}`} />
+        <polygon
+          points={pts(poly)}
+          fill="#16a34a"
+          fillOpacity={0.06}
+          stroke={sel ? 'var(--select)' : '#16a34a'}
+          strokeWidth={(sel ? 2.5 : 1.5) * px}
+          strokeDasharray={`${8 * px} ${5 * px}`}
+        />
         <text x={o.x} y={o.y} fontSize={12 * px} fontWeight={600} textAnchor="middle" dominantBaseline="middle" fill="#15803d">
           {o.name}
         </text>
       </g>
     );
-  const fill = machine ? GROUP_FILL.machine : open ? '#fde68a' : GROUP_FILL[item?.group ?? 'decor'] ?? '#fff';
+  const fill = machine ? GROUP_FILL.machine : open ? '#fde68a' : (GROUP_FILL[item?.group ?? 'decor'] ?? '#fff');
   return (
     <g opacity={o.hidden ? 0.15 : undefined}>
-      <polygon points={pts(poly)} fill={bad ? '#fee2e2' : fill} fillOpacity={open ? 0.6 : 0.95} stroke={sel ? 'var(--select)' : bad ? 'var(--danger)' : machine ? '#c2410c' : '#52525b'} strokeWidth={(sel || bad ? 2.5 : machine ? 1.6 : 1) * px} strokeDasharray={bad && !sel ? `${5 * px} ${3 * px}` : undefined} />
+      <polygon
+        points={pts(poly)}
+        fill={bad ? '#fee2e2' : fill}
+        fillOpacity={open ? 0.6 : 0.95}
+        stroke={sel ? 'var(--select)' : bad ? 'var(--danger)' : machine ? '#c2410c' : '#52525b'}
+        strokeWidth={(sel || bad ? 2.5 : machine ? 1.6 : 1) * px}
+        strokeDasharray={bad && !sel ? `${5 * px} ${3 * px}` : undefined}
+      />
       {!open && <line x1={poly[2].x} y1={poly[2].y} x2={poly[3].x} y2={poly[3].y} stroke={machine ? '#ea580c' : '#18181b'} strokeWidth={(machine ? 3.5 : 2) * px} />}
       {Math.min(o.size.w, o.size.d) > 14 * px && Math.max(o.size.w, o.size.d) > o.name.length * 6.5 * px && (
-        <text x={o.x} y={o.y} fontSize={(machine ? 11 : 10) * px} fontWeight={machine ? 700 : 400} textAnchor="middle" dominantBaseline="middle" fill={machine ? '#9a3412' : '#3f3f46'}>
+        <text
+          x={o.x}
+          y={o.y}
+          fontSize={(machine ? 11 : 10) * px}
+          fontWeight={machine ? 700 : 400}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill={machine ? '#9a3412' : '#3f3f46'}
+        >
           {o.name}
         </text>
       )}
@@ -548,7 +606,16 @@ function CursorOverlay({ px }: { px: number }) {
   return (
     <>
       {cursor?.guides.map((g, i) => (
-        <line key={i} x1={g.from.x} y1={g.from.y} x2={g.to.x} y2={g.to.y} stroke={cursor.kind === 'plan' ? '#ea580c' : '#db2777'} strokeDasharray={`${4 * px} ${4 * px}`} strokeWidth={cursor.kind === 'plan' ? 1.5 * px : px} />
+        <line
+          key={i}
+          x1={g.from.x}
+          y1={g.from.y}
+          x2={g.to.x}
+          y2={g.to.y}
+          stroke={cursor.kind === 'plan' ? '#ea580c' : '#db2777'}
+          strokeDasharray={`${4 * px} ${4 * px}`}
+          strokeWidth={cursor.kind === 'plan' ? 1.5 * px : px}
+        />
       ))}
       {objectGuides.map((g, i) => (
         <line key={`o${i}`} x1={g.from.x} y1={g.from.y} x2={g.to.x} y2={g.to.y} stroke="#db2777" strokeWidth={2.5 * px} />
@@ -563,10 +630,23 @@ function CursorOverlay({ px }: { px: number }) {
             </g>
           )}
           {(cursor.kind === 'wall' || cursor.kind === 'midpoint') && (
-            <rect x={cursor.point.x - 5 * px} y={cursor.point.y - 5 * px} width={10 * px} height={10 * px} fill="none" stroke="#db2777" strokeWidth={2 * px} transform={cursor.kind === 'midpoint' ? `rotate(45 ${cursor.point.x} ${cursor.point.y})` : undefined} />
+            <rect
+              x={cursor.point.x - 5 * px}
+              y={cursor.point.y - 5 * px}
+              width={10 * px}
+              height={10 * px}
+              fill="none"
+              stroke="#db2777"
+              strokeWidth={2 * px}
+              transform={cursor.kind === 'midpoint' ? `rotate(45 ${cursor.point.x} ${cursor.point.y})` : undefined}
+            />
           )}
           {(cursor.kind === 'grid' || cursor.kind === 'angle' || cursor.kind === 'align') && (
-            <path d={`M ${cursor.point.x - 6 * px} ${cursor.point.y} h ${12 * px} M ${cursor.point.x} ${cursor.point.y - 6 * px} v ${12 * px}`} stroke="#db2777" strokeWidth={1.5 * px} />
+            <path
+              d={`M ${cursor.point.x - 6 * px} ${cursor.point.y} h ${12 * px} M ${cursor.point.x} ${cursor.point.y - 6 * px} v ${12 * px}`}
+              stroke="#db2777"
+              strokeWidth={1.5 * px}
+            />
           )}
         </g>
       )}
@@ -671,7 +751,18 @@ function ToolOverlay({ px }: { px: number }) {
     const ps = tool.start ? columnGridPoints(tool.start, p, tool.spacing) : [p];
     return (
       <g pointerEvents="none">
-        {tool.start && <rect x={Math.min(tool.start.x, p.x)} y={Math.min(tool.start.y, p.y)} width={Math.abs(p.x - tool.start.x)} height={Math.abs(p.y - tool.start.y)} fill="none" stroke="#18181b" strokeWidth={px} strokeDasharray={`${6 * px} ${4 * px}`} />}
+        {tool.start && (
+          <rect
+            x={Math.min(tool.start.x, p.x)}
+            y={Math.min(tool.start.y, p.y)}
+            width={Math.abs(p.x - tool.start.x)}
+            height={Math.abs(p.y - tool.start.y)}
+            fill="none"
+            stroke="#18181b"
+            strokeWidth={px}
+            strokeDasharray={`${6 * px} ${4 * px}`}
+          />
+        )}
         {ps.map((q, i) => (
           <rect key={i} x={q.x - tool.spec.w / 2} y={q.y - tool.spec.d / 2} width={tool.spec.w} height={tool.spec.d} fill="#6b7280" fillOpacity={0.6} />
         ))}
@@ -757,7 +848,14 @@ function OpeningShape({ symbol, px, stroke }: { symbol: OpeningSymbol; px: numbe
         <polygon key={i} points={pts(q)} fill="#ffffff" stroke={stroke} strokeWidth={1.2 * px} strokeLinejoin="round" />
       ))}
       {symbol.arcs.map((a, i) => (
-        <path key={i} d={`M ${a.from.x} ${a.from.y} A ${a.r} ${a.r} 0 0 ${a.sweep} ${a.to.x} ${a.to.y}`} fill="none" stroke={stroke} strokeWidth={px} strokeDasharray={`${4 * px} ${3 * px}`} />
+        <path
+          key={i}
+          d={`M ${a.from.x} ${a.from.y} A ${a.r} ${a.r} 0 0 ${a.sweep} ${a.to.x} ${a.to.y}`}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={px}
+          strokeDasharray={`${4 * px} ${3 * px}`}
+        />
       ))}
       {symbol.lines.map(([a, b], i) => (
         <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={stroke} strokeWidth={1.2 * px} strokeLinecap="round" />
@@ -777,10 +875,60 @@ const HINTS: Record<string, string> = {
   placeColumn: 'คลิกเพื่อวางเสา (ติดตาราง) • วางต่อได้หลายต้น • Esc จบ',
   columnGrid: 'คลิกมุมแรก แล้วคลิกมุมตรงข้าม เพื่อวางเสาเป็นตาราง • ปรับระยะห่างที่แผงขวา • Esc จบ',
   calibrate: 'คลิก 2 จุดบนแปลนที่รู้ระยะจริง แล้วพิมพ์ระยะ • Shift = แนวตรง • Esc ยกเลิก',
+  measure: 'คลิกจุดแรก แล้วคลิกจุดที่สอง • ดูดเข้าหามุม ผนัง และขอบเครื่อง • Shift = แนวตรง • Alt = ไม่ Snap • Esc เริ่มใหม่ / จบ',
   moveUnderlay: 'ลากเพื่อย้ายแปลนพื้นหลัง • Esc จบ',
 };
 
 const SNAP_LABEL: Record<string, string> = { corner: 'มุม', midpoint: 'กึ่งกลางผนัง', wall: 'ผนัง', plan: 'เส้นในแปลน', angle: 'มุมองศา', align: 'แนวเดียวกัน', grid: 'ตาราง' };
+
+/** The tape: a line between the two points with its length, and the run and rise when it is not level or plumb. */
+function MeasureOverlay({ px }: { px: number }) {
+  const tool = useUi((s) => s.tool);
+  const cursor = useUi((s) => s.cursor);
+  if (tool.kind !== 'measure' || !tool.a) return null;
+  const a = tool.a;
+  const b = tool.b ?? cursor?.point;
+  if (!b) return null;
+  const dx = Math.abs(b.x - a.x);
+  const dy = Math.abs(b.y - a.y);
+  const d = Math.hypot(dx, dy);
+  const mid = lerp(a, b, 0.5);
+  const n = perp({ x: (b.x - a.x) / (d || 1), y: (b.y - a.y) / (d || 1) });
+  const at = add(mid, scale(n, -14 * px));
+  let angle = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+  if (angle > 90 || angle < -90) angle += 180;
+  const diagonal = dx > 10 && dy > 10;
+  const dot = (p: Vec2) => <circle cx={p.x} cy={p.y} r={4 * px} fill="#fff" stroke="#0f766e" strokeWidth={2 * px} />;
+  const tick = (p: Vec2) => <line x1={p.x - n.x * 8 * px} y1={p.y - n.y * 8 * px} x2={p.x + n.x * 8 * px} y2={p.y + n.y * 8 * px} stroke="#0f766e" strokeWidth={2 * px} />;
+  return (
+    <g pointerEvents="none" data-testid="measure-line">
+      {diagonal && <polyline points={`${a.x},${a.y} ${b.x},${a.y} ${b.x},${b.y}`} fill="none" stroke="#0f766e" strokeWidth={px} strokeDasharray={`${5 * px} ${4 * px}`} />}
+      <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#0f766e" strokeWidth={2 * px} />
+      {tick(a)}
+      {tick(b)}
+      {dot(a)}
+      {dot(b)}
+      {d > 1 && (
+        <text
+          x={at.x}
+          y={at.y}
+          fontSize={12 * px}
+          fontWeight={700}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          transform={`rotate(${angle} ${at.x} ${at.y})`}
+          fill="#0f766e"
+          stroke="var(--canvas)"
+          strokeWidth={3 * px}
+          paintOrder="stroke"
+        >
+          {fmtLen(d)}
+          {diagonal ? ` (↔ ${fmtLen(dx)} ↕ ${fmtLen(dy)})` : ''}
+        </text>
+      )}
+    </g>
+  );
+}
 
 function Hud() {
   const tool = useUi((s) => s.tool);

@@ -52,24 +52,24 @@ const pending = new Map<string, Promise<void>>();
 
 /** Reads the image's lines once per image and scale; a picture not yet to scale is read at the scale its doors suggest, and again once measured. */
 export async function ensureGuides(u: Underlay): Promise<void> {
-    const drawing = await vectorPlanFor(u.imageId);
-    const key = keyOf(u, !!drawing);
-    if (useGuides.getState().key === key) return;
-    if (pending.has(key)) return pending.get(key);
-    const job = (async () => {
-      useGuides.setState({ busy: true });
-      try {
-        const lines = drawing ? linesOfDrawing(drawing) : await linesOfPicture(u);
-        const ink = drawing ? null : await inkOf(u.imageId);
-        useGuides.setState({ key, lines, ink, busy: false });
-      } catch {
-        useGuides.setState({ key, lines: [], ink: null, busy: false });
-      } finally {
-        pending.delete(key);
-      }
-    })();
-    pending.set(key, job);
-    return job;
+  const drawing = await vectorPlanFor(u.imageId);
+  const key = keyOf(u, !!drawing);
+  if (useGuides.getState().key === key) return;
+  if (pending.has(key)) return pending.get(key);
+  const job = (async () => {
+    useGuides.setState({ busy: true });
+    try {
+      const lines = drawing ? linesOfDrawing(drawing) : await linesOfPicture(u);
+      const ink = drawing ? null : await inkOf(u.imageId);
+      useGuides.setState({ key, lines, ink, busy: false });
+    } catch {
+      useGuides.setState({ key, lines: [], ink: null, busy: false });
+    } finally {
+      pending.delete(key);
+    }
+  })();
+  pending.set(key, job);
+  return job;
 }
 
 function linesOfDrawing(drawing: VectorPlan): GuideLine[] {

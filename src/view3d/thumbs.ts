@@ -40,7 +40,7 @@ function render(id: string): string {
   const c = box.getCenter(new THREE.Vector3());
   const r = Math.max(size.x, size.y * 1.3, size.z) * 0.5 + 0.05;
   const dir = new THREE.Vector3(0.75, 0.6, 1).normalize();
-  camera.position.copy(c).addScaledVector(dir, r / Math.tan((camera.fov * Math.PI) / 360) * 1.05);
+  camera.position.copy(c).addScaledVector(dir, (r / Math.tan((camera.fov * Math.PI) / 360)) * 1.05);
   camera.lookAt(c);
   renderer!.render(scene, camera);
   const url = renderer!.domElement.toDataURL('image/png');

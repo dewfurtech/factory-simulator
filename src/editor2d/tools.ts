@@ -1,7 +1,7 @@
 import { catalogItem } from '../model/catalog';
 import { newId } from '../model/id';
 import { incidentWalls } from '../model/miter';
-import { moveWithStack, snapObject } from '../model/objects';
+import { moveWithStack, obbCorners, objectObb, snapObject } from '../model/objects';
 import {
   addPolygon,
   addWall,
@@ -21,13 +21,13 @@ import { SHAPE_PRESETS, type ShapePresetId } from '../model/presets';
 import { snapPoint, type SnapResult } from '../model/snap';
 import { clearSpan, onSideB, OPENING_PRESETS } from '../model/openings';
 import type { Column, Id, Mm, PlacedObject, Project, Vec2 } from '../model/types';
-import { add, dist, dot, perp, sub } from '../model/vec';
+import { add, dist, dot, perp, projectOnSegment, sub } from '../model/vec';
 import { alignToWalls, parallelWallOffset, weldPlan } from '../model/weld';
 import { addArea, boxOutline, closedOutline, extendOutline, moveArea } from '../model/areas';
 import { editProject, useProject } from '../store/project';
 import { levelZ } from '../model/levels';
 import { SELECT, useUi, type ColumnSpec, type Drag, type Selection, type Tool, type ToolKind } from '../store/ui';
-import { boxSelect, hitTest } from './hit';
+import { boxSelect, columnOutline, hitTest } from './hit';
 import { guideLines, snapToInk } from './planGuides';
 import { EMPTY_ENTRY, ENTRY_FIELDS, entryKey, hasTyped, rectCorner, typedNum, wallEnd } from './entry';
 
@@ -487,6 +487,21 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
     },
   },
 
+  measure: {
+    down(tool, input) {
+      const p = measurePoint(tool, input);
+      setTool(tool.a && !tool.b ? { ...tool, b: p } : { kind: 'measure', a: p, b: null });
+    },
+    move(tool, input) {
+      ui().set({ cursor: measureSnap(tool, input) });
+    },
+    key(tool, e) {
+      if (e.key !== 'Escape') return false;
+      setTool(tool.a ? { kind: 'measure', a: null, b: null } : SELECT);
+      return true;
+    },
+  },
+
   moveUnderlay: {
     down(tool, input) {
       const u = project().underlay;
@@ -508,13 +523,52 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
   },
 };
 
+/**
+ * Where a tape measure's end lands: on the drawing's corners and walls as usual, or on the nearest edge or corner of a
+ * thing or column, whichever is closer; Shift holds the tape level or plumb from its first point.
+ */
+function measureSnap(tool: Of<'measure'>, input: PointerInput): SnapResult {
+  const s = snap(input);
+  const from = tool.a && !tool.b ? tool.a : null;
+  if (!snapping(input)) return from && input.shift ? { point: squared(input.p, from), kind: 'free', guides: [] } : s;
+  let best: { point: Vec2; d: number } | null = s.kind === 'corner' || s.kind === 'wall' || s.kind === 'midpoint' ? { point: s.point, d: dist(s.point, input.p) } : null;
+  const outlines = [
+    ...project()
+      .objects.filter((o) => !o.hidden)
+      .map((o) => obbCorners(objectObb(o))),
+    ...Object.values(project().columns).map(columnOutline),
+  ];
+  for (const poly of outlines)
+    for (let i = 0; i < poly.length; i++) {
+      const c = poly[i];
+      const dc = dist(c, input.p);
+      if (dc <= input.radius && (!best || dc < best.d)) best = { point: c, d: dc };
+      const r = projectOnSegment(input.p, c, poly[(i + 1) % poly.length]);
+      if (r.distance <= input.radius && (!best || r.distance < best.d - 1e-6)) best = { point: r.point, d: r.distance };
+    }
+  const point = best ? best.point : s.point;
+  if (from && input.shift) return { point: squared(point, from), kind: 'free', guides: [] };
+  return best ? { point, kind: 'wall', guides: [] } : s;
+}
+
+const measurePoint = (tool: Of<'measure'>, input: PointerInput): Vec2 => measureSnap(tool, input).point;
+
 const squared = (q: Vec2, prev: Vec2): Vec2 => (Math.abs(q.x - prev.x) > Math.abs(q.y - prev.y) ? { x: q.x, y: prev.y } : { x: prev.x, y: q.y });
 
 /** The object a catalog item would become if put down at p, snapped to walls and neighbours unless `free`. */
 export function objectAt(assetId: string, p: Vec2, radius: Mm, free = false): PlacedObject {
   const proj = project();
   const item = catalogItem(assetId);
-  const obj: PlacedObject = { id: newId('obj'), assetId, name: item?.label ?? 'กล่อง', x: p.x, y: p.y, z: levelZ(useProject.getState().project!, useProject.getState().level), rotation: 0, size: item ? { ...item.size } : { w: 1000, d: 1000, h: 1000 } };
+  const obj: PlacedObject = {
+    id: newId('obj'),
+    assetId,
+    name: item?.label ?? 'กล่อง',
+    x: p.x,
+    y: p.y,
+    z: levelZ(useProject.getState().project!, useProject.getState().level),
+    rotation: 0,
+    size: item ? { ...item.size } : { w: 1000, d: 1000, h: 1000 },
+  };
   if (!free) {
     const s = snapObject(proj.plan, proj.objects, obj, p, Math.max(radius, 300));
     Object.assign(obj, { x: s.x, y: s.y, z: s.z, rotation: s.rotation });
@@ -644,7 +698,11 @@ export function duplicateSelection(): void {
       } else if (s.kind === 'area') {
         const a = d.plan.areas?.[s.id];
         if (!a) continue;
-        const id = addArea(d.plan, a.points.map((p) => ({ x: p.x + 500, y: p.y + 500 })), { name: `${a.name} (สำเนา)`, color: a.color, height: a.height });
+        const id = addArea(
+          d.plan,
+          a.points.map((p) => ({ x: p.x + 500, y: p.y + 500 })),
+          { name: `${a.name} (สำเนา)`, color: a.color, height: a.height },
+        );
         made.push({ kind: 'area', id });
       }
     }
@@ -704,4 +762,3 @@ export function objectKey(e: KeyboardEvent): boolean {
   else return false;
   return true;
 }
-

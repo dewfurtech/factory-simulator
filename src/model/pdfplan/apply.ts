@@ -141,7 +141,16 @@ function fenceYards(plan: Plan, chords: { a: Vec2; b: Vec2 }[], outer: { a: Vec2
     delete plan.openings[o.id];
     for (let i = 0; i < leaves; i++) {
       const id = newId('o');
-      plan.openings[id] = { id, wallId: o.wallId, kind: 'door', doorStyle: gate.doorStyle, offset: o.offset - o.width / 2 + w * (i + 0.5), width: w, height: Math.min(gate.height, FENCE_HEIGHT), sill: 0 };
+      plan.openings[id] = {
+        id,
+        wallId: o.wallId,
+        kind: 'door',
+        doorStyle: gate.doorStyle,
+        offset: o.offset - o.width / 2 + w * (i + 0.5),
+        width: w,
+        height: Math.min(gate.height, FENCE_HEIGHT),
+        sill: 0,
+      };
     }
   }
 }
@@ -376,7 +385,16 @@ function hangStallDoors(plan: Plan, doors: { at: Vec2; width: Mm }[]): number {
     if (Object.values(plan.openings).some((o) => o.wallId === wall.id && Math.abs(o.offset - openingOffsetAt(plan, wall, d.at, o.width)) < (o.width + d.width) / 2)) continue;
     const p = OPENING_PRESETS.door;
     const id = newId('o');
-    plan.openings[id] = { id, wallId: wall.id, kind: p.kind, offset: openingOffsetAt(plan, wall, d.at, d.width), width: d.width, height: p.height, sill: p.sill, doorStyle: p.doorStyle };
+    plan.openings[id] = {
+      id,
+      wallId: wall.id,
+      kind: p.kind,
+      offset: openingOffsetAt(plan, wall, d.at, d.width),
+      width: d.width,
+      height: p.height,
+      sill: p.sill,
+      doorStyle: p.doorStyle,
+    };
     hung++;
   }
   return hung;
@@ -440,11 +458,10 @@ export function applyPdfImport(project: Project, imp: PdfImport, toPlan: (p: Vec
     bowls.map((m) => ({ centre: toPlan(m.at), rotation: m.rotation + turn, bowl: Math.max(m.w, m.d) * mmPerPt })),
   );
   const facing = new Map(bowls.map((m, i) => [m, fronts[i]]));
-  const early = bowls
-    .map((m): PlacedObject => {
-      const s = placeStall(plan, toPlan(m.at), m.rotation + turn, Math.max(m.w, m.d) * mmPerPt, toilet.size.d, facing.get(m));
-      return { id: newId('obj'), assetId: toilet.id, name: '', x: s.at.x, y: s.at.y, z: 0, rotation: s.rotation, size: { ...toilet.size } };
-    });
+  const early = bowls.map((m): PlacedObject => {
+    const s = placeStall(plan, toPlan(m.at), m.rotation + turn, Math.max(m.w, m.d) * mmPerPt, toilet.size.d, facing.get(m));
+    return { id: newId('obj'), assetId: toilet.id, name: '', x: s.at.x, y: s.at.y, z: 0, rotation: s.rotation, size: { ...toilet.size } };
+  });
   fitStalls(early);
   const stallDoors = wallStallFronts(plan, early);
   // On this drawing its owner said each wall end left free closes solid.
@@ -510,7 +527,9 @@ export function applyPdfImport(project: Project, imp: PdfImport, toPlan: (p: Vec
       fit = { ...fit, at: s.at };
       rotation = s.rotation;
     }
-    const size = CATALOG_SIZED.has(kind) ? { ...item.size } : { w: Math.max(100, round(fit.w, 10)), d: Math.max(100, round(fit.d, 10)), h: item.id === 'box' ? BLOCK_HEIGHT : item.size.h };
+    const size = CATALOG_SIZED.has(kind)
+      ? { ...item.size }
+      : { w: Math.max(100, round(fit.w, 10)), d: Math.max(100, round(fit.d, 10)), h: item.id === 'box' ? BLOCK_HEIGHT : item.size.h };
     const number = /^\d+$/.test(m.label) ? `เครื่อง ${m.label}` : m.label;
     const o: PlacedObject = {
       id: newId('obj'),
@@ -535,14 +554,18 @@ export function applyPdfImport(project: Project, imp: PdfImport, toPlan: (p: Vec
   // ruled so for this drawing's spots 5, 6 and 7).
   const numbered = kept.filter((p) => p.kind === 'machine' && /^เครื่อง \d+/.test(p.o.name)).map((p) => p.o);
   const reach = (o: PlacedObject) => ({ ...o, size: { ...o.size, w: o.size.w + NEAR_MACHINE * 2, d: o.size.d + NEAR_MACHINE * 2 } });
-  const beside = (p: { kind: string; o: PlacedObject }) => p.kind === 'machine' && !/^เครื่อง \d+/.test(p.o.name) && numbered.some((m) => obbOverlap(objectObb(reach(m)), objectObb(p.o), 0));
+  const beside = (p: { kind: string; o: PlacedObject }) =>
+    p.kind === 'machine' && !/^เครื่อง \d+/.test(p.o.name) && numbered.some((m) => obbOverlap(objectObb(reach(m)), objectObb(p.o), 0));
   const clear = kept.filter((p) => p.kind !== 'other' && !beside(p) && !flights.some((f) => obbOverlap(objectObb(near(f)), objectObb(p.o), 50)));
   kept.length = 0;
   kept.push(...clear, ...flights.map((o) => ({ kind: 'stairs', o })));
   fitStalls(kept.filter((p) => p.kind === 'toilet').map((p) => p.o));
   clearChairs(kept);
   project.objects.push(...kept.map((p) => p.o));
-  dropStallPartitions(plan, kept.filter((p) => p.kind === 'toilet').map((p) => p.o));
+  dropStallPartitions(
+    plan,
+    kept.filter((p) => p.kind === 'toilet').map((p) => p.o),
+  );
 
   return { ...traced, columns: Object.keys(project.columns).length, zones: namedZones, machines: kept.length };
 }

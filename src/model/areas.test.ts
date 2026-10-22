@@ -15,7 +15,13 @@ describe('closedOutline', () => {
   });
 
   it('rejects a line with no area', () => {
-    expect(closedOutline([{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 2000, y: 0 }])).toBeNull();
+    expect(
+      closedOutline([
+        { x: 0, y: 0 },
+        { x: 1000, y: 0 },
+        { x: 2000, y: 0 },
+      ]),
+    ).toBeNull();
   });
 });
 

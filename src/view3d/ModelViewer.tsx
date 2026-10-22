@@ -116,10 +116,12 @@ export default function ModelViewer({ assetId, name, options }: { assetId: strin
         camera.position.copy(center).addScaledVector(dir, dist);
         camera.lookAt(center);
         camera.updateMatrixWorld();
-        const reach = Math.max(...corners.map((c) => {
-          const p = c.clone().project(camera);
-          return Math.max(Math.abs(p.x), Math.abs(p.y));
-        }));
+        const reach = Math.max(
+          ...corners.map((c) => {
+            const p = c.clone().project(camera);
+            return Math.max(Math.abs(p.x), Math.abs(p.y));
+          }),
+        );
         dist *= reach / 0.85;
       }
       camera.position.copy(center).addScaledVector(dir, dist);
@@ -229,7 +231,12 @@ export default function ModelViewer({ assetId, name, options }: { assetId: strin
         ))}
       </div>
       <div className="mv-tools">
-        <button className={`ib sm${running ? ' on' : ''}`} onClick={() => setRunning(!running)} title={running ? 'หยุดการเคลื่อนไหวของเครื่อง' : 'เดินเครื่อง'} aria-pressed={running}>
+        <button
+          className={`ib sm${running ? ' on' : ''}`}
+          onClick={() => setRunning(!running)}
+          title={running ? 'หยุดการเคลื่อนไหวของเครื่อง' : 'เดินเครื่อง'}
+          aria-pressed={running}
+        >
           <Icon name={running ? 'pause' : 'play'} />
         </button>
         <button className="ib sm" onClick={() => api.current?.reset()} title={view === 'top' ? 'พอดีกรอบ' : 'กลับไปมองด้านหน้า'}>

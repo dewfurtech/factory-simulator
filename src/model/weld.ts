@@ -40,8 +40,7 @@ function edgePulls(plan: Plan, poly: Vec2[], thickness: Mm, slack: Mm): Pull[] {
   return pulls;
 }
 
-const smallest = <T extends { d: number }>(xs: T[]): T | null =>
-  xs.reduce<T | null>((best, x) => (!best || Math.abs(x.d) < Math.abs(best.d) ? x : best), null);
+const smallest = <T extends { d: number }>(xs: T[]): T | null => xs.reduce<T | null>((best, x) => (!best || Math.abs(x.d) < Math.abs(best.d) ? x : best), null);
 
 /**
  * Translates a new room outline so edges that land on or beside existing walls sit exactly on those

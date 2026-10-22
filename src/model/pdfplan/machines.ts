@@ -90,8 +90,12 @@ export function readMachines(plan: VectorPlan, opts: MachineOptions = {}): PdfMa
     for (const comp of components(segs, tol)) {
       // Rounded corners and curves make a diagonal the longest edge, so the box follows the drawing's dominant direction.
       const angle = dominantAngle(comp);
-      const box = boxOf(comp.flatMap((s) => [s.a, s.b]), angle);
-      const long = box.w * mmPerPt, short = box.d * mmPerPt;
+      const box = boxOf(
+        comp.flatMap((s) => [s.a, s.b]),
+        angle,
+      );
+      const long = box.w * mmPerPt,
+        short = box.d * mmPerPt;
       if (long < 450 || short < 300 || long > 12000) continue;
       const rect: Rect = { ...box, layer, exact: false };
       if (!saniLayers.includes(layer) && long <= 780 && short / long >= 0.55) chairs.push(rect);
@@ -150,7 +154,12 @@ export function readMachines(plan: VectorPlan, opts: MachineOptions = {}): PdfMa
   const unique: Rect[] = [];
   for (const r of rects) if (!unique.some((u) => dist(u.at, r.at) < 2 && Math.abs(u.w - r.w) < 2 && Math.abs(u.d - r.d) < 2)) unique.push(r);
   // Inner detail: a rectangle whose corners all lie in a bigger one on the same layer.
-  const outer = unique.filter((r) => !unique.some((o) => o !== r && o.layer === r.layer && o.w * o.d > r.w * r.d * 1.05 && r.corners.every((c) => distToPolygon(c, o.corners) <= 1 || pointInPolygon(c, o.corners))));
+  const outer = unique.filter(
+    (r) =>
+      !unique.some(
+        (o) => o !== r && o.layer === r.layer && o.w * o.d > r.w * r.d * 1.05 && r.corners.every((c) => distToPolygon(c, o.corners) <= 1 || pointInPolygon(c, o.corners)),
+      ),
+  );
   // A rectangle that is also a furniture object (or a chair) is reported once, as the furniture.
   const machines = mergeStacked(outer).filter((r) => ![...objects, ...chairs].some((o) => pointInPolygon(r.at, o.corners) || pointInPolygon(o.at, r.corners)));
 
@@ -179,9 +188,12 @@ export function readMachines(plan: VectorPlan, opts: MachineOptions = {}): PdfMa
     let { w, d, rotation } = r;
     if (kind === 'desk' && cs.length) {
       // The front of a desk faces its chair: turn local +y towards the chairs' centre.
-      const cx = cs.reduce((s, c) => s + c.at.x, 0) / cs.length - r.at.x, cy = cs.reduce((s, c) => s + c.at.y, 0) / cs.length - r.at.y;
-      const c = Math.cos(r.rotation), s = Math.sin(r.rotation);
-      const u = cx * c + cy * s, v = -cx * s + cy * c;
+      const cx = cs.reduce((s, c) => s + c.at.x, 0) / cs.length - r.at.x,
+        cy = cs.reduce((s, c) => s + c.at.y, 0) / cs.length - r.at.y;
+      const c = Math.cos(r.rotation),
+        s = Math.sin(r.rotation);
+      const u = cx * c + cy * s,
+        v = -cx * s + cy * c;
       if (Math.abs(v) >= Math.abs(u)) {
         if (v < 0) rotation += Math.PI;
       } else {
@@ -226,7 +238,8 @@ function components(segs: Seg[], tol: number): Seg[][] {
   const grid = new Map<string, number[]>();
   const nodes: Vec2[] = [];
   const nodeId = (p: Vec2) => {
-    const cx = Math.floor(p.x / tol), cy = Math.floor(p.y / tol);
+    const cx = Math.floor(p.x / tol),
+      cy = Math.floor(p.y / tol);
     for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const i of grid.get(`${cx + dx},${cy + dy}`) ?? []) if (dist(nodes[i], p) <= tol) return i;
     const i = nodes.push(p) - 1;
     const k = `${cx},${cy}`;
@@ -238,7 +251,8 @@ function components(segs: Seg[], tol: number): Seg[][] {
   const parent: number[] = [];
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
   const ends = segs.map((s) => {
-    const a = nodeId(s.a), b = nodeId(s.b);
+    const a = nodeId(s.a),
+      b = nodeId(s.b);
     while (parent.length < nodes.length) parent.push(parent.length);
     parent[find(a)] = find(b);
     return a;
@@ -264,7 +278,8 @@ function mergeStacked(rects: Rect[]): Rect[] {
     merged = false;
     outer: for (let i = 0; i < out.length; i++)
       for (let j = i + 1; j < out.length; j++) {
-        const p = out[i], q = out[j];
+        const p = out[i],
+          q = out[j];
         if (p.layer !== q.layer) continue;
         // A near-square block has no long side of its own: it may stand either way on the body.
         const square = (r: Rect) => Math.abs(r.w - r.d) <= 0.1 * r.w;
@@ -275,13 +290,21 @@ function mergeStacked(rects: Rect[]): Rect[] {
         const [ow, od] = turned ? [other.d, other.w] : [other.w, other.d];
         if (Math.abs(base.d - od) > 0.1 * Math.max(base.d, od)) continue;
         // Along the base's long axis the two must follow each other (a thin cross-piece may sit between); across it they line up.
-        const c = Math.cos(base.rotation), s = Math.sin(base.rotation);
-        const du = (other.at.x - base.at.x) * c + (other.at.y - base.at.y) * s, dv = -(other.at.x - base.at.x) * s + (other.at.y - base.at.y) * c;
+        const c = Math.cos(base.rotation),
+          s = Math.sin(base.rotation);
+        const du = (other.at.x - base.at.x) * c + (other.at.y - base.at.y) * s,
+          dv = -(other.at.x - base.at.x) * s + (other.at.y - base.at.y) * c;
         if (Math.abs(dv) > 0.1 * base.d || Math.abs(du) - (base.w + ow) / 2 > Math.max(1.5, 0.3 * base.d)) continue;
-        const u0 = Math.min(-base.w / 2, du - ow / 2), u1 = Math.max(base.w / 2, du + ow / 2);
+        const u0 = Math.min(-base.w / 2, du - ow / 2),
+          u1 = Math.max(base.w / 2, du + ow / 2);
         const um = (u0 + u1) / 2;
         const at = { x: base.at.x + um * c, y: base.at.y + um * s };
-        const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => ({ x: at.x + (a * (u1 - u0) * c) / 2 - (b * base.d * s) / 2, y: at.y + (a * (u1 - u0) * s) / 2 + (b * base.d * c) / 2 }));
+        const corners = [
+          [-1, -1],
+          [1, -1],
+          [1, 1],
+          [-1, 1],
+        ].map(([a, b]) => ({ x: at.x + (a * (u1 - u0) * c) / 2 - (b * base.d * s) / 2, y: at.y + (a * (u1 - u0) * s) / 2 + (b * base.d * c) / 2 }));
         out[i] = { corners, at, w: u1 - u0, d: base.d, rotation: base.rotation, layer: base.layer, exact: p.exact && q.exact };
         out.splice(j, 1);
         merged = true;
@@ -320,7 +343,8 @@ function mergeCollinear(segs: Seg[], tol: number): Seg[] {
     const dir = { x: Math.cos(ang), y: Math.sin(ang) };
     const off = -s.a.x * dir.y + s.a.y * dir.x;
     const key = `${Math.round(ang / 0.004)},${Math.round(off / tol)}`;
-    const t0 = s.a.x * dir.x + s.a.y * dir.y, t1 = s.b.x * dir.x + s.b.y * dir.y;
+    const t0 = s.a.x * dir.x + s.a.y * dir.y,
+      t1 = s.b.x * dir.x + s.b.y * dir.y;
     const item = { seg: s, dir, s0: Math.min(t0, t1), s1: Math.max(t0, t1) };
     const g = groups.get(key);
     if (g) g.push(item);
@@ -363,7 +387,8 @@ function fourSidedRects(segs: Seg[], tol: number, minSide: number, maxSide: numb
     }
   });
   const at = (p: Vec2): { i: number; far: Vec2 }[] => {
-    const cx = Math.floor(p.x / cell), cy = Math.floor(p.y / cell);
+    const cx = Math.floor(p.x / cell),
+      cy = Math.floor(p.y / cell);
     const out: { i: number; far: Vec2 }[] = [];
     for (let dx = -1; dx <= 1; dx++)
       for (let dy = -1; dy <= 1; dy++)
@@ -380,7 +405,8 @@ function fourSidedRects(segs: Seg[], tol: number, minSide: number, maxSide: numb
   };
   const found = new Map<string, Vec2[]>();
   sides.forEach((s, i) => {
-    const A = s.a, B = s.b;
+    const A = s.a,
+      B = s.b;
     const u = unit(A, B);
     for (const { i: j, far: C } of at(B)) {
       if (j === i) continue;
@@ -409,7 +435,8 @@ function dominantAngle(segs: Seg[]): number {
     const k = Math.round((a * 180) / Math.PI) % 180;
     bins.set(k, (bins.get(k) ?? 0) + segLen(s));
   }
-  let best = 0, bestLen = -1;
+  let best = 0,
+    bestLen = -1;
   for (const [k, l] of bins) if (l > bestLen) [best, bestLen] = [k, l];
   return (best * Math.PI) / 180;
 }
@@ -422,16 +449,25 @@ function boxOf(poly: Vec2[], angle?: number): { at: Vec2; w: number; d: number; 
   let best = { len: -1, ang: angle ?? 0 };
   if (angle === undefined)
     for (let i = 0; i < poly.length; i++) {
-      const p = poly[i], q = poly[(i + 1) % poly.length];
+      const p = poly[i],
+        q = poly[(i + 1) % poly.length];
       const l = dist(p, q);
       if (l > best.len) best = { len: l, ang: Math.atan2(q.y - p.y, q.x - p.x) };
     }
-  const c = Math.cos(best.ang), s = Math.sin(best.ang);
-  const us = poly.map((p) => p.x * c + p.y * s), vs = poly.map((p) => -p.x * s + p.y * c);
-  const u0 = Math.min(...us), u1 = Math.max(...us), v0 = Math.min(...vs), v1 = Math.max(...vs);
-  const um = (u0 + u1) / 2, vm = (v0 + v1) / 2;
+  const c = Math.cos(best.ang),
+    s = Math.sin(best.ang);
+  const us = poly.map((p) => p.x * c + p.y * s),
+    vs = poly.map((p) => -p.x * s + p.y * c);
+  const u0 = Math.min(...us),
+    u1 = Math.max(...us),
+    v0 = Math.min(...vs),
+    v1 = Math.max(...vs);
+  const um = (u0 + u1) / 2,
+    vm = (v0 + v1) / 2;
   const at = { x: um * c - vm * s, y: um * s + vm * c };
-  let w = u1 - u0, d = v1 - v0, rotation = best.ang;
+  let w = u1 - u0,
+    d = v1 - v0,
+    rotation = best.ang;
   if (d > w) {
     [w, d] = [d, w];
     rotation += Math.PI / 2;
@@ -439,6 +475,7 @@ function boxOf(poly: Vec2[], angle?: number): { at: Vec2; w: number; d: number; 
   while (rotation > Math.PI / 2) rotation -= Math.PI;
   while (rotation <= -Math.PI / 2) rotation += Math.PI;
   const corner = (du: number, dv: number) => ({ x: (um + du) * c - (vm + dv) * s, y: (um + du) * s + (vm + dv) * c });
-  const hu = (u1 - u0) / 2, hv = (v1 - v0) / 2;
+  const hu = (u1 - u0) / 2,
+    hv = (v1 - v0) / 2;
   return { at, w, d, rotation, corners: [corner(-hu, -hv), corner(hu, -hv), corner(hu, hv), corner(-hu, hv)] };
 }

@@ -104,9 +104,7 @@ export function detectPlan(gray: Gray, o: TraceOptions): TracedPlan {
   // partition read in pieces), is part of a symbol (a door's tag, a window mark), not a wall; left in, a wall's loose
   // end would be carried to it.
   const reach = o.maxOpening * 0.6;
-  const kept = network.filter(
-    (w) => w.s1 - w.s0 >= o.minLen * 2 || endsOf([w]).some((e) => attached(e, network)) || endsOf([w]).every((e) => wallAhead(e, network, reach)),
-  );
+  const kept = network.filter((w) => w.s1 - w.s0 >= o.minLen * 2 || endsOf([w]).some((e) => attached(e, network)) || endsOf([w]).every((e) => wallAhead(e, network, reach)));
   openings.push(...reachWalls(kept, thin, o));
   if (o.wallDoors !== false) {
     openings.push(...doorsPastEnds(kept, thin, ink, o));
@@ -184,7 +182,12 @@ function joinGaps(runs: Run[], ink: Mask, o: TraceOptions): { runs: Run[]; openi
       }
       if (opening) openings.push(opening);
       const len = cur.s1 - cur.s0 + next.s1 - next.s0;
-      cur = { ...cur, s1: Math.max(cur.s1, next.s1), c: (cur.c * (cur.s1 - cur.s0) + next.c * (next.s1 - next.s0)) / len, t: (cur.t * (cur.s1 - cur.s0) + next.t * (next.s1 - next.s0)) / len };
+      cur = {
+        ...cur,
+        s1: Math.max(cur.s1, next.s1),
+        c: (cur.c * (cur.s1 - cur.s0) + next.c * (next.s1 - next.s0)) / len,
+        t: (cur.t * (cur.s1 - cur.s0) + next.t * (next.s1 - next.s0)) / len,
+      };
     }
     out.push(cur);
   }
@@ -331,7 +334,10 @@ function doorsPastEnds(runs: Run[], ink: Mask, allInk: Mask, o: TraceOptions): T
     if (gap < leafMin) continue;
     let best: { score: number; hinge: number; toward: 1 | -1; side: 1 | -1; radius: number } | null = null;
     // Hinged at either jamb, swinging to either side, the leaf as wide as the gap or a little short of it (a frame).
-    for (const [jamb, toward] of [[s, e.dir], [ahead.face, -e.dir as 1 | -1]] as const) {
+    for (const [jamb, toward] of [
+      [s, e.dir],
+      [ahead.face, -e.dir as 1 | -1],
+    ] as const) {
       for (let off = 0; off <= gap * 0.2; off++) {
         const hinge = jamb + toward * off;
         for (let radius = Math.max(Math.round(gap * 0.7), Math.ceil(leafMin)); radius <= gap - off + 1; radius++) {
@@ -397,7 +403,8 @@ function wallDoors(runs: Run[], ink: Mask, allInk: Mask, o: TraceOptions, openin
             const slack = radius * 0.3;
             if (end < run.s0 - slack || end > run.s1 + slack) continue;
             const score = swingTight(near, run.axis, run.c, run.t, hinge, toward, side, radius, leafNear);
-            if (score >= WALL_DOOR_SCORE && swingStands(near, run.axis, run.c, run.t, hinge, toward, side, radius)) found.push({ run, s0: Math.min(hinge, end), s1: Math.max(hinge, end), score, hinge, toward, side });
+            if (score >= WALL_DOOR_SCORE && swingStands(near, run.axis, run.c, run.t, hinge, toward, side, radius))
+              found.push({ run, s0: Math.min(hinge, end), s1: Math.max(hinge, end), score, hinge, toward, side });
           }
         }
       }
@@ -409,12 +416,15 @@ function wallDoors(runs: Run[], ink: Mask, allInk: Mask, o: TraceOptions, openin
   const solid = (d: (typeof found)[number]) => {
     let inked = 0;
     let n = 0;
-    for (let k = Math.ceil(d.s0); k <= d.s1; k++, n++) if ([-0.25, 0, 0.25].some((f) => allInk.data[Math.round(pt(d.run.axis, k, d.run.c + f * d.run.t).y) * allInk.w + Math.round(pt(d.run.axis, k, d.run.c + f * d.run.t).x)])) inked++;
+    for (let k = Math.ceil(d.s0); k <= d.s1; k++, n++)
+      if ([-0.25, 0, 0.25].some((f) => allInk.data[Math.round(pt(d.run.axis, k, d.run.c + f * d.run.t).y) * allInk.w + Math.round(pt(d.run.axis, k, d.run.c + f * d.run.t).x)]))
+        inked++;
     return n ? inked / n : 0;
   };
   found.sort((p, q) => q.score - p.score || q.s1 - q.s0 - (p.s1 - p.s0));
   // The arcs of one door read off two walls share their middle.
-  const arcMid = (e: (typeof found)[number]) => pt(e.run.axis, e.hinge + (e.toward * (e.s1 - e.s0)) / Math.SQRT2, e.run.c + (e.side * e.run.t) / 2 + (e.side * (e.s1 - e.s0)) / Math.SQRT2);
+  const arcMid = (e: (typeof found)[number]) =>
+    pt(e.run.axis, e.hinge + (e.toward * (e.s1 - e.s0)) / Math.SQRT2, e.run.c + (e.side * e.run.t) / 2 + (e.side * (e.s1 - e.s0)) / Math.SQRT2);
   const picked: typeof found = [];
   for (const d of found) {
     if (picked.some((k) => k.run === d.run && k.s0 < d.s1 && d.s0 < k.s1)) continue;
@@ -435,7 +445,14 @@ function wallDoors(runs: Run[], ink: Mask, allInk: Mask, o: TraceOptions, openin
     if (openings.some((op) => op.kind === 'door' && over(op))) continue;
     for (let i = openings.length - 1; i >= 0; i--) if (over(openings[i])) openings.splice(i, 1);
     kept.push(d);
-    doors.push({ kind: 'door', at: pt(d.run.axis, mid, d.run.c), width, double: false, hinge: pt(d.run.axis, d.hinge, d.run.c), swing: pt(d.run.axis, mid, d.run.c + d.side * (d.run.t / 2 + width / 2)) });
+    doors.push({
+      kind: 'door',
+      at: pt(d.run.axis, mid, d.run.c),
+      width,
+      double: false,
+      hinge: pt(d.run.axis, d.hinge, d.run.c),
+      swing: pt(d.run.axis, mid, d.run.c + d.side * (d.run.t / 2 + width / 2)),
+    });
   }
   return doors;
 }
@@ -460,7 +477,10 @@ function readGap(ink: Mask, a: Run, b: Run, o: TraceOptions): TracedOpening | un
   for (const frame of [0, (width * (DOOR_OPENING - DOOR_LEAF)) / 2 / DOOR_OPENING]) {
     const leaf = width - 2 * frame;
     for (const side of [1, -1] as const) {
-      for (const [hinge, toward] of [[g0 + frame, 1], [g1 - frame, -1]] as const) {
+      for (const [hinge, toward] of [
+        [g0 + frame, 1],
+        [g1 - frame, -1],
+      ] as const) {
         const score = swing(hinge, toward, side, leaf);
         if (score > best.score) best = { score, double: false, hinge, side };
       }
@@ -633,7 +653,16 @@ function reachWalls(runs: Run[], ink: Mask, o: TraceOptions): TracedOpening[] {
     r[e.end] = q.c;
     if (meets) q[meets.end] = r.c;
     if (width < o.minOpening) continue;
-    const [before, after] = e.dir > 0 ? [{ ...r, s1: s }, { ...r, s0: face }] : [{ ...r, s1: face }, { ...r, s0: s }];
+    const [before, after] =
+      e.dir > 0
+        ? [
+            { ...r, s1: s },
+            { ...r, s0: face },
+          ]
+        : [
+            { ...r, s1: face },
+            { ...r, s0: s },
+          ];
     openings.push(readGap(ink, before, after, o) ?? { kind: 'opening', at: pt(r.axis, (s + face) / 2, r.c), width });
   }
   return openings;
@@ -680,7 +709,8 @@ function sideSpans(runs: Run[], thin: Mask, any: Mask, o: TraceOptions, found: T
     const s = r[e.end];
     const loose = !attached(e, runs);
     // A corner, where the wall ahead may carry on drawn thin; a wall crossing r's end (a tee) means r stops there.
-    const corner = !loose && runs.every((q) => q === r || !touches(q, pt(r.axis, s, r.c), r.t / 2 + 1) || (q.axis !== r.axis && Math.min(Math.abs(q.s0 - r.c), Math.abs(q.s1 - r.c)) <= q.t));
+    const corner =
+      !loose && runs.every((q) => q === r || !touches(q, pt(r.axis, s, r.c), r.t / 2 + 1) || (q.axis !== r.axis && Math.min(Math.abs(q.s0 - r.c), Math.abs(q.s1 - r.c)) <= q.t));
     if (!loose && !corner) continue;
     // Straight on, past where the doorways reachWalls carries walls across: the wall ahead square to r's line.
     let ahead: Run | null = null;

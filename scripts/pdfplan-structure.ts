@@ -33,15 +33,35 @@ for (const op of s.openings) {
 }
 console.log('openings:', [...kinds].map(([k, n]) => `${k} ${n}`).join(', '));
 const lens = s.walls.map((w) => Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y)).sort((p, q) => q - p);
-console.log('wall lengths (pt):', lens.slice(0, 12).map((l) => l.toFixed(0)).join(' '), '… shortest', lens.slice(-5).map((l) => l.toFixed(1)).join(' '));
+console.log(
+  'wall lengths (pt):',
+  lens
+    .slice(0, 12)
+    .map((l) => l.toFixed(0))
+    .join(' '),
+  '… shortest',
+  lens
+    .slice(-5)
+    .map((l) => l.toFixed(1))
+    .join(' '),
+);
 const angles = new Map<number, number>();
 for (const w of s.walls) {
   const a = Math.round((((Math.atan2(w.b.y - w.a.y, w.b.x - w.a.x) * 180) / Math.PI + 180) % 180) / 5) * 5;
   angles.set(a, (angles.get(a) ?? 0) + 1);
 }
-console.log('wall angles:', [...angles].sort((p, q) => p[0] - q[0]).map(([a, n]) => `${a}°×${n}`).join(' '));
+console.log(
+  'wall angles:',
+  [...angles]
+    .sort((p, q) => p[0] - q[0])
+    .map(([a, n]) => `${a}°×${n}`)
+    .join(' '),
+);
 console.log('columns:', s.columns.map((c) => `${c.shape[0]} ${c.w.toFixed(1)}×${c.d.toFixed(1)}${c.rotation ? ` @${((c.rotation * 180) / Math.PI).toFixed(0)}°` : ''}`).join(', '));
-for (const op of s.openings) console.log(`  ${op.kind}${op.kind === 'door' ? (op.double ? ' double' : op.rolling ? ' rolling' : '') : ''} at ${op.at.x.toFixed(1)},${op.at.y.toFixed(1)} w ${op.width.toFixed(1)}`);
+for (const op of s.openings)
+  console.log(
+    `  ${op.kind}${op.kind === 'door' ? (op.double ? ' double' : op.rolling ? ' rolling' : '') : ''} at ${op.at.x.toFixed(1)},${op.at.y.toFixed(1)} w ${op.width.toFixed(1)}`,
+  );
 
 const pt = (p: Vec2) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
 const poly = (pts: Vec2[], closed: boolean, style: string) => `<polyline points="${pts.map(pt).join(' ')}${closed ? ' ' + pt(pts[0]) : ''}" fill="none" ${style}/>`;
@@ -51,7 +71,8 @@ for (const l of layers.wall) raw[l] = 'stroke="#000" stroke-width="0.15"';
 for (const l of layers.hatch) raw[l] = 'stroke="#99f" stroke-width="0.1"';
 for (const l of layers.dw) raw[l] = 'stroke="#f66" stroke-width="0.15"';
 for (const p of plan.paths) if (raw[p.layer] && p.points.length > 1) svg += poly(p.points, p.closed, raw[p.layer]);
-for (const w of s.walls) svg += `<line x1="${w.a.x}" y1="${w.a.y}" x2="${w.b.x}" y2="${w.b.y}" stroke="${w.glass ? '#0bc' : '#555'}" stroke-opacity="0.6" stroke-width="${Math.max(w.thickness, s.wallThickness)}" stroke-linecap="butt"/>`;
+for (const w of s.walls)
+  svg += `<line x1="${w.a.x}" y1="${w.a.y}" x2="${w.b.x}" y2="${w.b.y}" stroke="${w.glass ? '#0bc' : '#555'}" stroke-opacity="0.6" stroke-width="${Math.max(w.thickness, s.wallThickness)}" stroke-linecap="butt"/>`;
 // Wall ends that meet no other wall: where a room fails to close.
 const near = (p: Vec2, w: (typeof s.walls)[number]) => {
   const dx = w.b.x - w.a.x;
@@ -82,7 +103,11 @@ for (const op of s.openings) {
     svg += `<circle cx="${op.hinge.x}" cy="${op.hinge.y}" r="0.8" fill="none" stroke="${color}" stroke-width="0.3"/>`;
   }
   // The opening's width as a bar along its wall.
-  const wall = s.walls.find((w) => Math.abs((w.b.x - w.a.x) * (op.at.y - w.a.y) - (w.b.y - w.a.y) * (op.at.x - w.a.x)) / Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y) <= s.wallThickness * 2 && Math.min(Math.hypot(op.at.x - w.a.x, op.at.y - w.a.y), Math.hypot(op.at.x - w.b.x, op.at.y - w.b.y)) <= Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y));
+  const wall = s.walls.find(
+    (w) =>
+      Math.abs((w.b.x - w.a.x) * (op.at.y - w.a.y) - (w.b.y - w.a.y) * (op.at.x - w.a.x)) / Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y) <= s.wallThickness * 2 &&
+      Math.min(Math.hypot(op.at.x - w.a.x, op.at.y - w.a.y), Math.hypot(op.at.x - w.b.x, op.at.y - w.b.y)) <= Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y),
+  );
   if (wall) {
     const l = Math.hypot(wall.b.x - wall.a.x, wall.b.y - wall.a.y);
     const u = { x: (wall.b.x - wall.a.x) / l, y: (wall.b.y - wall.a.y) / l };

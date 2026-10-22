@@ -30,7 +30,9 @@ if (flag === '--json') {
     e.colors.add(p.color);
     per.set(p.layer, e);
   }
-  for (const [layer, e] of [...per].sort((a, b) => b[1].n - a[1].n)) console.log(`${String(e.n).padStart(6)}  ${layer || '(none)'}  closed ${e.closed}  dashed ${e.dashed}  ${[...e.colors].slice(0, 4).join(' ')}`);
+  for (const [layer, e] of [...per].sort((a, b) => b[1].n - a[1].n))
+    console.log(`${String(e.n).padStart(6)}  ${layer || '(none)'}  closed ${e.closed}  dashed ${e.dashed}  ${[...e.colors].slice(0, 4).join(' ')}`);
   console.log('\ntexts:');
-  for (const t of plan.texts) console.log(`  [${t.x.toFixed(0)},${t.y.toFixed(0)}] h${t.height.toFixed(1)} ${((t.rotation * 180) / Math.PI).toFixed(0)}° ${JSON.stringify(t.text)}`);
+  for (const t of plan.texts)
+    console.log(`  [${t.x.toFixed(0)},${t.y.toFixed(0)}] h${t.height.toFixed(1)} ${((t.rotation * 180) / Math.PI).toFixed(0)}° ${JSON.stringify(t.text)}`);
 }

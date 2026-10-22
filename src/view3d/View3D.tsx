@@ -70,16 +70,32 @@ export default function View3D() {
     <div className="view3d">
       <div ref={host} className="view3d-canvas" onPointerDown={onPointerDown} onPointerUp={onPointerUp} onDoubleClick={onDouble} data-testid="view3d" />
       <div className="view-tools glass">
-        <button className={`ib sm${cutaway ? ' on' : ''}`} onClick={() => toggle('cutaway')} title="ผนังเตี้ย (เปิด/ปิด): ลดผนังลงเกือบติดพื้น เห็นห้องและประตูชัด" aria-pressed={cutaway}>
+        <button
+          className={`ib sm${cutaway ? ' on' : ''}`}
+          onClick={() => toggle('cutaway')}
+          title="ผนังเตี้ย (เปิด/ปิด): ลดผนังลงเกือบติดพื้น เห็นห้องและประตูชัด"
+          aria-pressed={cutaway}
+        >
           <Icon name="cut" />
         </button>
-        <button className={`ib sm${realistic ? ' on' : ''}`} onClick={() => toggle('realistic')} title="โหมดสมจริง: แสงเงาและวัสดุเหมือนจริง (ใช้เครื่องแรงขึ้น)" aria-pressed={realistic}>
+        <button
+          className={`ib sm${realistic ? ' on' : ''}`}
+          onClick={() => toggle('realistic')}
+          title="โหมดสมจริง: แสงเงาและวัสดุเหมือนจริง (ใช้เครื่องแรงขึ้น)"
+          aria-pressed={realistic}
+        >
           <Icon name="realistic" />
         </button>
         <button className={`ib sm${shadows ? ' on' : ''}`} onClick={() => toggle('shadows')} title="เงา (ใช้เครื่องแรงขึ้น)" aria-pressed={shadows}>
           <Icon name="shadow" />
         </button>
-        <button className={`ib sm${islandOn ? ' on' : ''}`} onClick={() => toggle('island')} title="พื้นแบบเกาะ: ตัดพื้นรอบนอกให้เหลือแค่รอบอาคาร (กลับมาเต็มเองตอนวาดผนัง/พื้นที่)" aria-pressed={islandOn} data-testid="island">
+        <button
+          className={`ib sm${islandOn ? ' on' : ''}`}
+          onClick={() => toggle('island')}
+          title="พื้นแบบเกาะ: ตัดพื้นรอบนอกให้เหลือแค่รอบอาคาร (กลับมาเต็มเองตอนวาดผนัง/พื้นที่)"
+          aria-pressed={islandOn}
+          data-testid="island"
+        >
           <Icon name="island" />
         </button>
         <button className={`ib sm${top ? ' on' : ''}`} onClick={() => setTop(!top)} title="มุมมองจากด้านบน (Top view)" aria-pressed={top} data-testid="top-view">
@@ -88,11 +104,18 @@ export default function View3D() {
         <button className="ib sm" onClick={() => sceneRef.current?.frame()} title="มุมมองทั้งโรงงาน">
           <Icon name="fit" />
         </button>
-        <button className="ib sm" onClick={() => void sceneRef.current?.snapshot().then((b) => b && download(b, `${project.name} 3D.png`))} title="บันทึกรูปมุมมองนี้ (PNG)" data-testid="snapshot-3d">
+        <button
+          className="ib sm"
+          onClick={() => void sceneRef.current?.snapshot().then((b) => b && download(b, `${project.name} 3D.png`))}
+          title="บันทึกรูปมุมมองนี้ (PNG)"
+          data-testid="snapshot-3d"
+        >
           <Icon name="image" />
         </button>
       </div>
-      <div className="view-hint">{top ? 'มุมมองด้านบน · ลากเพื่อเลื่อน' : 'ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน'} · เลื่อนลูกกลิ้งเพื่อซูม · คลิกวัตถุเพื่อดูรายละเอียด · ดับเบิลคลิกเพื่อซูมไปจุดนั้น</div>
+      <div className="view-hint">
+        {top ? 'มุมมองด้านบน · ลากเพื่อเลื่อน' : 'ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน'} · เลื่อนลูกกลิ้งเพื่อซูม · คลิกวัตถุเพื่อดูรายละเอียด · ดับเบิลคลิกเพื่อซูมไปจุดนั้น
+      </div>
     </div>
   );
 }

@@ -23,7 +23,9 @@ const t0 = Date.now();
 const imp = readPdfPlan(drawing);
 const t1 = Date.now();
 const scale = readScale(drawing, imp.structure.openings);
-console.log(`read in ${t1 - t0} ms · walls ${imp.structure.walls.length} · openings ${imp.structure.openings.length} · columns ${imp.structure.columns.length} · zones ${imp.zones.length} · pieces ${imp.machines.length}`);
+console.log(
+  `read in ${t1 - t0} ms · walls ${imp.structure.walls.length} · openings ${imp.structure.openings.length} · columns ${imp.structure.columns.length} · zones ${imp.zones.length} · pieces ${imp.machines.length}`,
+);
 console.log('scale', scale);
 const mmPerPt = scale?.mmPerPt ?? 72;
 const project = newProject('import');
@@ -46,7 +48,7 @@ const parts: string[] = [];
 for (const p of drawing.paths) {
   if (/HATCH|DIMENSION|TEXT|Arrow|GRID/i.test(p.layer)) continue;
   const col = /COLUMN/i.test(p.layer);
-  parts.push(`<polyline points="${pts(p.points.map((q) => ({ x: q.x * k, y: q.y * k })))}" fill="none" stroke="${col ? "#2563eb" : "#bbb"}" stroke-width="${col ? 25 : 15}"/>`);
+  parts.push(`<polyline points="${pts(p.points.map((q) => ({ x: q.x * k, y: q.y * k })))}" fill="none" stroke="${col ? '#2563eb' : '#bbb'}" stroke-width="${col ? 25 : 15}"/>`);
 }
 // Each room its own hue, so where one room runs into another shows.
 Object.values(project.plan.rooms).forEach((r, i) => {
@@ -66,7 +68,9 @@ for (const o of Object.values(project.plan.openings)) {
   const f0 = (o.offset - o.width / 2) / l;
   const f1 = (o.offset + o.width / 2) / l;
   const color = o.kind === 'door' ? '#e11d48' : o.kind === 'window' ? '#2563eb' : '#16a34a';
-  parts.push(`<line x1="${a.x + (b.x - a.x) * f0}" y1="${a.y + (b.y - a.y) * f0}" x2="${a.x + (b.x - a.x) * f1}" y2="${a.y + (b.y - a.y) * f1}" stroke="${color}" stroke-width="${w.thickness + 120}"/>`);
+  parts.push(
+    `<line x1="${a.x + (b.x - a.x) * f0}" y1="${a.y + (b.y - a.y) * f0}" x2="${a.x + (b.x - a.x) * f1}" y2="${a.y + (b.y - a.y) * f1}" stroke="${color}" stroke-width="${w.thickness + 120}"/>`,
+  );
 }
 for (const c of loose) parts.push(`<circle cx="${c.x}" cy="${c.y}" r="500" fill="none" stroke="#f00" stroke-width="120"/>`);
 for (const c of Object.values(project.columns)) parts.push(`<rect x="${c.x - c.w / 2}" y="${c.y - c.d / 2}" width="${c.w}" height="${c.d}" fill="#e11d48" fill-opacity="0.7"/>`);
@@ -85,6 +89,10 @@ const xs = Object.values(project.plan.corners).map((c) => c.x);
 const ys = Object.values(project.plan.corners).map((c) => c.y);
 // CROP="x0,y0,x1,y1" (page points) draws only that part of the page, to look closely.
 const crop = process.env.CROP?.split(',').map((v) => Number(v) * k);
-const [x0, y0, x1, y1] = crop ?? (xs.length ? [Math.min(...xs) - 3000, Math.min(...ys) - 3000, Math.max(...xs) + 3000, Math.max(...ys) + 3000] : [0, 0, drawing.width * k, drawing.height * k]);
-writeFileSync(out, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0} ${y0} ${x1 - x0} ${y1 - y0}" width="1400" height="${Math.round((1400 * (y1 - y0)) / (x1 - x0))}"><rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="#fff"/>${parts.join('')}</svg>`);
+const [x0, y0, x1, y1] =
+  crop ?? (xs.length ? [Math.min(...xs) - 3000, Math.min(...ys) - 3000, Math.max(...xs) + 3000, Math.max(...ys) + 3000] : [0, 0, drawing.width * k, drawing.height * k]);
+writeFileSync(
+  out,
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0} ${y0} ${x1 - x0} ${y1 - y0}" width="1400" height="${Math.round((1400 * (y1 - y0)) / (x1 - x0))}"><rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="#fff"/>${parts.join('')}</svg>`,
+);
 console.log('wrote', out);

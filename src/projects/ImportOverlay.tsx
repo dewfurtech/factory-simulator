@@ -33,9 +33,7 @@ export function ImportOverlay() {
             </li>
           ))}
         </ol>
-        <div className="muted small">
-          ผ่านไป {seconds} วินาที · ไฟล์ PDF ใหญ่อาจใช้เวลาราว 1 นาที ระหว่างนี้หน้าจออาจค้างเป็นช่วงๆ
-        </div>
+        <div className="muted small">ผ่านไป {seconds} วินาที · ไฟล์ PDF ใหญ่อาจใช้เวลาราว 1 นาที ระหว่างนี้หน้าจออาจค้างเป็นช่วงๆ</div>
       </div>
     </div>
   );

@@ -116,7 +116,8 @@ export class FactoryScene {
     const shadows = this.opts.shadows || this.opts.realistic;
     this.renderer.shadowMap.enabled = shadows;
     this.sun.castShadow = shadows;
-    if (before.shadows !== this.opts.shadows || before.realistic !== this.opts.realistic) this.scene.traverse((x) => ((x as THREE.Mesh).material ? (((x as THREE.Mesh).material as THREE.Material).needsUpdate = true) : 0));
+    if (before.shadows !== this.opts.shadows || before.realistic !== this.opts.realistic)
+      this.scene.traverse((x) => ((x as THREE.Mesh).material ? (((x as THREE.Mesh).material as THREE.Material).needsUpdate = true) : 0));
     this.dirty = true;
   }
 
@@ -203,10 +204,11 @@ export class FactoryScene {
     // Names of ground-floor rooms under the second floor would show through it; they come back with the cutaway.
     if (p.upper && !this.opts.cutaway) {
       const above = Object.values(p.upper.plan.rooms).map((r) => roomPolygon(p.upper!.plan, r));
-      for (const s of [...ground.children]) if (above.some((poly) => pointInPolygon({ x: s.position.x / M, y: s.position.z / M }, poly))) {
-        ground.remove(s);
-        disposeTree(s);
-      }
+      for (const s of [...ground.children])
+        if (above.some((poly) => pointInPolygon({ x: s.position.x / M, y: s.position.z / M }, poly))) {
+          ground.remove(s);
+          disposeTree(s);
+        }
     }
     this.labels.add(ground);
     // The second floor stands on its slab; with the walls cut down it is left out, like everything up there.
@@ -241,7 +243,14 @@ export class FactoryScene {
       const prev = this.objectKeys.get(o.id);
       if (prev === o) continue;
       const old = this.objectMeshes.get(o.id);
-      const sameShape = prev && old && prev.assetId === o.assetId && prev.size.w === o.size.w && prev.size.d === o.size.d && prev.size.h === o.size.h && (prev.options ?? []).join() === (o.options ?? []).join();
+      const sameShape =
+        prev &&
+        old &&
+        prev.assetId === o.assetId &&
+        prev.size.w === o.size.w &&
+        prev.size.d === o.size.d &&
+        prev.size.h === o.size.h &&
+        (prev.options ?? []).join() === (o.options ?? []).join();
       let node = sameShape ? old! : null;
       if (!node) {
         if (old) {
@@ -308,7 +317,10 @@ export class FactoryScene {
   /** Straight down over the whole building, high enough that all of it fits. Plan north stays at the top. */
   private frameTop() {
     const pts = this.project ? Object.values(this.project.plan.corners) : [];
-    let cx = 0, cz = 0, w = 20, d = 20;
+    let cx = 0,
+      cz = 0,
+      w = 20,
+      d = 20;
     if (pts.length) {
       const b = bounds(pts);
       cx = ((b.min.x + b.max.x) / 2) * M;
@@ -358,7 +370,10 @@ export class FactoryScene {
     if (flat.lengthSq() < 1e-6) flat.set(0, 0, 1);
     flat.setLength(dist * 0.3);
     this.controls.target.copy(t);
-    this.camera.position.copy(t).add(flat).add(new THREE.Vector3(0, dist, 0));
+    this.camera.position
+      .copy(t)
+      .add(flat)
+      .add(new THREE.Vector3(0, dist, 0));
     this.controls.update();
     this.dirty = true;
   }
@@ -384,7 +399,6 @@ export class FactoryScene {
     this.selBox = box;
     this.overlay.add(box);
   }
-
 
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop);

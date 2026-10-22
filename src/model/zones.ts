@@ -29,4 +29,5 @@ export const ZONE_IDS = Object.keys(ZONES) as ZoneKind[];
 /** Ground outdoors: a yard or car park inside the fence. */
 export const OUTDOOR_COLOR = '#dcd8cf';
 
-export const zoneColor = (room: { zone: ZoneKind; color?: string; outdoor?: true }) => room.color ?? (room.outdoor ? OUTDOOR_COLOR : ZONES[room.zone]?.color ?? ZONES.other.color);
+export const zoneColor = (room: { zone: ZoneKind; color?: string; outdoor?: true }) =>
+  room.color ?? (room.outdoor ? OUTDOOR_COLOR : (ZONES[room.zone]?.color ?? ZONES.other.color));

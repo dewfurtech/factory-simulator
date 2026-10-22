@@ -125,9 +125,7 @@ export function openingSymbol(plan: Plan, wall: Wall, o: SymbolInput): OpeningSy
     return { cut, lines: [...jambs, ...arrow(lerp(f, h, 0.3), lerp(f, h, 0.7))], panels: [panel(p0, p1)], arcs: [] };
   }
   const leaves =
-    style === 'double'
-      ? [swingLeaf(at(p0, side), d, s, o.width / 2), swingLeaf(at(p1, side), scale(d, -1), s, o.width / 2)]
-      : [swingLeaf(at(h, side), along, s, o.width)];
+    style === 'double' ? [swingLeaf(at(p0, side), d, s, o.width / 2), swingLeaf(at(p1, side), scale(d, -1), s, o.width / 2)] : [swingLeaf(at(h, side), along, s, o.width)];
   return { cut, lines: jambs, panels: leaves.map((l) => l.panel), arcs: leaves.map((l) => l.arc) };
 }
 

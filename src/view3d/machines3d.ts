@@ -46,7 +46,10 @@ export function machineFootprint(assetId: string, options: Options): Footprint |
     made.workpiece?.removeFromParent();
     dropZones(made.object);
     const b = visibleBounds(made.object);
-    f = { size: { w: Math.round((b.max.x - b.min.x) * 1000), d: Math.round((b.max.z - b.min.z) * 1000), h: Math.round(b.max.y * 1000) }, center: [Math.round(((b.max.x + b.min.x) / 2) * 1000), Math.round(((b.max.z + b.min.z) / 2) * 1000)] };
+    f = {
+      size: { w: Math.round((b.max.x - b.min.x) * 1000), d: Math.round((b.max.z - b.min.z) * 1000), h: Math.round(b.max.y * 1000) },
+      center: [Math.round(((b.max.x + b.min.x) / 2) * 1000), Math.round(((b.max.z + b.min.z) / 2) * 1000)],
+    };
     footprints.set(key, f);
   }
   return f;
@@ -117,7 +120,13 @@ function bake(assetId: string, options: Options): THREE.Group {
     const g = mergeGeometries(parts, false)!;
     g.applyMatrix4(shift);
     g.userData.shared = true;
-    const m = new THREE.MeshLambertMaterial({ color: (mat as THREE.MeshStandardMaterial).color, transparent: true, opacity: Math.max(0.3, mat.opacity), depthWrite: false, side: THREE.DoubleSide });
+    const m = new THREE.MeshLambertMaterial({
+      color: (mat as THREE.MeshStandardMaterial).color,
+      transparent: true,
+      opacity: Math.max(0.3, mat.opacity),
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
     m.userData.shared = true;
     out.add(new THREE.Mesh(g, m));
   }

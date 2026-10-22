@@ -60,7 +60,8 @@ export async function traceUnderlay(u: Underlay, styles: WallStyle[]): Promise<U
 function runWorker(req: TraceRequest): Promise<AutoTrace | null> {
   const worker = new Worker(new URL('./trace.worker.ts', import.meta.url), { type: 'module' });
   return new Promise<AutoTrace | null>((ok, fail) => {
-    worker.onmessage = (e: MessageEvent<{ ok: true; result: AutoTrace | null } | { ok: false; message: string }>) => (e.data.ok ? ok(e.data.result) : fail(new Error(e.data.message)));
+    worker.onmessage = (e: MessageEvent<{ ok: true; result: AutoTrace | null } | { ok: false; message: string }>) =>
+      e.data.ok ? ok(e.data.result) : fail(new Error(e.data.message));
     worker.onerror = (e) => fail(new Error(e.message || 'วิเคราะห์แปลนไม่สำเร็จ'));
     worker.postMessage(req, [req.gray.buffer]);
   }).finally(() => worker.terminate());

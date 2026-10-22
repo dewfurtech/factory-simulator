@@ -45,15 +45,18 @@ const isJunk = (text: string) => /^[A-Za-z]?\d*(-\d+)?$/.test(text.trim()) || te
 
 /** Centre of a text run: half its advance along the baseline, half its height towards the glyph tops. */
 export function textCentre(t: VecText): Vec2 {
-  const c = Math.cos(t.rotation), s = Math.sin(t.rotation);
+  const c = Math.cos(t.rotation),
+    s = Math.sin(t.rotation);
   // Baseline direction is (cos, sin) in page coordinates; the glyphs rise perpendicular to it, towards -y for upright text.
   return { x: t.x + (c * t.width) / 2 + (s * t.height) / 2, y: t.y + (s * t.width) / 2 - (c * t.height) / 2 };
 }
 
 /** The four corners of a text run's box, grown by `grow` of its size on every side. */
 export function textBox(t: VecText, grow = 0): Vec2[] {
-  const c = Math.cos(t.rotation), s = Math.sin(t.rotation);
-  const gx = t.width * grow, gy = t.height * grow;
+  const c = Math.cos(t.rotation),
+    s = Math.sin(t.rotation);
+  const gx = t.width * grow,
+    gy = t.height * grow;
   const along = (k: number) => ({ x: c * k, y: s * k });
   const up = (k: number) => ({ x: s * k, y: -c * k });
   const corner = (a: number, u: number) => ({ x: t.x + along(a).x + up(u).x, y: t.y + along(a).y + up(u).y });
@@ -64,7 +67,9 @@ export function textBox(t: VecText, grow = 0): Vec2[] {
 export function isGreenish(hex: string): boolean {
   const n = parseInt(hex.slice(1), 16);
   if (Number.isNaN(n)) return false;
-  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const r = (n >> 16) & 255,
+    g = (n >> 8) & 255,
+    b = n & 255;
   return g > 96 && g > r + 40 && g > b + 40;
 }
 
@@ -80,7 +85,8 @@ const dist = (p: Vec2, q: Vec2) => Math.hypot(p.x - q.x, p.y - q.y);
 export function polygonArea(poly: Vec2[]): number {
   let a = 0;
   for (let i = 0; i < poly.length; i++) {
-    const p = poly[i], q = poly[(i + 1) % poly.length];
+    const p = poly[i],
+      q = poly[(i + 1) % poly.length];
     a += p.x * q.y - q.x * p.y;
   }
   return a / 2;
@@ -89,7 +95,8 @@ export function polygonArea(poly: Vec2[]): number {
 export function pointInPolygon(p: Vec2, poly: Vec2[]): boolean {
   let inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const a = poly[i], b = poly[j];
+    const a = poly[i],
+      b = poly[j];
     if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
   }
   return inside;
@@ -104,7 +111,8 @@ export function distToPolygon(p: Vec2, poly: Vec2[]): number {
 }
 
 function distToSeg(p: Vec2, s: Seg): number {
-  const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y;
+  const dx = s.b.x - s.a.x,
+    dy = s.b.y - s.a.y;
   const l2 = dx * dx + dy * dy;
   const t = l2 ? Math.max(0, Math.min(1, ((p.x - s.a.x) * dx + (p.y - s.a.y) * dy) / l2)) : 0;
   return dist(p, { x: s.a.x + t * dx, y: s.a.y + t * dy });
@@ -115,7 +123,8 @@ export function simplifyPolygon(poly: Vec2[], tol = 0.5): Vec2[] {
   let out = poly.filter((p, i) => dist(p, poly[(i + 1) % poly.length]) > tol);
   for (let pass = 0; pass < 2; pass++) {
     out = out.filter((p, i) => {
-      const a = out[(i + out.length - 1) % out.length], b = out[(i + 1) % out.length];
+      const a = out[(i + out.length - 1) % out.length],
+        b = out[(i + 1) % out.length];
       return distToSeg(p, { a, b }) > tol;
     });
   }
@@ -129,8 +138,10 @@ class NodeIndex {
   constructor(private readonly tol: number) {}
   private key = (x: number, y: number) => `${Math.floor(x / this.tol)},${Math.floor(y / this.tol)}`;
   id(p: Vec2): number {
-    const cx = Math.floor(p.x / this.tol), cy = Math.floor(p.y / this.tol);
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const i of this.grid.get(`${cx + dx},${cy + dy}`) ?? []) if (dist(this.nodes[i], p) <= this.tol) return i;
+    const cx = Math.floor(p.x / this.tol),
+      cy = Math.floor(p.y / this.tol);
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dy = -1; dy <= 1; dy++) for (const i of this.grid.get(`${cx + dx},${cy + dy}`) ?? []) if (dist(this.nodes[i], p) <= this.tol) return i;
     const i = this.nodes.push({ x: p.x, y: p.y }) - 1;
     const k = this.key(p.x, p.y);
     const cell = this.grid.get(k);
@@ -142,13 +153,20 @@ class NodeIndex {
 
 /** Where two segments cross (or meet within `tol` of an interior point), as parameters along each; undefined when they don't. */
 function crossing(s: Seg, t: Seg, tol: number): [number, number] | undefined {
-  const dx1 = s.b.x - s.a.x, dy1 = s.b.y - s.a.y, dx2 = t.b.x - t.a.x, dy2 = t.b.y - t.a.y;
+  const dx1 = s.b.x - s.a.x,
+    dy1 = s.b.y - s.a.y,
+    dx2 = t.b.x - t.a.x,
+    dy2 = t.b.y - t.a.y;
   const den = dx1 * dy2 - dy1 * dx2;
-  const l1 = Math.hypot(dx1, dy1), l2 = Math.hypot(dx2, dy2);
+  const l1 = Math.hypot(dx1, dy1),
+    l2 = Math.hypot(dx2, dy2);
   if (Math.abs(den) < 1e-6 * l1 * l2) return undefined;
-  const ex = t.a.x - s.a.x, ey = t.a.y - s.a.y;
-  const u = (ex * dy2 - ey * dx2) / den, v = (ex * dy1 - ey * dx1) / den;
-  const slack1 = tol / l1, slack2 = tol / l2;
+  const ex = t.a.x - s.a.x,
+    ey = t.a.y - s.a.y;
+  const u = (ex * dy2 - ey * dx2) / den,
+    v = (ex * dy1 - ey * dx1) / den;
+  const slack1 = tol / l1,
+    slack2 = tol / l2;
   if (u < -slack1 || u > 1 + slack1 || v < -slack2 || v > 1 + slack2) return undefined;
   return [Math.max(0, Math.min(1, u)), Math.max(0, Math.min(1, v))];
 }
@@ -171,7 +189,8 @@ function planarize(segs: Seg[], tol: number): Seg[] {
   for (const ids of grid.values())
     for (let p = 0; p < ids.length; p++)
       for (let q = p + 1; q < ids.length; q++) {
-        const i = ids[p], j = ids[q];
+        const i = ids[p],
+          j = ids[q];
         const pair = i < j ? i * segs.length + j : j * segs.length + i;
         if (seen.has(pair)) continue;
         seen.add(pair);
@@ -205,7 +224,11 @@ export function traceLoops(segs: Seg[], tol: number): Vec2[][] {
     (adj.get(u) ?? adj.set(u, new Set()).get(u)!).add(v);
     (adj.get(v) ?? adj.set(v, new Set()).get(v)!).add(u);
   };
-  for (const s of planarize(segs.filter((s) => len(s) > tol), tol)) link(index.id(s.a), index.id(s.b));
+  for (const s of planarize(
+    segs.filter((s) => len(s) > tol),
+    tol,
+  ))
+    link(index.id(s.a), index.id(s.b));
   // Spikes and open chains cannot bound a face; stripping them keeps the face walk from tracing them twice.
   let pruned = true;
   while (pruned) {
@@ -219,14 +242,19 @@ export function traceLoops(segs: Seg[], tol: number): Vec2[][] {
   }
   const nodes = index.nodes;
   const sorted = new Map<number, number[]>();
-  for (const [u, ns] of adj) sorted.set(u, [...ns].sort((p, q) => Math.atan2(nodes[p].y - nodes[u].y, nodes[p].x - nodes[u].x) - Math.atan2(nodes[q].y - nodes[u].y, nodes[q].x - nodes[u].x)));
+  for (const [u, ns] of adj)
+    sorted.set(
+      u,
+      [...ns].sort((p, q) => Math.atan2(nodes[p].y - nodes[u].y, nodes[p].x - nodes[u].x) - Math.atan2(nodes[q].y - nodes[u].y, nodes[q].x - nodes[u].x)),
+    );
   const visited = new Set<string>();
   const loops: Vec2[][] = [];
   for (const [u0, ns] of sorted)
     for (const v0 of ns) {
       if (visited.has(`${u0}>${v0}`)) continue;
       const poly: Vec2[] = [];
-      let u = u0, v = v0;
+      let u = u0,
+        v = v0;
       let guard = 0;
       while (!visited.has(`${u}>${v}`) && guard++ < 100000) {
         visited.add(`${u}>${v}`);
@@ -253,7 +281,12 @@ interface Box {
   y1: number;
 }
 
-const boxOf = (pts: Vec2[]): Box => ({ x0: Math.min(...pts.map((p) => p.x)), y0: Math.min(...pts.map((p) => p.y)), x1: Math.max(...pts.map((p) => p.x)), y1: Math.max(...pts.map((p) => p.y)) });
+const boxOf = (pts: Vec2[]): Box => ({
+  x0: Math.min(...pts.map((p) => p.x)),
+  y0: Math.min(...pts.map((p) => p.y)),
+  x1: Math.max(...pts.map((p) => p.x)),
+  y1: Math.max(...pts.map((p) => p.y)),
+});
 const boxesTouch = (a: Box, b: Box, slack: number) => a.x0 <= b.x1 + slack && b.x0 <= a.x1 + slack && a.y0 <= b.y1 + slack && b.y0 <= a.y1 + slack;
 
 class UnionFind {
@@ -288,8 +321,10 @@ export function dashedOutlineEdges(paths: VecPath[], gapTol: number): Seg[] {
     else grid.set(k, [i]);
   });
   boxes.forEach((b, i) => {
-    const cx = Math.floor(b.x0 / cell), cy = Math.floor(b.y0 / cell);
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const j of grid.get(`${cx + dx},${cy + dy}`) ?? []) if (j > i && boxesTouch(b, boxes[j], 0.3)) uf.union(i, j);
+    const cx = Math.floor(b.x0 / cell),
+      cy = Math.floor(b.y0 / cell);
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dy = -1; dy <= 1; dy++) for (const j of grid.get(`${cx + dx},${cy + dy}`) ?? []) if (j > i && boxesTouch(b, boxes[j], 0.3)) uf.union(i, j);
   });
   const blobs = new Map<number, Box>();
   boxes.forEach((b, i) => {
@@ -325,7 +360,8 @@ export function dashedOutlineEdges(paths: VecPath[], gapTol: number): Seg[] {
     for (const items of chains) {
       if (items.length < 3) continue;
       const c = items.reduce((s, b) => s + across(b), 0) / items.length;
-      const s0 = Math.min(...items.map((b) => along(b)[0])), s1 = Math.max(...items.map((b) => along(b)[1]));
+      const s0 = Math.min(...items.map((b) => along(b)[0])),
+        s1 = Math.max(...items.map((b) => along(b)[1]));
       edges.push(axis === 'h' ? { a: { x: s0, y: c }, b: { x: s1, y: c } } : { a: { x: c, y: s0 }, b: { x: c, y: s1 } });
     }
   }
@@ -341,7 +377,8 @@ function closeCorners(edges: Seg[], tol: number): Seg[] {
     merged = false;
     outer: for (let i = 0; i < edges.length; i++)
       for (let j = i + 1; j < edges.length; j++) {
-        const s = edges[i], t = edges[j];
+        const s = edges[i],
+          t = edges[j];
         if (isH(s) !== isH(t)) continue;
         const h = isH(s);
         const c = (u: Seg) => (h ? (u.a.y + u.b.y) / 2 : (u.a.x + u.b.x) / 2);
@@ -349,7 +386,8 @@ function closeCorners(edges: Seg[], tol: number): Seg[] {
         const hi = (u: Seg) => (h ? Math.max(u.a.x, u.b.x) : Math.max(u.a.y, u.b.y));
         if (Math.abs(c(s) - c(t)) > 1.5 || lo(t) - hi(s) > tol || lo(s) - hi(t) > tol) continue;
         const cc = (c(s) * len(s) + c(t) * len(t)) / (len(s) + len(t));
-        const l = Math.min(lo(s), lo(t)), r = Math.max(hi(s), hi(t));
+        const l = Math.min(lo(s), lo(t)),
+          r = Math.max(hi(s), hi(t));
         edges[i] = h ? { a: { x: l, y: cc }, b: { x: r, y: cc } } : { a: { x: cc, y: l }, b: { x: cc, y: r } };
         edges.splice(j, 1);
         merged = true;
@@ -365,7 +403,8 @@ function closeCorners(edges: Seg[], tol: number): Seg[] {
         if (t === s || isH(t) === isH(s)) continue;
         const cT = isH(t) ? t.a.y : t.a.x;
         const d = Math.abs((isH(t) ? p.y : p.x) - cT);
-        const lo = isH(t) ? Math.min(t.a.x, t.b.x) : Math.min(t.a.y, t.b.y), hi = isH(t) ? Math.max(t.a.x, t.b.x) : Math.max(t.a.y, t.b.y);
+        const lo = isH(t) ? Math.min(t.a.x, t.b.x) : Math.min(t.a.y, t.b.y),
+          hi = isH(t) ? Math.max(t.a.x, t.b.x) : Math.max(t.a.y, t.b.y);
         const u = isH(t) ? p.x : p.y;
         if (d <= tol && u >= lo - tol && u <= hi + tol && (!best || d < best.d)) best = { t, d };
       }
@@ -391,7 +430,8 @@ function closeCorners(edges: Seg[], tol: number): Seg[] {
     const partners = dangling.filter((o) => o.s !== d.s && isH(o.s) === h && Math.abs(h ? o.p.x - d.p.x : o.p.y - d.p.y) <= 1.5 && dist(o.p, d.p) > 1.5);
     for (const side of [-1, 1]) {
       const cands = partners.filter((o) => Math.sign(h ? o.p.y - d.p.y : o.p.x - d.p.x) === side).sort((o, q) => dist(o.p, d.p) - dist(q.p, d.p));
-      if (cands.length && !bridges.some((b) => (dist(b.a, d.p) < 1e-6 && dist(b.b, cands[0].p) < 1e-6) || (dist(b.b, d.p) < 1e-6 && dist(b.a, cands[0].p) < 1e-6))) bridges.push({ a: { ...d.p }, b: { ...cands[0].p } });
+      if (cands.length && !bridges.some((b) => (dist(b.a, d.p) < 1e-6 && dist(b.b, cands[0].p) < 1e-6) || (dist(b.b, d.p) < 1e-6 && dist(b.a, cands[0].p) < 1e-6)))
+        bridges.push({ a: { ...d.p }, b: { ...cands[0].p } });
     }
   }
   return [...edges, ...bridges];
@@ -435,7 +475,10 @@ export function readZones(plan: VectorPlan): PdfZone[] {
   const minArea = (2 * labelH) ** 2;
   const loops = traceLoops(edges, 1.5).filter((l) => Math.abs(polygonArea(l)) >= minArea);
 
-  const closedBlack = plan.paths.filter((p) => p.closed && !isGreenish(p.color) && p.points.length >= 3).map((p) => simplifyPolygon(p.points, 0.3)).filter((p) => p.length >= 3);
+  const closedBlack = plan.paths
+    .filter((p) => p.closed && !isGreenish(p.color) && p.points.length >= 3)
+    .map((p) => simplifyPolygon(p.points, 0.3))
+    .filter((p) => p.length >= 3);
   const wallLayers = plan.layers.filter((l) => layerKey(l).includes('WALL'));
   const floorLayers = plan.layers.filter((l) => layerKey(l).includes('FLOOR'));
   const blockers: Seg[] = [
@@ -465,7 +508,8 @@ export function readZones(plan: VectorPlan): PdfZone[] {
 
   const taken: Vec2[][] = picks.flatMap((p) => (p.loop ? [p.loop] : []));
   const sameBox = (a: Vec2[], b: Vec2[]) => {
-    const p = boxOf(a), q = boxOf(b);
+    const p = boxOf(a),
+      q = boxOf(b);
     const tol = labelH / 2;
     return Math.abs(p.x0 - q.x0) < tol && Math.abs(p.y0 - q.y0) < tol && Math.abs(p.x1 - q.x1) < tol && Math.abs(p.y1 - q.y1) < tol;
   };
@@ -475,7 +519,9 @@ export function readZones(plan: VectorPlan): PdfZone[] {
     const label = centre;
     if (loop) return { name, zone, polygon: loop, label, source: 'outline' };
     const ownArea = t.width * t.height;
-    const closed = closedBlack.filter((p) => Math.abs(polygonArea(p)) >= 4 * ownArea && pointInPolygon(centre, p)).sort((a, b) => Math.abs(polygonArea(a)) - Math.abs(polygonArea(b)))[0];
+    const closed = closedBlack
+      .filter((p) => Math.abs(polygonArea(p)) >= 4 * ownArea && pointInPolygon(centre, p))
+      .sort((a, b) => Math.abs(polygonArea(a)) - Math.abs(polygonArea(b)))[0];
     if (closed && !taken.some((q) => sameBox(q, closed))) {
       taken.push(closed);
       return { name, zone, polygon: closed, label, source: 'closed-path' };
@@ -485,18 +531,27 @@ export function readZones(plan: VectorPlan): PdfZone[] {
     // Other zones' labels block too, so one open hall does not become every zone in it: the border between two labels
     // is the line halfway between them (two labels on one spot share the room). A label inside its own outline is
     // bounded by that outline instead, except towards a label it evicted from it, which keeps its half.
-    const others = picks.filter((p) => p.t !== t && (!p.loop || p.loop === lost) && dist(p.centre, centre) > labelH).map((p) => {
-      const mid = { x: (p.centre.x + centre.x) / 2, y: (p.centre.y + centre.y) / 2 };
-      const d = dist(p.centre, centre);
-      const n = { x: -(p.centre.y - centre.y) / d, y: (p.centre.x - centre.x) / d };
-      const half = 3 * labelH;
-      return { a: { x: mid.x - n.x * half, y: mid.y - n.y * half }, b: { x: mid.x + n.x * half, y: mid.y + n.y * half } };
-    });
+    const others = picks
+      .filter((p) => p.t !== t && (!p.loop || p.loop === lost) && dist(p.centre, centre) > labelH)
+      .map((p) => {
+        const mid = { x: (p.centre.x + centre.x) / 2, y: (p.centre.y + centre.y) / 2 };
+        const d = dist(p.centre, centre);
+        const n = { x: -(p.centre.y - centre.y) / d, y: (p.centre.x - centre.x) / d };
+        const half = 3 * labelH;
+        return { a: { x: mid.x - n.x * half, y: mid.y - n.y * half }, b: { x: mid.x + n.x * half, y: mid.y + n.y * half } };
+      });
     const all = [...blockers, ...others];
-    const l = rayHit(centre, { x: -1, y: 0 }, all, minHit, labelH), r = rayHit(centre, { x: 1, y: 0 }, all, minHit, labelH);
-    const u = rayHit(centre, { x: 0, y: -1 }, all, minHit, labelH), d = rayHit(centre, { x: 0, y: 1 }, all, minHit, labelH);
+    const l = rayHit(centre, { x: -1, y: 0 }, all, minHit, labelH),
+      r = rayHit(centre, { x: 1, y: 0 }, all, minHit, labelH);
+    const u = rayHit(centre, { x: 0, y: -1 }, all, minHit, labelH),
+      d = rayHit(centre, { x: 0, y: 1 }, all, minHit, labelH);
     if (l !== undefined && r !== undefined && u !== undefined && d !== undefined) {
-      const rect = [{ x: centre.x - l, y: centre.y - u }, { x: centre.x + r, y: centre.y - u }, { x: centre.x + r, y: centre.y + d }, { x: centre.x - l, y: centre.y + d }];
+      const rect = [
+        { x: centre.x - l, y: centre.y - u },
+        { x: centre.x + r, y: centre.y - u },
+        { x: centre.x + r, y: centre.y + d },
+        { x: centre.x - l, y: centre.y + d },
+      ];
       if (!taken.some((q) => sameBox(q, rect))) {
         taken.push(rect);
         return { name, zone, polygon: rect, label, source: 'walls' };

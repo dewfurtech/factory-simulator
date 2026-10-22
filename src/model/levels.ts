@@ -10,10 +10,10 @@ export const DEFAULT_UPPER_Z: Mm = 3200;
 /** The floor an object stands on: 0 ground, 1 the second floor. */
 export const levelOf = (o: Pick<PlacedObject, 'z'>): number => (o.z >= UPPER_FROM ? 1 : 0);
 
-export const planOf = (p: Project, level: number): Plan => (level ? p.upper?.plan ?? emptyPlan() : p.plan);
+export const planOf = (p: Project, level: number): Plan => (level ? (p.upper?.plan ?? emptyPlan()) : p.plan);
 
 /** Height of a floor's surface. */
-export const levelZ = (p: Project, level: number): Mm => (level ? p.upper?.z ?? DEFAULT_UPPER_Z : 0);
+export const levelZ = (p: Project, level: number): Mm => (level ? (p.upper?.z ?? DEFAULT_UPPER_Z) : 0);
 
 const views = new WeakMap<Project, Project>();
 

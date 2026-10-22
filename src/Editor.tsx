@@ -116,13 +116,32 @@ function MainMenu() {
           <a role="menuitem" href="#/">
             <Icon name="back" /> กลับไปรายการโรงงาน
           </a>
-          <button role="menuitem" onClick={() => void exportProject(p.id).then((b) => download(b, `${p.name}.factory.json`)).then(() => setOpen(false))}>
+          <button
+            role="menuitem"
+            onClick={() =>
+              void exportProject(p.id)
+                .then((b) => download(b, `${p.name}.factory.json`))
+                .then(() => setOpen(false))
+            }
+          >
             <Icon name="download" /> ส่งออกไฟล์ (.json)
           </button>
-          <button role="menuitem" disabled={!hasPlan} title={hasPlan ? undefined : 'เปิดมุมมอง 2D หรือแบ่งจอก่อน'} onClick={() => void savePlanPicture(p.name, 'png').then(() => setOpen(false))} data-testid="export-png">
+          <button
+            role="menuitem"
+            disabled={!hasPlan}
+            title={hasPlan ? undefined : 'เปิดมุมมอง 2D หรือแบ่งจอก่อน'}
+            onClick={() => void savePlanPicture(p.name, 'png').then(() => setOpen(false))}
+            data-testid="export-png"
+          >
             <Icon name="image" /> บันทึกแปลนเป็นรูป (PNG)
           </button>
-          <button role="menuitem" disabled={!hasPlan} title={hasPlan ? undefined : 'เปิดมุมมอง 2D หรือแบ่งจอก่อน'} onClick={() => void savePlanPicture(p.name, 'svg').then(() => setOpen(false))} data-testid="export-svg">
+          <button
+            role="menuitem"
+            disabled={!hasPlan}
+            title={hasPlan ? undefined : 'เปิดมุมมอง 2D หรือแบ่งจอก่อน'}
+            onClick={() => void savePlanPicture(p.name, 'svg').then(() => setOpen(false))}
+            data-testid="export-svg"
+          >
             <Icon name="image" /> บันทึกแปลนเป็นไฟล์ SVG
           </button>
         </div>
@@ -164,11 +183,22 @@ export function Editor() {
           <BarButton icon="snap" label={`Snap ${snapOn ? 'เปิด' : 'ปิด'}`} on={snapOn} onClick={() => set({ snapOn: !snapOn })} />
         </div>
         <div className="tb-group tb-right">
-          <button className={`tb-toggle${dock === 'catalog' ? ' on' : ''}`} onClick={() => useUi.getState().toggleDock('catalog')} aria-pressed={dock === 'catalog'} data-testid="dock-catalog">
+          <button
+            className={`tb-toggle${dock === 'catalog' ? ' on' : ''}`}
+            onClick={() => useUi.getState().toggleDock('catalog')}
+            aria-pressed={dock === 'catalog'}
+            data-testid="dock-catalog"
+          >
             <Icon name="machine" />
             <span>คลังโมเดล</span>
           </button>
-          <button className={`tb-toggle${dock === 'layers' ? ' on' : ''}`} onClick={() => useUi.getState().toggleDock('layers')} aria-pressed={dock === 'layers'} title="เลเยอร์: รายการห้อง ผนัง เสา เครื่องจักร ซ่อน/ล็อก และไปดูได้" data-testid="dock-layers">
+          <button
+            className={`tb-toggle${dock === 'layers' ? ' on' : ''}`}
+            onClick={() => useUi.getState().toggleDock('layers')}
+            aria-pressed={dock === 'layers'}
+            title="เลเยอร์: รายการห้อง ผนัง เสา เครื่องจักร ซ่อน/ล็อก และไปดูได้"
+            data-testid="dock-layers"
+          >
             <Icon name="layers" />
             <span>เลเยอร์</span>
           </button>
@@ -186,7 +216,14 @@ export function Editor() {
           {view !== '3d' && (
             <div className="seg" role="tablist" aria-label="ชั้น" title="ชั้นที่แสดงในแปลน 2D">
               {['ชั้น 1', 'ชั้น 2'].map((label, i) => (
-                <button key={i} role="tab" aria-selected={level === i} className={level === i ? 'on' : ''} onClick={() => (set({ selection: null, boxed: [] }), useProject.getState().setLevel(i))} data-testid={`level-${i}`}>
+                <button
+                  key={i}
+                  role="tab"
+                  aria-selected={level === i}
+                  className={level === i ? 'on' : ''}
+                  onClick={() => (set({ selection: null, boxed: [] }), useProject.getState().setLevel(i))}
+                  data-testid={`level-${i}`}
+                >
                   {label}
                 </button>
               ))}
@@ -194,7 +231,15 @@ export function Editor() {
           )}
           <div className="seg seg-icons" role="tablist" aria-label="มุมมอง">
             {VIEWS.map((v) => (
-              <button key={v.id} role="tab" aria-selected={view === v.id} className={view === v.id ? 'on' : ''} onClick={() => set({ view: v.id })} title={v.label} data-testid={`view-${v.id}`}>
+              <button
+                key={v.id}
+                role="tab"
+                aria-selected={view === v.id}
+                className={view === v.id ? 'on' : ''}
+                onClick={() => set({ view: v.id })}
+                title={v.label}
+                data-testid={`view-${v.id}`}
+              >
                 <Icon name={v.icon} />
                 <span>{v.label}</span>
               </button>
@@ -202,9 +247,7 @@ export function Editor() {
           </div>
         </div>
       </header>
-      {dock && (
-        <div className="dock-col">{dock === 'catalog' ? <CatalogPanel /> : <LayersPanel />}</div>
-      )}
+      {dock && <div className="dock-col">{dock === 'catalog' ? <CatalogPanel /> : <LayersPanel />}</div>}
       <main className="viewport">
         <div className={`panes view-${view}`}>
           {view !== '3d' && (

@@ -57,7 +57,8 @@ const PATHS: Record<string, string> = {
   box: 'M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5',
   snap: 'M6 4v8a6 6 0 0 0 12 0V4h-4v8a2 2 0 0 1-4 0V4z M6 8h4 M14 8h4',
   orbit: 'M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z M4 12c0 2.2 3.6 4 8 4s8-1.8 8-4',
-  settings: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z',
+  settings:
+    'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z',
   walk: 'M12 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4z M12 9v6 M12 15l-3 6 M12 15l3 6 M8 12h8',
   library: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z',
   panel: 'M5 3h14v18H5z M8 7h8 M8 11h8 M8 15h4',
@@ -86,7 +87,8 @@ const PATHS: Record<string, string> = {
   view3d: 'M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5',
   sidebar: 'M3 4h18v16H3z M9 4v16',
   props: 'M3 4h18v16H3z M15 4v16',
-  palette: 'M12 3a9 9 0 0 0 0 18c1.1 0 1.5-.8 1.5-1.5 0-1.2-1-1.5-1-2.5s.8-1.5 2-1.5H17a4 4 0 0 0 4-4c0-4.7-4-8.5-9-8.5z M7.5 11a1 1 0 1 0 0 .01 M10 7a1 1 0 1 0 0 .01 M15 7.5a1 1 0 1 0 0 .01',
+  palette:
+    'M12 3a9 9 0 0 0 0 18c1.1 0 1.5-.8 1.5-1.5 0-1.2-1-1.5-1-2.5s.8-1.5 2-1.5H17a4 4 0 0 0 4-4c0-4.7-4-8.5-9-8.5z M7.5 11a1 1 0 1 0 0 .01 M10 7a1 1 0 1 0 0 .01 M15 7.5a1 1 0 1 0 0 .01',
   house: 'M3 11l9-7 9 7 M5 9.5V20h14V9.5 M10 20v-6h4v6',
   report: 'M6 3h9l4 4v14H6z M14 3v5h5 M9 12h7 M9 16h7',
   back: 'M15 6l-6 6 6 6',
@@ -111,12 +113,30 @@ interface Item {
 }
 
 const WALL_ITEMS: Item[] = [
-  { id: 'drawWall', label: 'วาดผนัง', tool: () => ({ kind: 'drawWall', last: null, entry: EMPTY_ENTRY, glass: false }), isOn: (t) => t.kind === 'drawWall' && !t.glass, testId: 'tool-drawWall' },
-  { id: 'glassWall', label: 'วาดผนังกระจก', tool: () => ({ kind: 'drawWall', last: null, entry: EMPTY_ENTRY, glass: true }), isOn: (t) => t.kind === 'drawWall' && t.glass, testId: 'tool-glassWall' },
+  {
+    id: 'drawWall',
+    label: 'วาดผนัง',
+    tool: () => ({ kind: 'drawWall', last: null, entry: EMPTY_ENTRY, glass: false }),
+    isOn: (t) => t.kind === 'drawWall' && !t.glass,
+    testId: 'tool-drawWall',
+  },
+  {
+    id: 'glassWall',
+    label: 'วาดผนังกระจก',
+    tool: () => ({ kind: 'drawWall', last: null, entry: EMPTY_ENTRY, glass: true }),
+    isOn: (t) => t.kind === 'drawWall' && t.glass,
+    testId: 'tool-glassWall',
+  },
 ];
 
 const ROOM_ITEMS: Item[] = [
-  { id: 'drawRoomRect', label: 'ห้องสี่เหลี่ยม (คลิก 2 มุม)', tool: () => ({ kind: 'drawRoomRect', start: null, entry: EMPTY_ENTRY }), isOn: (t) => t.kind === 'drawRoomRect', testId: 'tool-drawRoomRect' },
+  {
+    id: 'drawRoomRect',
+    label: 'ห้องสี่เหลี่ยม (คลิก 2 มุม)',
+    tool: () => ({ kind: 'drawRoomRect', start: null, entry: EMPTY_ENTRY }),
+    isOn: (t) => t.kind === 'drawRoomRect',
+    testId: 'tool-drawRoomRect',
+  },
   ...SHAPE_PRESET_IDS.map(
     (id: ShapePresetId): Item => ({
       id,
@@ -129,15 +149,33 @@ const ROOM_ITEMS: Item[] = [
 ];
 
 const AREA_ITEMS: Item[] = [
-  { id: 'areaBox', label: 'กล่องพื้นที่ (คลิก 2 มุม)', tool: () => ({ kind: 'drawArea', mode: 'box', start: null, points: [], entry: EMPTY_ENTRY }), isOn: (t) => t.kind === 'drawArea' && t.mode === 'box', testId: 'tool-areaBox' },
-  { id: 'areaPoly', label: 'วาดพื้นที่ทีละจุด (ปิดรอบเอง)', tool: () => ({ kind: 'drawArea', mode: 'poly', start: null, points: [], entry: EMPTY_ENTRY }), isOn: (t) => t.kind === 'drawArea' && t.mode === 'poly', testId: 'tool-areaPoly' },
+  {
+    id: 'areaBox',
+    label: 'กล่องพื้นที่ (คลิก 2 มุม)',
+    tool: () => ({ kind: 'drawArea', mode: 'box', start: null, points: [], entry: EMPTY_ENTRY }),
+    isOn: (t) => t.kind === 'drawArea' && t.mode === 'box',
+    testId: 'tool-areaBox',
+  },
+  {
+    id: 'areaPoly',
+    label: 'วาดพื้นที่ทีละจุด (ปิดรอบเอง)',
+    tool: () => ({ kind: 'drawArea', mode: 'poly', start: null, points: [], entry: EMPTY_ENTRY }),
+    isOn: (t) => t.kind === 'drawArea' && t.mode === 'poly',
+    testId: 'tool-areaPoly',
+  },
 ];
 
 /** The area flyout's footer: one switch that takes every area out of both views and brings them back. */
 function AreasVisible() {
   const hidden = useUi((s) => s.areasHidden);
   return (
-    <button className={`flyout-foot${hidden ? ' on' : ''}`} role="menuitemcheckbox" aria-checked={hidden} onClick={() => useUi.getState().set({ areasHidden: !hidden })} data-testid="areas-hidden">
+    <button
+      className={`flyout-foot${hidden ? ' on' : ''}`}
+      role="menuitemcheckbox"
+      aria-checked={hidden}
+      onClick={() => useUi.getState().set({ areasHidden: !hidden })}
+      data-testid="areas-hidden"
+    >
       <Icon name={hidden ? 'eyeOff' : 'eye'} />
       <span>{hidden ? 'ซ่อนพื้นที่ทั้งหมดอยู่ · คลิกเพื่อแสดง' : 'ซ่อนพื้นที่ทั้งหมด'}</span>
     </button>
@@ -155,17 +193,54 @@ const OPENING_ITEMS: Item[] = OPENING_PRESET_IDS.map(
 );
 
 const COLUMN_ITEMS: Item[] = [
-  { id: 'column', label: 'เสาเหลี่ยม 40×40 ซม.', tool: () => ({ kind: 'placeColumn', spec: { shape: 'rect', w: 400, d: 400, h: 6000 } }), isOn: (t) => t.kind === 'placeColumn' && t.spec.shape === 'rect', testId: 'tool-column' },
-  { id: 'columnRound', label: 'เสากลม Ø40 ซม.', tool: () => ({ kind: 'placeColumn', spec: { shape: 'round', w: 400, d: 400, h: 6000 } }), isOn: (t) => t.kind === 'placeColumn' && t.spec.shape === 'round', testId: 'tool-column-round' },
-  { id: 'columnGrid', label: 'ตารางเสา (ลากกรอบ ระยะ 8 ม.)', tool: () => ({ kind: 'columnGrid', spec: { shape: 'rect', w: 400, d: 400, h: 6000 }, start: null, spacing: 8000 }), isOn: (t) => t.kind === 'columnGrid', testId: 'tool-column-grid' },
+  {
+    id: 'column',
+    label: 'เสาเหลี่ยม 40×40 ซม.',
+    tool: () => ({ kind: 'placeColumn', spec: { shape: 'rect', w: 400, d: 400, h: 6000 } }),
+    isOn: (t) => t.kind === 'placeColumn' && t.spec.shape === 'rect',
+    testId: 'tool-column',
+  },
+  {
+    id: 'columnRound',
+    label: 'เสากลม Ø40 ซม.',
+    tool: () => ({ kind: 'placeColumn', spec: { shape: 'round', w: 400, d: 400, h: 6000 } }),
+    isOn: (t) => t.kind === 'placeColumn' && t.spec.shape === 'round',
+    testId: 'tool-column-round',
+  },
+  {
+    id: 'columnGrid',
+    label: 'ตารางเสา (ลากกรอบ ระยะ 8 ม.)',
+    tool: () => ({ kind: 'columnGrid', spec: { shape: 'rect', w: 400, d: 400, h: 6000 }, start: null, spacing: 8000 }),
+    isOn: (t) => t.kind === 'columnGrid',
+    testId: 'tool-column-grid',
+  },
 ];
 
 export const setTool = (t: Tool) => useUi.getState().set({ tool: t, cursor: null, objectGuides: [] });
 
 /** text: the short name printed under the icon; label: the full description in the tooltip. */
-export function RailButton(props: { icon: string; text: string; label: string; on: boolean; onClick: () => void; testId: string; more?: boolean; onDragStart?: (e: React.DragEvent) => void; children?: ReactNode }) {
+export function RailButton(props: {
+  icon: string;
+  text: string;
+  label: string;
+  on: boolean;
+  onClick: () => void;
+  testId: string;
+  more?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  children?: ReactNode;
+}) {
   return (
-    <button className={`rail-btn${props.on ? ' on' : ''}`} onClick={props.onClick} draggable={!!props.onDragStart} onDragStart={props.onDragStart} aria-label={props.label} aria-pressed={props.on} data-tip={props.label} data-testid={props.testId}>
+    <button
+      className={`rail-btn${props.on ? ' on' : ''}`}
+      onClick={props.onClick}
+      draggable={!!props.onDragStart}
+      onDragStart={props.onDragStart}
+      aria-label={props.label}
+      aria-pressed={props.on}
+      data-tip={props.label}
+      data-testid={props.testId}
+    >
       <Icon name={props.icon} />
       <span className="rail-text">{props.text}</span>
       {props.more && <span className="rail-more" />}
@@ -175,7 +250,23 @@ export function RailButton(props: { icon: string; text: string; label: string; o
 }
 
 /** One rail slot standing for several tools: shows the last one used, lists all of them in a flyout. */
-function ToolGroup({ id, text, label, items, open, setOpen, footer }: { id: string; text: string; label: string; items: Item[]; open: boolean; setOpen: (o: boolean) => void; footer?: ReactNode }) {
+function ToolGroup({
+  id,
+  text,
+  label,
+  items,
+  open,
+  setOpen,
+  footer,
+}: {
+  id: string;
+  text: string;
+  label: string;
+  items: Item[];
+  open: boolean;
+  setOpen: (o: boolean) => void;
+  footer?: ReactNode;
+}) {
   const tool = useUi((s) => s.tool);
   const active = items.find((i) => i.isOn(tool));
   const [last, setLast] = useState(items[0]);
@@ -257,8 +348,23 @@ export function Toolbar() {
       <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (กล่องโปร่งแสง)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
       <ToolGroup id="opening" text="ประตู" label="ประตู / หน้าต่าง" items={OPENING_ITEMS} {...group('opening')} />
       <ToolGroup id="column" text="เสา" label="เสา" items={COLUMN_ITEMS} {...group('column')} />
+      <RailButton
+        icon="ruler"
+        text="วัด"
+        label="วัดระยะ: คลิก 2 จุด ดูดเข้าหามุม ผนัง และขอบเครื่อง"
+        on={tool.kind === 'measure'}
+        onClick={() => setTool({ kind: 'measure', a: null, b: null })}
+        testId="tool-measure"
+      />
       <hr />
-      <RailButton icon="machine" text="เครื่อง" label="คลังเครื่องจักรและอุปกรณ์ (คอลัมน์ซ้าย)" on={dock === 'catalog' || tool.kind === 'placeObject'} onClick={() => useUi.getState().set({ dock: dock === 'catalog' ? null : 'catalog' })} testId="tool-catalog" />
+      <RailButton
+        icon="machine"
+        text="เครื่อง"
+        label="คลังเครื่องจักรและอุปกรณ์ (คอลัมน์ซ้าย)"
+        on={dock === 'catalog' || tool.kind === 'placeObject'}
+        onClick={() => useUi.getState().set({ dock: dock === 'catalog' ? null : 'catalog' })}
+        testId="tool-catalog"
+      />
       <UnderlayMenu />
     </nav>
   );

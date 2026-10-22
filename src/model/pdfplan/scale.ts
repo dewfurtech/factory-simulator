@@ -112,7 +112,10 @@ export function gridPitch(plan: VectorPlan): number | null {
       const key = Math.round(pos / 3) * 3;
       lines.set(key, (lines.get(key) ?? 0) + len);
     }
-    const positions = [...lines.entries()].filter(([, l]) => l >= 20).map(([p]) => p).sort((p, q) => p - q);
+    const positions = [...lines.entries()]
+      .filter(([, l]) => l >= 20)
+      .map(([p]) => p)
+      .sort((p, q) => p - q);
     for (let i = 1; i < positions.length; i++) {
       const gap = positions[i] - positions[i - 1];
       if (gap > 15) pitches.push(gap);
@@ -131,7 +134,7 @@ export function readScale(plan: VectorPlan, openings: readonly TracedOpening[]):
   const widths = openings.flatMap((o) => (o.kind === 'door' && !o.double && !o.rolling ? [o.width] : []));
   if (widths.length < MIN_DOORS) return null;
   const guess = DOOR_OPENING / median(widths);
-  const agreeing = widths.filter((w) => Math.abs((DOOR_OPENING / w) / guess - 1) <= DOOR_SLACK);
+  const agreeing = widths.filter((w) => Math.abs(DOOR_OPENING / w / guess - 1) <= DOOR_SLACK);
   if (agreeing.length < MIN_DOORS) return null;
   const fromDoors = DOOR_OPENING / median(agreeing);
   const pitch = gridPitch(plan);

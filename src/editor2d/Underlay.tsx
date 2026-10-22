@@ -69,10 +69,11 @@ export function CalibrateInput({ toScreen }: { toScreen: (p: Vec2) => Vec2 }) {
   const at = toScreen(lerp(span.a, span.b, 0.5));
   const commit = () => {
     const m = parseFloat(value);
-    if (m > 0) applyEdit((d) => {
-      const u = d.underlay;
-      if (u) calibrate(u, span.a, span.b, m * 1000);
-    });
+    if (m > 0)
+      applyEdit((d) => {
+        const u = d.underlay;
+        if (u) calibrate(u, span.a, span.b, m * 1000);
+      });
     useUi.getState().setTool(SELECT);
   };
   return (

@@ -130,7 +130,10 @@ export function applyLook(root: THREE.Object3D, on: boolean) {
 
 /** Draws the scene over what is already there, without its background, which would clear it. */
 class LabelPass extends Pass {
-  constructor(private scene: THREE.Scene, private camera: THREE.Camera) {
+  constructor(
+    private scene: THREE.Scene,
+    private camera: THREE.Camera,
+  ) {
     super();
     this.needsSwap = false;
   }
@@ -164,7 +167,11 @@ export class RealPipeline {
   /** Draws only the labels, after ambient occlusion, so they stay clean. */
   private labelCam = new THREE.PerspectiveCamera();
 
-  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, private camera: THREE.PerspectiveCamera) {
+  constructor(
+    renderer: THREE.WebGLRenderer,
+    scene: THREE.Scene,
+    private camera: THREE.PerspectiveCamera,
+  ) {
     const size = renderer.getSize(new THREE.Vector2());
     const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 });
     this.composer = new EffectComposer(renderer, rt);

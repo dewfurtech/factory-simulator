@@ -87,4 +87,3 @@ export function paintRuns(m: Mask, runs: SketchRun[]): Mask {
   }
   return out;
 }
-

@@ -30,7 +30,8 @@ for (const r of Object.values(p.plan.rooms)) {
   else if (/^โซน \d+$/.test(r.name)) spots.push({ kind: 'unnamed', at: pt(c), note: `ห้องไม่มีชื่อ ${area.toFixed(0)} ตร.ม.` });
 }
 for (const o of p.objects) {
-  if (o.assetId === 'box') spots.push({ kind: o.name.startsWith('เครื่อง') ? 'machine' : 'unknown', at: pt(o), note: `${o.name} ${(o.size.w / 1000).toFixed(1)}×${(o.size.d / 1000).toFixed(1)} ม.` });
+  if (o.assetId === 'box')
+    spots.push({ kind: o.name.startsWith('เครื่อง') ? 'machine' : 'unknown', at: pt(o), note: `${o.name} ${(o.size.w / 1000).toFixed(1)}×${(o.size.d / 1000).toFixed(1)} ม.` });
 }
 writeFileSync('.plans/spots.json', JSON.stringify({ mmPerPt: k, spots }, null, 1));
 const count = new Map<string, number>();

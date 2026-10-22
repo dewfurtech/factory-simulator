@@ -38,7 +38,8 @@ function rows(p: Project): Record<Group, Row[]> {
   for (const r of Object.values(plan.rooms)) out.room.push({ sel: { kind: 'room', id: r.id }, name: r.name || 'ห้อง', note: r.outdoor ? 'กลางแจ้ง' : '', flags: r });
   for (const a of planAreas(plan)) out.area.push({ sel: { kind: 'area', id: a.id }, name: a.name || 'พื้นที่', note: fmtArea(areaStats(a).area), flags: a });
   let n = 0;
-  for (const w of Object.values(plan.walls)) out.wall.push({ sel: { kind: 'wall', id: w.id }, name: `${w.glass ? 'ผนังกระจก' : 'ผนัง'} ${++n}`, note: fmtLen(wallLength(plan, w)), flags: w });
+  for (const w of Object.values(plan.walls))
+    out.wall.push({ sel: { kind: 'wall', id: w.id }, name: `${w.glass ? 'ผนังกระจก' : 'ผนัง'} ${++n}`, note: fmtLen(wallLength(plan, w)), flags: w });
   const counts: Record<OpeningKind, number> = { door: 0, window: 0, opening: 0 };
   for (const o of Object.values(plan.openings)) {
     // An opening follows its wall's layer flags: it is hidden or locked along with the wall.
@@ -46,7 +47,8 @@ function rows(p: Project): Record<Group, Row[]> {
     out.opening.push({ sel: { kind: 'opening', id: o.id }, name: `${OPENING_LABEL[o.kind]} ${++counts[o.kind]}`, note: fmtLen(o.width), flags: null });
   }
   let c = 0;
-  for (const col of Object.values(p.columns)) out.column.push({ sel: { kind: 'column', id: col.id }, name: `เสา ${++c}`, note: col.shape === 'round' ? `Ø ${fmtLen(col.w)}` : fmtSize(col.w, col.d), flags: col });
+  for (const col of Object.values(p.columns))
+    out.column.push({ sel: { kind: 'column', id: col.id }, name: `เสา ${++c}`, note: col.shape === 'round' ? `Ø ${fmtLen(col.w)}` : fmtSize(col.w, col.d), flags: col });
   const level = viewLevel(p);
   for (const o of p.objects) {
     if (!onLevel(o, level)) continue;
@@ -61,7 +63,17 @@ function setFlag(sels: Selection[], flag: Flag, on: boolean) {
   applyEdit((d) => {
     for (const sel of sels) {
       const x: LayerFlags | undefined =
-        sel.kind === 'object' ? d.objects.find((o) => o.id === sel.id) : sel.kind === 'column' ? d.columns[sel.id] : sel.kind === 'wall' ? d.plan.walls[sel.id] : sel.kind === 'room' ? d.plan.rooms[sel.id] : sel.kind === 'area' ? d.plan.areas?.[sel.id] : undefined;
+        sel.kind === 'object'
+          ? d.objects.find((o) => o.id === sel.id)
+          : sel.kind === 'column'
+            ? d.columns[sel.id]
+            : sel.kind === 'wall'
+              ? d.plan.walls[sel.id]
+              : sel.kind === 'room'
+                ? d.plan.rooms[sel.id]
+                : sel.kind === 'area'
+                  ? d.plan.areas?.[sel.id]
+                  : undefined;
       if (!x) continue;
       if (on) x[flag] = true;
       else delete x[flag];
@@ -139,13 +151,34 @@ export function LayersPanel() {
                 <span className="muted">{all.length}</span>
                 {flagged.length > 0 && (
                   <span className="lyr-flags">
-                    <FlagButton flag="hidden" on={allHidden} all onClick={() => setFlag(flagged.map((r) => r.sel), 'hidden', !allHidden)} />
-                    <FlagButton flag="locked" on={allLocked} all onClick={() => setFlag(flagged.map((r) => r.sel), 'locked', !allLocked)} />
+                    <FlagButton
+                      flag="hidden"
+                      on={allHidden}
+                      all
+                      onClick={() =>
+                        setFlag(
+                          flagged.map((r) => r.sel),
+                          'hidden',
+                          !allHidden,
+                        )
+                      }
+                    />
+                    <FlagButton
+                      flag="locked"
+                      on={allLocked}
+                      all
+                      onClick={() =>
+                        setFlag(
+                          flagged.map((r) => r.sel),
+                          'locked',
+                          !allLocked,
+                        )
+                      }
+                    />
                   </span>
                 )}
               </div>
-              {open &&
-                shown.map((r) => <LayerRow key={r.sel.id} row={r} selected={sameSel(selection, r.sel)} />)}
+              {open && shown.map((r) => <LayerRow key={r.sel.id} row={r} selected={sameSel(selection, r.sel)} />)}
             </section>
           );
         })}

@@ -65,18 +65,29 @@ export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: 
   const cat = MACHINE_CATEGORIES.find((c) => c.id === m.cat);
   // With add-ons ticked the brochure size no longer applies: the placed size is the model measured with them.
   const withAddons = chosen.length > 0 && !!placed;
-  const size: [number, number, number] | null = withAddons ? [placed.w, placed.d, placed.h] : m.size ?? (placed ? [placed.w, placed.d, placed.h] : null);
+  const size: [number, number, number] | null = withAddons ? [placed.w, placed.d, placed.h] : (m.size ?? (placed ? [placed.w, placed.d, placed.h] : null));
   const rows: [string, string][] = [
     ...(cat ? [['ประเภท', m.kind ?? cat.name] as [string, string]] : []),
     ...(m.tier ? [['ระดับ', m.tier] as [string, string]] : []),
     [extra ? 'ราคาเครื่อง' : 'ราคา', m.price != null ? baht(m.price) : '—'],
-    ...(extra ? ([['อุปกรณ์เสริม', `+ ${baht(extra)}`], ['รวม', m.price != null ? baht(m.price + extra) : baht(extra)]] as [string, string][]) : []),
+    ...(extra
+      ? ([
+          ['อุปกรณ์เสริม', `+ ${baht(extra)}`],
+          ['รวม', m.price != null ? baht(m.price + extra) : baht(extra)],
+        ] as [string, string][])
+      : []),
     ...(m.weight ? [['น้ำหนัก', `${mm(m.weight)} กก.`] as [string, string]] : []),
   ];
   const specs = Object.entries(m.specs ?? {});
   return (
     <div className="machine-spec" data-testid="machine-spec">
-      <Suspense fallback={<div className="model-viewer loading"><span className="thumb-wait" /></div>}>
+      <Suspense
+        fallback={
+          <div className="model-viewer loading">
+            <span className="thumb-wait" />
+          </div>
+        }
+      >
         <ModelViewer assetId={m.id} name={m.name} options={chosen} />
       </Suspense>
       {m.summary && <p className="ms-summary">{m.summary}</p>}
@@ -87,7 +98,12 @@ export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: 
             const on = chosen.includes(a.id);
             return (
               <label key={a.id} className={`addon${on ? ' on' : ''}`}>
-                <input type="checkbox" checked={on} onChange={(ev) => onOptions(ev.target.checked ? [...chosen, a.id] : chosen.filter((x) => x !== a.id))} data-testid={`addon-${a.id}`} />
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={(ev) => onOptions(ev.target.checked ? [...chosen, a.id] : chosen.filter((x) => x !== a.id))}
+                  data-testid={`addon-${a.id}`}
+                />
                 <span className="addon-name">
                   <b>{a.name}</b>
                   {a.note && <small>{a.note}</small>}

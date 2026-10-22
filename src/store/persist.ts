@@ -36,7 +36,10 @@ export async function saveProject(project: Project): Promise<void> {
 export async function deleteProject(id: Id): Promise<void> {
   const project = await loadProject(id);
   const index = (await get<ProjectSummary[]>(INDEX)) ?? [];
-  await set(INDEX, index.filter((p) => p.id !== id));
+  await set(
+    INDEX,
+    index.filter((p) => p.id !== id),
+  );
   await del(projectKey(id));
   if (project) for (const blobId of underlayImageIds(project)) await del(assetKey(blobId));
 }

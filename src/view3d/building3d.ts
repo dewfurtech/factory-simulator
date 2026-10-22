@@ -43,7 +43,11 @@ function clipSlab(poly: Vec2[], origin: Vec2, u: Vec2, t0: number, t1: number): 
     }
     return out;
   };
-  return clip(clip(poly, (t) => t >= t0, t0), (t) => t <= t1, t1);
+  return clip(
+    clip(poly, (t) => t >= t0, t0),
+    (t) => t <= t1,
+    t1,
+  );
 }
 
 /** A plan polygon (less any holes) extruded from y0 to y1 (mm), in metres, painted one color. */
@@ -231,7 +235,7 @@ export function buildIsland(p: Project, color: string): THREE.Mesh | null {
   if (p.upper) pts.push(...Object.values(p.upper.plan.corners));
   if (pts.length < 2) return null;
   const b = bounds(pts);
-  const margin = Math.max(6000, Math.min(12000, (Math.max(b.max.x - b.min.x, b.max.y - b.min.y) * 0.15)));
+  const margin = Math.max(6000, Math.min(12000, Math.max(b.max.x - b.min.x, b.max.y - b.min.y) * 0.15));
   const x0 = (b.min.x - margin) * M;
   const x1 = (b.max.x + margin) * M;
   const z0 = (b.min.y - margin) * M;

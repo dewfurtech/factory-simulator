@@ -1,0 +1,7 @@
+dist
+node_modules
+src/machines
+src/model/mastrox-layout.json
+package-lock.json
+.plans
+.claude

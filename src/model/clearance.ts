@@ -10,11 +10,7 @@ import { fromAngle, perp } from './vec';
  * taller than the room, or a machine with nowhere for its operator to stand. Checked on every change, so the plan
  * shows it as it is drawn.
  */
-export type Issue =
-  | { kind: 'object'; otherId: Id; otherName: string }
-  | { kind: 'wall'; wallId: Id }
-  | { kind: 'ceiling'; top: Mm; ceiling: Mm }
-  | { kind: 'spot' };
+export type Issue = { kind: 'object'; otherId: Id; otherName: string } | { kind: 'wall'; wallId: Id } | { kind: 'ceiling'; top: Mm; ceiling: Mm } | { kind: 'spot' };
 
 /** Interpenetration under this is a touch, not a clash: things are pushed flush against walls and each other, a little into the plaster. */
 const TOUCH: Mm = 60;

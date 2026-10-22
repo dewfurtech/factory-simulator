@@ -262,7 +262,13 @@ function addSecondFloor(p: Project) {
     p.objects.push(o);
     return o.id;
   };
-  for (const [x, y] of [[1800, 42700], [4400, 42700], [1800, 45600], [4400, 45600]]) item('desk', x, y);
+  for (const [x, y] of [
+    [1800, 42700],
+    [4400, 42700],
+    [1800, 45600],
+    [4400, 45600],
+  ])
+    item('desk', x, y);
   item('cabinet', 3100, 47800, N);
   item('desk', 18600, 42400, 0, 'โต๊ะผู้จัดการ');
   item('sofa', 21600, 43900, N);

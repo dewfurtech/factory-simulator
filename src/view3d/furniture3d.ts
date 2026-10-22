@@ -176,7 +176,8 @@ const BUILDERS: Record<string, Builder> = {
     const bw = w * 0.62;
     p.block(bw, 0.9, d, w / 2 - bw / 2, 0.25, 0, '#f2b705');
     p.block(bw * 0.55, 0.06, d, w / 2 - bw * 0.35, h - 0.06, 0, DARK);
-    for (const sz of [-1, 1]) p.block(0.05, h - 1.15, 0.05, w / 2 - bw * 0.1, 1.15, sz * (d / 2 - 0.08), DARK).block(0.05, h - 1.15, 0.05, w / 2 - bw * 0.6, 1.15, sz * (d / 2 - 0.08), DARK);
+    for (const sz of [-1, 1])
+      p.block(0.05, h - 1.15, 0.05, w / 2 - bw * 0.1, 1.15, sz * (d / 2 - 0.08), DARK).block(0.05, h - 1.15, 0.05, w / 2 - bw * 0.6, 1.15, sz * (d / 2 - 0.08), DARK);
     p.block(0.08, h - 0.1, d * 0.7, -w / 2 + bw * 0.06 + (w - bw) - 0.05, 0.1, 0, '#2b2d30');
     for (const sz of [-0.25, 0.25]) p.block(w - bw, 0.05, 0.12, -w / 2 + (w - bw) / 2, 0.08, sz * d, '#2b2d30');
     for (const x of [w / 2 - 0.25, w / 2 - bw + 0.25]) for (const sz of [-1, 1]) p.cyl(0.25, 0.2, x, 0.25, sz * (d / 2 - 0.1), '#1f2937', 8, 'z');

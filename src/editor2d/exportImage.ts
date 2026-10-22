@@ -31,10 +31,11 @@ const rootVar = (name: string) => getComputedStyle(document.documentElement).get
 /** Swaps `var(--x)` for its value: a picture has no stylesheet to look it up in. */
 function inlineVars(el: Element) {
   const cache = new Map<string, string>();
-  const resolve = (s: string) => s.replace(/var\((--[\w-]+)\)/g, (_, n: string) => {
-    if (!cache.has(n)) cache.set(n, rootVar(n));
-    return cache.get(n)!;
-  });
+  const resolve = (s: string) =>
+    s.replace(/var\((--[\w-]+)\)/g, (_, n: string) => {
+      if (!cache.has(n)) cache.set(n, rootVar(n));
+      return cache.get(n)!;
+    });
   const walk = (e: Element) => {
     for (const a of Array.from(e.attributes)) if (a.value.includes('var(')) e.setAttribute(a.name, resolve(a.value));
     for (const c of Array.from(e.children)) walk(c);

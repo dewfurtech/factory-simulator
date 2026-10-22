@@ -37,7 +37,16 @@ function PlanThumb({ id }: { id: Id }) {
         <polygon key={r.id} points={pts(roomPolygon(p.plan, r))} fill={zoneColor(r)} />
       ))}
       {p.objects.map((o) => (
-        <rect key={o.id} x={o.x - o.size.w / 2} y={o.y - o.size.d / 2} width={o.size.w} height={o.size.d} transform={`rotate(${(o.rotation * 180) / Math.PI} ${o.x} ${o.y})`} fill="#94a3b8" opacity={0.7} />
+        <rect
+          key={o.id}
+          x={o.x - o.size.w / 2}
+          y={o.y - o.size.d / 2}
+          width={o.size.w}
+          height={o.size.d}
+          transform={`rotate(${(o.rotation * 180) / Math.PI} ${o.x} ${o.y})`}
+          fill="#94a3b8"
+          opacity={0.7}
+        />
       ))}
       {wallFootprints(p.plan).map((f) => (
         <polygon key={f.wallId} points={pts(f.polygon)} fill="#334155" />

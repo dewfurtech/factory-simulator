@@ -20,8 +20,7 @@ const KIND_LABEL: Record<OpeningKind, string> = { door: 'ประตู', windo
 const PLACEHOLDER_NAMES = new Set(['เครื่องจักร', 'อุปกรณ์', 'เครื่องจักร / อุปกรณ์']);
 
 /** How far a model's footprint is from a block's, either way round (a block's long side may be drawn along y). */
-const footprintMiss = (a: { w: number; d: number }, b: { w: number; d: number }) =>
-  Math.min(Math.abs(a.w - b.w) + Math.abs(a.d - b.d), Math.abs(a.w - b.d) + Math.abs(a.d - b.w));
+const footprintMiss = (a: { w: number; d: number }, b: { w: number; d: number }) => Math.min(Math.abs(a.w - b.w) + Math.abs(a.d - b.d), Math.abs(a.w - b.d) + Math.abs(a.d - b.w));
 
 /**
  * Which Mastrox machine a block or machine is: a block read off a plan (a footprint with no model) becomes that
@@ -160,7 +159,12 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
             <label className="check">
               <input type="checkbox" checked={!!w.glass} onChange={(e) => set((x) => void (x.glass = e.target.checked || undefined))} /> ผนังกระจก
             </label>
-            <ColorField label="สีผนัง" value={w.color ?? '#eceae5'} onChange={(v) => set((x) => void (x.color = v))} onReset={w.color ? () => set((x) => void delete x.color) : undefined} />
+            <ColorField
+              label="สีผนัง"
+              value={w.color ?? '#eceae5'}
+              onChange={(v) => set((x) => void (x.color = v))}
+              onReset={w.color ? () => set((x) => void delete x.color) : undefined}
+            />
             <button className="btn btn-sm" onClick={() => addDoorAt(null, 0, w.id)} data-testid="wall-add-door">
               + ใส่ประตูกลางผนัง
             </button>
@@ -187,7 +191,8 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
       const inside = project.objects.filter((o) => {
         const poly = r.cornerIds.map((id) => plan.corners[id]);
         let c = false;
-        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) if (poly[i].y > o.y !== poly[j].y > o.y && o.x < ((poly[j].x - poly[i].x) * (o.y - poly[i].y)) / (poly[j].y - poly[i].y) + poly[i].x) c = !c;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++)
+          if (poly[i].y > o.y !== poly[j].y > o.y && o.x < ((poly[j].x - poly[i].x) * (o.y - poly[i].y)) / (poly[j].y - poly[i].y) + poly[i].x) c = !c;
         return c;
       });
       return (
@@ -209,7 +214,12 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
               <input type="checkbox" checked={!!r.outdoor} onChange={(e) => set((x) => void (e.target.checked ? (x.outdoor = true) : delete x.outdoor))} />
               <span>ลานนอกอาคาร (ไม่นับเป็นห้องและพื้นที่)</span>
             </label>
-            <ColorField label="สีพื้น" value={zoneColor(r)} onChange={(v) => set((x) => void (x.color = v))} onReset={r.color ? () => set((x) => void delete x.color) : undefined} />
+            <ColorField
+              label="สีพื้น"
+              value={zoneColor(r)}
+              onChange={(v) => set((x) => void (x.color = v))}
+              onReset={r.color ? () => set((x) => void delete x.color) : undefined}
+            />
             <div className="stats">
               <div>
                 <b>{fmtArea(st.area)}</b>
@@ -245,7 +255,15 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
             <Field label="สี">
               <div className="color-chips" data-testid="area-colors">
                 {AREA_COLORS.map((c) => (
-                  <button key={c} type="button" className={`color-chip${a.color === c ? ' on' : ''}`} style={{ background: c }} onClick={() => set((x) => void (x.color = c))} aria-label={c} aria-pressed={a.color === c} />
+                  <button
+                    key={c}
+                    type="button"
+                    className={`color-chip${a.color === c ? ' on' : ''}`}
+                    style={{ background: c }}
+                    onClick={() => set((x) => void (x.color = c))}
+                    aria-label={c}
+                    aria-pressed={a.color === c}
+                  />
                 ))}
                 <input type="color" value={a.color} onChange={(e) => set((x) => void (x.color = e.target.value))} aria-label="สีอื่น" />
               </div>
@@ -283,9 +301,19 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
         <>
           <Header icon={o.kind === 'window' ? 'window' : o.kind === 'opening' ? 'opening' : 'door'} title={KIND_LABEL[o.kind]} sub={fmtLen(o.width)} actions />
           <div className="panel-body">
-            <SelectField label="ชนิด" value={o.kind} options={(['door', 'window', 'opening'] as OpeningKind[]).map((k) => ({ id: k, label: KIND_LABEL[k] }))} onChange={(v) => set((x) => void ((x.kind = v), (x.sill = v === 'window' ? 900 : 0)))} />
+            <SelectField
+              label="ชนิด"
+              value={o.kind}
+              options={(['door', 'window', 'opening'] as OpeningKind[]).map((k) => ({ id: k, label: KIND_LABEL[k] }))}
+              onChange={(v) => set((x) => void ((x.kind = v), (x.sill = v === 'window' ? 900 : 0)))}
+            />
             {o.kind === 'door' && (
-              <SelectField label="แบบประตู" value={o.doorStyle ?? 'swing'} options={(Object.keys(DOOR_STYLE_LABEL) as DoorStyle[]).map((k) => ({ id: k, label: DOOR_STYLE_LABEL[k] }))} onChange={(v) => set((x) => void (x.doorStyle = v))} />
+              <SelectField
+                label="แบบประตู"
+                value={o.doorStyle ?? 'swing'}
+                options={(Object.keys(DOOR_STYLE_LABEL) as DoorStyle[]).map((k) => ({ id: k, label: DOOR_STYLE_LABEL[k] }))}
+                onChange={(v) => set((x) => void (x.doorStyle = v))}
+              />
             )}
             <div className="two">
               <NumberField label="กว้าง" value={o.width} scale={10} suffix="ซม." min={30} onChange={(v) => set((x) => void (x.width = v))} />
@@ -335,9 +363,24 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
         <>
           <Header icon={c.shape === 'round' ? 'columnRound' : 'column'} title="เสา" sub={c.shape === 'round' ? `Ø${c.w / 10} ซม.` : `${c.w / 10}×${c.d / 10} ซม.`} actions />
           <div className="panel-body">
-            <SelectField label="รูปทรง" value={c.shape} options={[{ id: 'rect', label: 'เหลี่ยม' }, { id: 'round', label: 'กลม' }]} onChange={(v) => set((x) => void ((x.shape = v), v === 'round' && (x.d = x.w)))} />
+            <SelectField
+              label="รูปทรง"
+              value={c.shape}
+              options={[
+                { id: 'rect', label: 'เหลี่ยม' },
+                { id: 'round', label: 'กลม' },
+              ]}
+              onChange={(v) => set((x) => void ((x.shape = v), v === 'round' && (x.d = x.w)))}
+            />
             <div className="two">
-              <NumberField label={c.shape === 'round' ? 'เส้นผ่านศูนย์กลาง' : 'กว้าง'} value={c.w} scale={10} suffix="ซม." min={5} onChange={(v) => set((x) => void ((x.w = v), x.shape === 'round' && (x.d = v)))} />
+              <NumberField
+                label={c.shape === 'round' ? 'เส้นผ่านศูนย์กลาง' : 'กว้าง'}
+                value={c.w}
+                scale={10}
+                suffix="ซม."
+                min={5}
+                onChange={(v) => set((x) => void ((x.w = v), x.shape === 'round' && (x.d = v)))}
+              />
               {c.shape === 'rect' && <NumberField label="ลึก" value={c.d} scale={10} suffix="ซม." min={5} onChange={(v) => set((x) => void (x.d = v))} />}
               <NumberField label="สูง" value={c.h} scale={10} suffix="ซม." min={10} onChange={(v) => set((x) => void (x.h = v))} />
               <NumberField label="หมุน" value={Math.round(deg(c.rotation))} suffix="°" onChange={(v) => set((x) => void (x.rotation = rad(v)))} />
@@ -461,13 +504,26 @@ function ProjectProps({ project }: { project: Project }) {
         </div>
         <TextField label="ชื่อโครงการ" value={project.name} onChange={(v) => applyEdit((d) => void (d.name = v))} />
         {tool.kind === 'columnGrid' && (
-          <NumberField label="ระยะห่างเสา (ตาราง)" value={tool.spacing} scale={1000} step={0.5} suffix="ม." min={1} onChange={(v) => useUi.getState().set({ tool: { ...tool, spacing: v } })} />
+          <NumberField
+            label="ระยะห่างเสา (ตาราง)"
+            value={tool.spacing}
+            scale={1000}
+            step={0.5}
+            suffix="ม."
+            min={1}
+            onChange={(v) => useUi.getState().set({ tool: { ...tool, spacing: v } })}
+          />
         )}
         <Field label={troubled.length ? `ตรวจผัง: ${troubled.length} ชิ้นวางไม่ได้` : 'ตรวจผัง'}>
           {troubled.length ? (
             <div className="list" data-testid="project-issues">
               {troubled.map((o) => (
-                <button key={o.id} className="list-item issue" onClick={() => useUi.getState().goTo({ kind: 'object', id: o.id })} title={issues.get(o.id)!.map(issueText).join(' · ')}>
+                <button
+                  key={o.id}
+                  className="list-item issue"
+                  onClick={() => useUi.getState().goTo({ kind: 'object', id: o.id })}
+                  title={issues.get(o.id)!.map(issueText).join(' · ')}
+                >
                   {o.name} · {issueText(issues.get(o.id)![0])}
                 </button>
               ))}

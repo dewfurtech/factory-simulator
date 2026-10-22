@@ -254,7 +254,15 @@ export function UnderlayMenu() {
         <div className="ul-more glass" data-testid="underlay-more">
           <label className="ul-field">
             <span>ความเข้ม</span>
-            <input type="range" min={0.1} max={1} step={0.05} value={u.opacity} onChange={(e) => editUnderlay((d) => void (d.opacity = +e.target.value))} data-testid="underlay-opacity" />
+            <input
+              type="range"
+              min={0.1}
+              max={1}
+              step={0.05}
+              value={u.opacity}
+              onChange={(e) => editUnderlay((d) => void (d.opacity = +e.target.value))}
+              data-testid="underlay-opacity"
+            />
           </label>
           <NumberField label="หมุนภาพ" value={u.rotation} step={0.5} suffix="°" onChange={(v) => editUnderlay((d) => void (d.rotation = v))} testId="underlay-rotation" />
           <div className="ul-field">
@@ -282,17 +290,35 @@ export function UnderlayMenu() {
       )}
       <div className="ul-bar glass" role="toolbar" aria-label="แปลนพื้นหลัง" data-testid="underlay-flyout">
         {!u ? (
-          <button className="ul-btn ul-primary ul-wide" onClick={() => fileRef.current?.click()} disabled={busy} data-tip="รูปหรือ PDF · หาสเกลจากประตูแล้วสร้างผนังให้เอง" data-testid="underlay-upload">
+          <button
+            className="ul-btn ul-primary ul-wide"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            data-tip="รูปหรือ PDF · หาสเกลจากประตูแล้วสร้างผนังให้เอง"
+            data-testid="underlay-upload"
+          >
             <Glyph name="upload" />
             <span>อัปโหลดแปลน</span>
           </button>
         ) : (
           <>
-            <button className={`ul-btn ul-primary ul-wide${tool.kind === 'drawArea' ? ' on' : ''}`} onClick={startDrawing} disabled={busy} data-tip={guides ? `ลากกรอบทับห้องในแปลนทีละห้อง · มุมดูดเข้าหาเส้นในรูป (${guides} เส้น)` : 'ลากกรอบทับห้องในแปลนทีละห้อง'} data-testid="underlay-draw">
+            <button
+              className={`ul-btn ul-primary ul-wide${tool.kind === 'drawArea' ? ' on' : ''}`}
+              onClick={startDrawing}
+              disabled={busy}
+              data-tip={guides ? `ลากกรอบทับห้องในแปลนทีละห้อง · มุมดูดเข้าหาเส้นในรูป (${guides} เส้น)` : 'ลากกรอบทับห้องในแปลนทีละห้อง'}
+              data-testid="underlay-draw"
+            >
               <Glyph name="room" />
               <span>วาดห้องทับแปลน</span>
             </button>
-            <button className="ul-btn ul-secondary ul-wide" onClick={() => void trace(u)} disabled={busy} data-tip={hasWalls ? 'ให้แอปอ่านผนัง ประตู เสา จากแปลน (แทนผนังเดิม · เลิกทำได้)' : 'ให้แอปอ่านผนัง ประตู เสา จากแปลน (เลิกทำได้)'} data-testid="underlay-trace">
+            <button
+              className="ul-btn ul-secondary ul-wide"
+              onClick={() => void trace(u)}
+              disabled={busy}
+              data-tip={hasWalls ? 'ให้แอปอ่านผนัง ประตู เสา จากแปลน (แทนผนังเดิม · เลิกทำได้)' : 'ให้แอปอ่านผนัง ประตู เสา จากแปลน (เลิกทำได้)'}
+              data-testid="underlay-trace"
+            >
               <Glyph name={busy ? 'busy' : 'build'} />
               <span>{busy ? 'กำลังสร้าง…' : 'สร้างผนังอัตโนมัติ'}</span>
             </button>
@@ -312,19 +338,50 @@ export function UnderlayMenu() {
               <Glyph name="peek" />
             </button>
             <span className="ul-sep" />
-            <button className={`ul-btn${tool.kind === 'calibrate' ? ' on' : ''}`} onClick={measure} aria-label="วัดสเกลเอง" data-tip="วัดสเกลเอง (คลิก 2 จุด)" data-testid="underlay-calibrate">
+            <button
+              className={`ul-btn${tool.kind === 'calibrate' ? ' on' : ''}`}
+              onClick={measure}
+              aria-label="วัดสเกลเอง"
+              data-tip="วัดสเกลเอง (คลิก 2 จุด)"
+              data-testid="underlay-calibrate"
+            >
               <Glyph name="ruler" />
             </button>
-            <button className={`ul-btn${tool.kind === 'moveUnderlay' ? ' on' : ''}`} onClick={() => useUi.getState().setTool({ kind: 'moveUnderlay', grab: null })} aria-label="ย้ายภาพ" data-tip="ย้ายภาพ" data-testid="underlay-move">
+            <button
+              className={`ul-btn${tool.kind === 'moveUnderlay' ? ' on' : ''}`}
+              onClick={() => useUi.getState().setTool({ kind: 'moveUnderlay', grab: null })}
+              aria-label="ย้ายภาพ"
+              data-tip="ย้ายภาพ"
+              data-testid="underlay-move"
+            >
               <Glyph name="move" />
             </button>
-            <button className="ul-btn" onClick={() => editUnderlay((d) => void (d.hidden = d.hidden ? undefined : true))} aria-label={u.hidden ? 'แสดงภาพ' : 'ซ่อนภาพ'} data-tip={u.hidden ? 'แสดงภาพ' : 'ซ่อนภาพ'} data-testid="underlay-visible">
+            <button
+              className="ul-btn"
+              onClick={() => editUnderlay((d) => void (d.hidden = d.hidden ? undefined : true))}
+              aria-label={u.hidden ? 'แสดงภาพ' : 'ซ่อนภาพ'}
+              data-tip={u.hidden ? 'แสดงภาพ' : 'ซ่อนภาพ'}
+              data-testid="underlay-visible"
+            >
               <Glyph name={u.hidden ? 'eyeOff' : 'eye'} />
             </button>
-            <button className="ul-btn" onClick={() => fileRef.current?.click()} disabled={busy} aria-label="เปลี่ยนไฟล์" data-tip={`เปลี่ยนไฟล์ (${u.name})`} data-testid="underlay-upload">
+            <button
+              className="ul-btn"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy}
+              aria-label="เปลี่ยนไฟล์"
+              data-tip={`เปลี่ยนไฟล์ (${u.name})`}
+              data-testid="underlay-upload"
+            >
               <Glyph name="image" />
             </button>
-            <button className={`ul-btn${more ? ' on' : ''}`} onClick={() => setMore(!more)} aria-label="ตั้งค่าเพิ่มเติม" data-tip="ตั้งค่าเพิ่มเติม" data-testid="underlay-more-toggle">
+            <button
+              className={`ul-btn${more ? ' on' : ''}`}
+              onClick={() => setMore(!more)}
+              aria-label="ตั้งค่าเพิ่มเติม"
+              data-tip="ตั้งค่าเพิ่มเติม"
+              data-testid="underlay-more-toggle"
+            >
               <Glyph name="more" />
             </button>
           </>
@@ -386,10 +443,17 @@ function statusNote(status: Status): { text: string; tip?: string; error?: boole
         testId: 'underlay-built',
       };
     case 'ready':
-      return { text: 'ลากกรอบทับห้องในแปลนทีละห้อง · มุมจะดูดเข้าหาเส้นในรูปเอง · กดค้าง \\ เพื่อดูแปลน', tip: 'ผนังที่วาดแก้ขนาดได้ที่แผงขวา · ปุ่มสร้างผนังอัตโนมัติอยู่ถัดไป', testId: 'underlay-ready' };
+      return {
+        text: 'ลากกรอบทับห้องในแปลนทีละห้อง · มุมจะดูดเข้าหาเส้นในรูปเอง · กดค้าง \\ เพื่อดูแปลน',
+        tip: 'ผนังที่วาดแก้ขนาดได้ที่แผงขวา · ปุ่มสร้างผนังอัตโนมัติอยู่ถัดไป',
+        testId: 'underlay-ready',
+      };
     case 'needScale':
       return {
-        text: status.then === 'choose' ? 'ตั้งสเกลก่อน: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ หรือประตู 0.9 ม.) แล้วพิมพ์ระยะ' : 'หาสเกลจากแบบไม่ชัด: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ) แล้วพิมพ์ระยะ',
+        text:
+          status.then === 'choose'
+            ? 'ตั้งสเกลก่อน: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ หรือประตู 0.9 ม.) แล้วพิมพ์ระยะ'
+            : 'หาสเกลจากแบบไม่ชัด: คลิก 2 จุดที่รู้ระยะจริง (เช่น เส้นบอกระยะ) แล้วพิมพ์ระยะ',
         testId: 'underlay-need-scale',
       };
     case 'failed':
@@ -417,7 +481,18 @@ const GLYPHS: Record<string, string> = {
 
 function Glyph({ name }: { name: keyof typeof GLYPHS }) {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={name === 'more' ? 3 : 1.7} strokeLinecap="round" strokeLinejoin="round" className={name === 'busy' ? 'ul-spin' : undefined} aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={name === 'more' ? 3 : 1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={name === 'busy' ? 'ul-spin' : undefined}
+      aria-hidden
+    >
       <path d={GLYPHS[name]} />
     </svg>
   );

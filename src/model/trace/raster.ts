@@ -110,8 +110,7 @@ export function erode(m: Mask, rx: number, ry: number): Mask {
   const I = integral(m);
   const out = emptyMask(m.w, m.h);
   const full = (2 * rx + 1) * (2 * ry + 1);
-  for (let y = 0; y < m.h; y++)
-    for (let x = 0; x < m.w; x++) if (m.data[y * m.w + x] && boxSum(I, m, x - rx, y - ry, x + rx + 1, y + ry + 1) === full) out.data[y * m.w + x] = 1;
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (m.data[y * m.w + x] && boxSum(I, m, x - rx, y - ry, x + rx + 1, y + ry + 1) === full) out.data[y * m.w + x] = 1;
   return out;
 }
 

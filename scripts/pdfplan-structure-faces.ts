@@ -26,7 +26,11 @@ const pt = (id: Id) => `${(plan.corners[id].x / k).toFixed(1)},${(plan.corners[i
 const adj = new Map<Id, Set<Id>>();
 for (const w of Object.values(plan.walls)) {
   if (w.a === w.b) continue;
-  for (const [a, b] of [[w.a, w.b], [w.b, w.a]] as const) adj.set(a, (adj.get(a) ?? new Set()).add(b));
+  for (const [a, b] of [
+    [w.a, w.b],
+    [w.b, w.a],
+  ] as const)
+    adj.set(a, (adj.get(a) ?? new Set()).add(b));
 }
 const stack = [...adj.keys()].filter((id) => adj.get(id)!.size === 1);
 while (stack.length) {
