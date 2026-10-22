@@ -87,8 +87,8 @@ PDF ที่เป็นเวกเตอร์จาก CAD อ่านไ�
 
 ### โมเดลเครื่อง Mastrox
 
-สร้างจากโมเดลใน `src/machines` (คัดลอกจาก `D:\work\Mastrox Models\machines`) โดยลดส่วนโค้งเหลือ 8 ด้าน แล้วรวมทุกชิ้นเป็น geometry เดียวต่อรุ่น ใช้ซ้ำทุกเครื่อง
-ถ้าแก้โมเดลใน Mastrox Models ให้คัดลอกไฟล์ `machines/*.js` มาทับใน `src/machines/` (คงบรรทัด `LOW_SEG` / `lowSeg` ใน `lib.js` ไว้) แล้วรัน `npm run sizes` เพื่ออัปเดตขนาดฐานเครื่อง
+คัดลอกมาจาก `D:Job DewModelmastrox-models` (โมเดลเต็มรายละเอียด ส่วน `lowpoly.js` ของเราลดรูปให้วางหลายเครื่องบนผังได้) ภาพโลโก้จริงอยู่ใน `src/assets/`
+ถ้าแก้โมเดลในโปรเจกต์นั้น ให้คัดลอก `machines/*.js` และ `assets/*` มาทับใน `src/machines/` และ `src/assets/` แล้วใส่ส่วนที่แก้เฉพาะในนี้กลับ: `registry.js` กับ `rakete-real.js` รับตัวเลือกเสริมต่อเครื่องที่วาง และ `data.js` คือ `data/machines.js` บวกบล็อก `options` ของ Rakete 3500A จากนั้นรัน `npm run sizes` เพื่ออัปเดตขนาดฐานเครื่อง
 
 ## โครงสร้าง
 
