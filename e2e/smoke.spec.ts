@@ -123,3 +123,27 @@ test('a plan is shared by link, moved by the customer and sent back', async ({ p
   await expect(page.getByTestId('group-wall')).toBeVisible();
   await expect(page.getByTestId('share-banner')).toHaveCount(0);
 });
+
+test('an aisle is drawn and ended with a double-click, leaving nothing behind for the next', async ({ page }) => {
+  await openSample(page);
+  const aisles = () =>
+    page.evaluate(() => {
+      const p = (
+        window as unknown as { __factory?: { project: { getState(): { project: { plan: { aisles?: Record<string, { points: object[] }> } } } } } }
+      ).__factory?.project.getState().project;
+      return Object.values(p?.plan.aisles ?? {}).map((a) => a.points.length);
+    });
+  await page.getByTestId('group-aisle').click();
+  await page.getByTestId('tool-aisle-walk').click();
+  const c = await planCentre(page);
+  await page.mouse.click(c.x - 120, c.y + 40);
+  await page.mouse.click(c.x + 120, c.y + 40);
+  await page.mouse.dblclick(c.x + 120, c.y + 40);
+  await expect.poll(aisles).toEqual([2]);
+  await expect(page.getByTestId('aisle-legend')).toBeVisible();
+  // The next aisle starts where it is clicked, not at the end of the last one.
+  await page.mouse.click(c.x - 120, c.y + 140);
+  await page.mouse.click(c.x + 120, c.y + 140);
+  await page.keyboard.press('Enter');
+  await expect.poll(aisles).toEqual([2, 2]);
+});

@@ -411,10 +411,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
             <button className="btn btn-sm" onClick={duplicateSelection} title="Ctrl+D">
               <Icon name="copy" /> ทำสำเนา
             </button>
-            <p className="muted small">
-              {a.auto ? 'จัดโดยระบบอัตโนมัติ: กดจัดใหม่จะวางแทนเส้นนี้ · แก้ค่าใดก็ได้เพื่อเก็บไว้เป็นเส้นของคุณ · ' : ''}
-              ลากบนแปลนเพื่อย้าย · ทางที่ชิดกันไม่เกิน 50 ซม. จะเชื่อมกันเอง คลิกปุ่มรอยต่อบนแปลนเพื่อแยก · ของที่วางทับทางเดินจะขึ้นเตือนสีแดง
-            </p>
+            <p className="muted small">ลากบนแปลนเพื่อย้าย · ทางที่ชิดกันไม่เกิน 50 ซม. จะเชื่อมกันเอง คลิกปุ่มรอยต่อบนแปลนเพื่อแยก · ของที่วางทับทางเดินจะขึ้นเตือนสีแดง</p>
           </div>
         </>
       );

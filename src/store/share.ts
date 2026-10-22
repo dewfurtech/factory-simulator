@@ -99,9 +99,7 @@ export async function createShare(project: Project, meta: Omit<ShareMeta, 'name'
   const packed = await gzip(JSON.stringify(await bundleProject(project)));
   const count = Math.max(1, Math.ceil(packed.length / PART_BYTES));
   if (count > MAX_PARTS) throw new Error('แปลนใหญ่เกินกว่าจะส่งเป็นลิงก์ ส่งออกเป็นไฟล์ .json แทน');
-  const parts = await inBatches(
-    Array.from({ length: count }, (_, i) => () => uploadPart(packed.subarray(i * PART_BYTES, (i + 1) * PART_BYTES))),
-  );
+  const parts = await inBatches(Array.from({ length: count }, (_, i) => () => uploadPart(packed.subarray(i * PART_BYTES, (i + 1) * PART_BYTES))));
   let res: Response;
   try {
     res = await fetch(API, {

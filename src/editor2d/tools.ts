@@ -151,10 +151,17 @@ function commitAisle(tool: Of<'drawAisle'>, points: Vec2[]): boolean {
   return true;
 }
 
-/** Ends the aisle being drawn where it stands (Enter, a double-click, or Esc). */
+/**
+ * Ends the aisle being drawn where it stands (Enter, a double-click, or Esc). A lone point is dropped rather
+ * than kept: the second press of a double-click on the last point lands after the first press has laid the
+ * aisle, and would otherwise start the next one from there.
+ */
 export function finishAisle(): boolean {
   const tool = ui().tool;
-  return tool.kind === 'drawAisle' && commitAisle(tool, tool.points);
+  if (tool.kind !== 'drawAisle') return false;
+  if (commitAisle(tool, tool.points)) return true;
+  if (tool.points.length) setTool({ ...tool, points: [], entry: EMPTY_ENTRY });
+  return false;
 }
 
 /** Columns filling the rectangle a–b at the spacing, one at every grid node (corners included). */

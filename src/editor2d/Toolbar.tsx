@@ -6,7 +6,6 @@ import { UnderlayMenu } from './UnderlayMenu';
 import { EMPTY_ENTRY } from './entry';
 import { AISLE_KIND_IDS, AISLE_KINDS, defaultWidth } from '../model/aisles';
 import type { AisleKind } from '../model/types';
-import { clearAutoAisles, runAutoAisles } from './autoAisleAction';
 import { fmtLen } from '../format';
 
 const PATHS: Record<string, string> = {
@@ -20,7 +19,6 @@ const PATHS: Record<string, string> = {
   aisleForklift: 'M4 3v18 M20 3v18 M12 5v13 M8.5 14.5L12 18l3.5-3.5',
   aisleForklift2: 'M4 3v18 M20 3v18 M12 3v3 M12 10v4 M12 18v3 M8 6v12 M6 8l2-2 2 2 M16 6v12 M14 16l2 2 2-2',
   aisleMixed: 'M3 3v18 M21 3v18 M9 5v13 M6.5 15.5L9 18l2.5-2.5 M15.5 8a1.5 1.5 0 1 0 .01 0 M15.5 11v4 M15.5 15l-1.5 4 M15.5 15l1.5 4 M13.5 12.5h4',
-  wand: 'M4 20L15 9 M13 7l4 4 M18 2v4 M16 4h4 M21 9v2 M20 10h2 M9 3v2 M8 4h2',
   island: 'M3 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0 M6 13c1.5-1 3-1 4.5 0 M12 5c2 0 4 2 4 5v3H8v-3c0-3 2-5 4-5z M12 5v8',
   rect: 'M4 5h16v14H4z',
   L: 'M4 4h8v8h8v8H4z',
@@ -187,47 +185,6 @@ const AISLE_ITEMS: Item[] = AISLE_KIND_IDS.map(
     testId: `tool-aisle-${kind}`,
   }),
 );
-
-/** The aisle flyout's footer: lay the aisles out by themselves, the main ones of the chosen kind, or clear what was laid. */
-function AutoAisles({ close }: { close: () => void }) {
-  const [trunk, setTrunk] = useState<AisleKind>('mixed');
-  return (
-    <div className="flyout-auto">
-      <label className="flyout-auto-row">
-        <span>ทางหลักเป็น</span>
-        <select value={trunk} onChange={(e) => setTrunk(e.target.value as AisleKind)} data-testid="auto-aisle-trunk">
-          {AISLE_KIND_IDS.map((k) => (
-            <option key={k} value={k}>
-              {AISLE_KINDS[k].label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button
-        className="flyout-foot"
-        onClick={() => {
-          close();
-          void runAutoAisles(trunk);
-        }}
-        data-testid="auto-aisles"
-      >
-        <Icon name="wand" />
-        <span>จัดทางเดินอัตโนมัติ (ตามมาตรฐาน)</span>
-      </button>
-      <button
-        className="flyout-foot"
-        onClick={() => {
-          close();
-          clearAutoAisles();
-        }}
-        data-testid="clear-auto-aisles"
-      >
-        <Icon name="trash" />
-        <span>ลบทางเดินที่จัดอัตโนมัติ</span>
-      </button>
-    </div>
-  );
-}
 
 /** The area flyout's footer: one switch that takes every area out of both views and brings them back. */
 function AreasVisible() {
@@ -414,7 +371,7 @@ export function Toolbar() {
           <ToolGroup id="wall" text="ผนัง" label="ผนัง" items={WALL_ITEMS} {...group('wall')} />
           <ToolGroup id="room" text="โซน" label="ห้อง / โซน" items={ROOM_ITEMS} {...group('room')} />
           <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (กล่องโปร่งแสง)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
-          <ToolGroup id="aisle" text="ทางเดิน" label="ทางเดิน / ทางรถ (ตีเส้นพื้น)" items={AISLE_ITEMS} {...group('aisle')} footer={<AutoAisles close={() => setOpen(null)} />} />
+          <ToolGroup id="aisle" text="ทางเดิน" label="ทางเดิน / ทางรถ (ตีเส้นพื้น)" items={AISLE_ITEMS} {...group('aisle')} />
           <ToolGroup id="opening" text="ประตู" label="ประตู / หน้าต่าง" items={OPENING_ITEMS} {...group('opening')} />
           <ToolGroup id="column" text="เสา" label="เสา" items={COLUMN_ITEMS} {...group('column')} />
         </>
