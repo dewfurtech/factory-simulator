@@ -6,7 +6,7 @@ import { newProject } from '../model/project';
 import { mastroxLayout, sampleFactory } from '../model/sample';
 import type { Id, Project } from '../model/types';
 import { placeUnderlay } from '../model/underlay';
-import { deleteProject, duplicateProject, exportProject, importProject, listProjects, loadProject, saveProject, type ProjectSummary } from '../store/persist';
+import { deleteProject, duplicateProject, exportAll, exportProject, importFile, listProjects, loadProject, saveProject, type ProjectSummary } from '../store/persist';
 import { wallFootprints } from '../model/miter';
 import { roomPolygon } from '../model/plan';
 import { bounds } from '../model/vec';
@@ -53,6 +53,15 @@ function PlanThumb({ id }: { id: Id }) {
       ))}
     </svg>
   );
+}
+
+function save(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 const ago = (t: number) => {
@@ -131,7 +140,7 @@ export function ProjectList() {
         <button className="action" onClick={() => importRef.current?.click()}>
           <Icon name="upload" />
           <b>นำเข้าไฟล์</b>
-          <span>ไฟล์ .json ที่ส่งออกจากโปรแกรมนี้</span>
+          <span>ไฟล์ .json ที่ส่งออกจากโปรแกรมนี้ หรือไฟล์สำรองทั้งหมด</span>
         </button>
         <input ref={planRef} type="file" accept={UNDERLAY_ACCEPT} hidden onChange={(e) => (e.target.files?.[0] && void fromPlan(e.target.files[0]), (e.target.value = ''))} />
         <input
@@ -142,9 +151,10 @@ export function ProjectList() {
           onChange={(e) => {
             const f = e.target.files?.[0];
             e.target.value = '';
+            // One project opens; a backup of several just joins the list.
             if (f)
-              void importProject(f)
-                .then((p) => open(p.id))
+              void importFile(f)
+                .then((ps) => (ps.length === 1 ? open(ps[0].id) : refresh()))
                 .catch((err) => setError(err.message));
           }}
         />
@@ -152,6 +162,21 @@ export function ProjectList() {
       {error && <div className="error-note">{error}</div>}
       <section className="home-list">
         <h2>โรงงานของฉัน</h2>
+        <div className="notice" data-testid="storage-notice">
+          <Icon name="panel" />
+          <span>
+            โปรเจกต์ทั้งหมดเก็บอยู่ในเบราว์เซอร์เครื่องนี้เท่านั้น ถ้าล้างข้อมูลเว็บไซต์ เปลี่ยนเครื่อง หรือเปลี่ยนเบราว์เซอร์จะหาย ควรสำรองเป็นไฟล์เก็บไว้เป็นระยะ
+            แล้วนำเข้ากลับได้จากปุ่ม "นำเข้าไฟล์"
+          </span>
+          <button
+            className="btn btn-sm"
+            disabled={!list?.length}
+            onClick={() => void exportAll().then((b) => save(b, `factory-backup-${new Date().toISOString().slice(0, 10)}.json`))}
+            data-testid="backup-all"
+          >
+            <Icon name="download" /> สำรองทั้งหมด
+          </button>
+        </div>
         {list && !list.length && <p className="muted">ยังไม่มีโปรเจกต์ เริ่มจากโรงงานตัวอย่างได้เลย</p>}
         <div className="cards">
           {list?.map((p) => (
@@ -179,18 +204,7 @@ export function ProjectList() {
                 <button className="ib sm" title="ทำสำเนา" onClick={() => void duplicateProject(p.id).then(refresh)}>
                   <Icon name="copy" />
                 </button>
-                <button
-                  className="ib sm"
-                  title="ส่งออก"
-                  onClick={() =>
-                    void exportProject(p.id).then((b) => {
-                      const a = document.createElement('a');
-                      a.href = URL.createObjectURL(b);
-                      a.download = `${p.name}.factory.json`;
-                      a.click();
-                    })
-                  }
-                >
+                <button className="ib sm" title="ส่งออก" onClick={() => void exportProject(p.id).then((b) => save(b, `${p.name}.factory.json`))}>
                   <Icon name="download" />
                 </button>
                 <button

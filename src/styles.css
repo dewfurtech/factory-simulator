@@ -1508,6 +1508,36 @@ input[type='color'] {
 .action.primary svg {
   color: #fb923c;
 }
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid #fcd9b6;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.notice > svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+.notice > span {
+  flex: 1;
+}
+.notice .btn {
+  flex: none;
+}
+@media (max-width: 640px) {
+  .notice {
+    flex-wrap: wrap;
+  }
+}
 .home-list h2 {
   font-size: 17px;
   margin-bottom: 12px;

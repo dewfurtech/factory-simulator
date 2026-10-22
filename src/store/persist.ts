@@ -94,15 +94,52 @@ export async function exportProject(id: Id): Promise<Blob> {
   return new Blob([JSON.stringify(bundle)], { type: 'application/json' });
 }
 
-/** Reads a saved factory bundle; a bare project JSON (no bundle around it) is accepted too. */
-export async function importProject(file: Blob): Promise<Project> {
-  const raw = JSON.parse(await file.text()) as Partial<Bundle> & Partial<Project>;
+interface Backup {
+  format: 'factory-sim-backup';
+  version: 1;
+  bundles: Bundle[];
+}
+
+/** Every project with its plan images, in one file: the copy to keep outside the browser. */
+export async function exportAll(): Promise<Blob> {
+  const bundles: Bundle[] = [];
+  for (const p of await listProjects()) bundles.push(JSON.parse(await (await exportProject(p.id)).text()) as Bundle);
+  const backup: Backup = { format: 'factory-sim-backup', version: 1, bundles };
+  return new Blob([JSON.stringify(backup)], { type: 'application/json' });
+}
+
+async function importBundle(raw: Partial<Bundle> & Partial<Project>): Promise<Project> {
   const src = raw.format === 'factory-sim' ? raw.project : raw.plan ? (raw as Project) : undefined;
   if (!src?.plan) throw new Error('ไฟล์ไม่ใช่โปรเจกต์โรงงาน');
   const project: Project = migrate({ ...src, id: newId('p'), updatedAt: Date.now() });
   for (const [id, a] of Object.entries(raw.assets ?? {})) await saveAsset(id as Id, base64ToBlob(a.base64, a.type));
   await saveProject(project);
   return project;
+}
+
+/** Reads a saved factory bundle; a bare project JSON (no bundle around it) is accepted too. */
+export async function importProject(file: Blob): Promise<Project> {
+  return importBundle(JSON.parse(await file.text()) as Partial<Bundle> & Partial<Project>);
+}
+
+/** Reads a project file or a backup of several; each comes in as a new project, so nothing here is overwritten. */
+export async function importFile(file: Blob): Promise<Project[]> {
+  const raw = JSON.parse(await file.text()) as Partial<Backup> | (Partial<Bundle> & Partial<Project>);
+  if (raw.format === 'factory-sim-backup') {
+    const out: Project[] = [];
+    for (const b of (raw as Partial<Backup>).bundles ?? []) out.push(await importBundle(b));
+    if (!out.length) throw new Error('ไฟล์สำรองไม่มีโปรเจกต์');
+    return out;
+  }
+  return [await importBundle(raw as Partial<Bundle> & Partial<Project>)];
+}
+
+/**
+ * Asks the browser to keep this site's data out of its storage clean-ups. Granted silently where the site is used
+ * often; refused or ignored elsewhere, which is why the project list still asks for a backup file.
+ */
+export function keepStorage(): void {
+  void navigator.storage?.persist?.().catch(() => undefined);
 }
 
 let pending: { timer: ReturnType<typeof setTimeout>; project: Project } | undefined;

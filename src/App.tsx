@@ -4,7 +4,7 @@ import type { Id } from './model/types';
 import { ImportOverlay } from './projects/ImportOverlay';
 import { ProjectList } from './projects/ProjectList';
 import { useImport } from './store/importProgress';
-import { flushAutosave, loadProject, startAutosave } from './store/persist';
+import { flushAutosave, keepStorage, loadProject, startAutosave } from './store/persist';
 import { useProject } from './store/project';
 import { SELECT, useUi } from './store/ui';
 
@@ -17,6 +17,7 @@ export function App() {
   const [openId, setOpenId] = useState<Id | null>(null);
 
   useEffect(() => startAutosave(), []);
+  useEffect(keepStorage, []);
   useEffect(() => {
     const onHash = () => setRouteId(projectIdFromHash());
     window.addEventListener('hashchange', onHash);

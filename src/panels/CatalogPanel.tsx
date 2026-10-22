@@ -3,13 +3,13 @@ import { CATALOG, GROUP_LABEL, GROUP_ORDER, type CatalogGroup, type CatalogItem 
 import { useUi } from '../store/ui';
 import { ASSET_MIME, setDraggedAsset } from '../editor2d/PlanEditor';
 import { Icon } from '../editor2d/Toolbar';
-import { thumbnail } from '../view3d/thumbs';
 
 function Thumb({ id }: { id: string }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    thumbnail(id, (u) => live && setUrl(u));
+    // The renderer, three.js and the machine models load with the first thumbnail, not with the app.
+    void import('../view3d/thumbs').then(({ thumbnail }) => live && thumbnail(id, (u) => live && setUrl(u)));
     return () => {
       live = false;
     };
