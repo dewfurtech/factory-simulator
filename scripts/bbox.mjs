@@ -2,10 +2,17 @@
 const ctx = new Proxy({}, { get: (t, k) => (k === 'measureText' ? () => ({ width: 100 }) : (t[k] ?? (() => ctx))), set: (t, k, v) => ((t[k] = v), true) });
 globalThis.document = {
   createElement: () => ({ getContext: () => ctx, width: 0, height: 0, dataset: {} }),
+  // lib.js loads the logo artwork through Image and TextureLoader; neither arrives here, and the measurements don't need it.
+  createElementNS: () => ({ addEventListener() {}, removeEventListener() {}, src: '' }),
   // rakete-real.js adds a font link and waits for the font.
   querySelector: () => null,
   head: { appendChild: () => {} },
   fonts: { load: async () => [] },
+};
+globalThis.Image = class {
+  constructor() {
+    this.src = '';
+  }
 };
 const { MODELS } = await import('../src/machines/registry.js');
 const { visibleBounds } = await import('../src/machines/bounds.js');
