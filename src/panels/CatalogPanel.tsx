@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CATALOG, GROUP_LABEL, GROUP_ORDER, type CatalogGroup, type CatalogItem } from '../model/catalog';
+import { allTags, matchesTag, type CustomModel } from '../model/library';
+import { useLibrary } from '../store/library';
+import { ModelForm } from './ModelForm';
 import { useUi } from '../store/ui';
 import { ASSET_MIME, setDraggedAsset } from '../editor2d/PlanEditor';
 import { Icon } from '../editor2d/Toolbar';
@@ -20,11 +23,12 @@ function Thumb({ id }: { id: string }) {
 const fmtSize = (c: CatalogItem) => `${(c.size.w / 1000).toFixed(1)}×${(c.size.d / 1000).toFixed(1)} ม.`;
 
 /** The two shelves of the library: the Mastrox lineup comes first, as it is what the app sells. */
-type Shelf = 'mastrox' | 'general';
-const shelfOf = (c: CatalogItem): Shelf => (c.use === 'machine' ? 'mastrox' : 'general');
+type Shelf = 'mastrox' | 'general' | 'mine';
+const shelfOf = (c: CatalogItem): Shelf => (c.group === 'custom' ? 'mine' : c.use === 'machine' ? 'mastrox' : 'general');
 const SHELF_GROUPS: Record<Shelf, CatalogGroup[]> = {
   mastrox: GROUP_ORDER.filter((g) => CATALOG.some((c) => c.group === g && shelfOf(c) === 'mastrox')),
   general: GROUP_ORDER.filter((g) => CATALOG.some((c) => c.group === g && shelfOf(c) === 'general')),
+  mine: [],
 };
 /** Short chip names; the full group label stays as the section heading. */
 const CHIP: Record<CatalogGroup, string> = {
@@ -37,13 +41,15 @@ const CHIP: Record<CatalogGroup, string> = {
   storage: 'จัดเก็บ',
   amenity: 'พนักงาน',
   decor: 'อื่น ๆ',
+  custom: 'คลังของฉัน',
 };
 const MASTROX_COUNT = CATALOG.filter((c) => shelfOf(c) === 'mastrox').length;
 
 const SHELF_KEY = 'catalog.shelf';
 const readShelf = (): Shelf => {
   try {
-    return localStorage.getItem(SHELF_KEY) === 'general' ? 'general' : 'mastrox';
+    const s = localStorage.getItem(SHELF_KEY);
+    return s === 'general' || s === 'mine' ? s : 'mastrox';
   } catch {
     return 'mastrox';
   }
@@ -54,10 +60,15 @@ export function CatalogPanel() {
   const [q, setQ] = useState('');
   const [shelf, setShelfState] = useState<Shelf>(readShelf);
   const [group, setGroup] = useState<CatalogGroup | 'all'>('all');
+  const [tag, setTag] = useState<string | null>(null);
+  const [form, setForm] = useState<{ model?: CustomModel } | null>(null);
+  const models = useLibrary((s) => s.models);
+  const tags = useMemo(() => allTags(models), [models]);
   const tool = useUi((s) => s.tool);
   const setShelf = (s: Shelf) => {
     setShelfState(s);
     setGroup('all');
+    setTag(null);
     try {
       localStorage.setItem(SHELF_KEY, s);
     } catch {
@@ -68,13 +79,17 @@ export function CatalogPanel() {
   const groups = useMemo(() => {
     const needle = q.trim().toLowerCase();
     // A search looks through both shelves (Mastrox first), so nothing hides behind the other tab.
-    const shown = CATALOG.filter((c) =>
+    const mine: CatalogItem[] = models.map((m) => ({ id: m.id, label: m.name, group: 'custom', size: m.size, summary: m.note, custom: m }));
+    const shown = [...CATALOG, ...mine].filter((c) =>
       needle
-        ? c.label.toLowerCase().includes(needle) || c.id.includes(needle) || (c.summary ?? '').toLowerCase().includes(needle)
-        : shelfOf(c) === shelf && (group === 'all' || c.group === group),
+        ? c.label.toLowerCase().includes(needle) ||
+          c.id.includes(needle) ||
+          (c.summary ?? '').toLowerCase().includes(needle) ||
+          (c.custom?.tags ?? []).some((t) => t.toLowerCase().includes(needle))
+        : shelfOf(c) === shelf && (group === 'all' || c.group === group) && (!c.custom || matchesTag(c.custom, tag)),
     );
     return GROUP_ORDER.map((g) => ({ g, items: shown.filter((c) => c.group === g) })).filter((x) => x.items.length);
-  }, [q, shelf, group]);
+  }, [q, shelf, group, tag, models]);
   return (
     <div className="dock-body" data-testid="catalog">
       <div className="shelf-tabs" role="tablist">
@@ -99,12 +114,36 @@ export function CatalogPanel() {
         >
           อุปกรณ์โรงงาน
         </button>
+        <button role="tab" aria-selected={shelf === 'mine'} className={`shelf-tab${shelf === 'mine' ? ' on' : ''}`} onClick={() => setShelf('mine')} data-testid="shelf-mine">
+          ของฉัน{models.length > 0 && <span className="shelf-count">{models.length}</span>}
+        </button>
       </div>
       <div className="search">
         <Icon name="search" />
-        <input placeholder={shelf === 'mastrox' ? 'ค้นหาเครื่องจักร Mastrox' : 'ค้นหาอุปกรณ์'} value={q} onChange={(e) => setQ(e.target.value)} />
+        <input
+          placeholder={shelf === 'mastrox' ? 'ค้นหาเครื่องจักร Mastrox' : shelf === 'mine' ? 'ค้นหาชื่อหรือ tag' : 'ค้นหาอุปกรณ์'}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
       </div>
-      {!searching && (
+      {!searching && shelf === 'mine' && (
+        <div className="cat-chips">
+          <button className="chip strong" onClick={() => setForm({})} data-testid="add-model">
+            + เพิ่มโมเดล
+          </button>
+          {tags.length > 0 && (
+            <button className={`chip${tag === null ? ' on' : ''}`} onClick={() => setTag(null)}>
+              ทั้งหมด
+            </button>
+          )}
+          {tags.map((t) => (
+            <button key={t} className={`chip${tag === t ? ' on' : ''}`} onClick={() => setTag(tag === t ? null : t)} data-testid={`tag-${t}`}>
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+      {!searching && shelf !== 'mine' && (
         <div className="cat-chips">
           {(['all', ...SHELF_GROUPS[shelf]] as const).map((g) => (
             <button key={g} className={`chip${group === g ? ' on' : ''}${shelf === 'mastrox' ? ' mx' : ''}`} onClick={() => setGroup(g)} data-testid={`chip-${g}`}>
@@ -114,7 +153,10 @@ export function CatalogPanel() {
         </div>
       )}
       <div className="dock-scroll">
-        {!groups.length && <div className="cat-none muted">ไม่พบ “{q.trim()}”</div>}
+        {!groups.length && shelf === 'mine' && !searching && (
+          <div className="cat-none muted">ยังไม่มีโมเดลของคุณ กด “เพิ่มโมเดล” แล้วตั้งชื่อ ขนาด สี และ tag หรืออัปโหลดไฟล์ 3D (GLB, glTF, OBJ, STL)</div>
+        )}
+        {!groups.length && (searching || shelf !== 'mine') && <div className="cat-none muted">ไม่พบ “{q.trim()}”</div>}
         {groups.map(({ g, items }) => (
           <section key={g} className="cat-group">
             <h4 className={SHELF_GROUPS.mastrox.includes(g) ? 'mx' : undefined}>{GROUP_LABEL[g]}</h4>
@@ -140,10 +182,31 @@ export function CatalogPanel() {
                     data-testid={`cat-${c.id}`}
                   >
                     <div className="cat-thumb">
-                      <Thumb id={c.id} />
+                      <Thumb id={c.id} key={c.custom ? `${c.id}:${c.custom.modelAssetId ?? ''}:${c.custom.color}:${c.custom.shape}:${c.size.w}x${c.size.d}x${c.size.h}` : c.id} />
                     </div>
                     <div className="cat-name">{c.label}</div>
                     <div className="cat-size">{fmtSize(c)}</div>
+                    {c.custom && c.custom.tags.length > 0 && (
+                      <div className="cat-tags">
+                        {c.custom.tags.map((t) => (
+                          <span key={t}>{t}</span>
+                        ))}
+                      </div>
+                    )}
+                    {c.custom && (
+                      <span
+                        role="button"
+                        className="cat-edit"
+                        title="แก้ไขหรือลบ"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setForm({ model: c.custom });
+                        }}
+                        data-testid={`edit-${c.id}`}
+                      >
+                        <Icon name="edit" />
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -152,6 +215,7 @@ export function CatalogPanel() {
         ))}
       </div>
       <div className="dock-foot muted">คลิกแล้ววางบนแปลน หรือลากไปวาง • ด้านที่มีขีดหนาคือด้านหน้า (จุดที่คนยืนทำงาน)</div>
+      {form && <ModelForm model={form.model} onClose={() => setForm(null)} />}
     </div>
   );
 }

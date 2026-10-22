@@ -5,6 +5,7 @@ import { ImportOverlay } from './projects/ImportOverlay';
 import { ProjectList } from './projects/ProjectList';
 import { useImport } from './store/importProgress';
 import { flushAutosave, keepStorage, loadProject, startAutosave } from './store/persist';
+import { useLibrary } from './store/library';
 import { useProject } from './store/project';
 import { SELECT, useUi } from './store/ui';
 
@@ -18,6 +19,7 @@ export function App() {
 
   useEffect(() => startAutosave(), []);
   useEffect(keepStorage, []);
+  useEffect(() => void useLibrary.getState().load(), []);
   useEffect(() => {
     const onHash = () => setRouteId(projectIdFromHash());
     window.addEventListener('hashchange', onHash);

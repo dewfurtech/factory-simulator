@@ -1,5 +1,6 @@
 import { CATEGORIES, MACHINES } from '../machines/data.js';
 import SIZES from '../machines/sizes.json';
+import type { CustomModel } from './library';
 import type { Mm, PlacedObject, Size3, Vec2 } from './types';
 import { add, fromAngle, perp, scale } from './vec';
 
@@ -22,7 +23,7 @@ export type UseKind =
   | 'tools'
   | 'display';
 
-export type CatalogGroup = 'nesting' | 'edge' | 'drill' | 'other' | 'office' | 'production' | 'storage' | 'amenity' | 'decor';
+export type CatalogGroup = 'nesting' | 'edge' | 'drill' | 'other' | 'office' | 'production' | 'storage' | 'amenity' | 'decor' | 'custom';
 
 export const GROUP_LABEL: Record<CatalogGroup, string> = {
   nesting: 'CNC Nesting (Rakete)',
@@ -34,6 +35,7 @@ export const GROUP_LABEL: Record<CatalogGroup, string> = {
   storage: 'คลัง / จัดเก็บ',
   amenity: 'พนักงาน / ส่วนกลาง',
   decor: 'อื่น ๆ',
+  custom: 'คลังของฉัน',
 };
 
 export interface CatalogItem {
@@ -53,6 +55,8 @@ export interface CatalogItem {
   unattended?: boolean;
   /** Above head height (an upper floor, its railings): drawn as a dashed outline on the plan and walked under. */
   overhead?: boolean;
+  /** One of the user's own models, with its colour, tags and 3D file. */
+  custom?: CustomModel;
 }
 
 const sizes = SIZES as unknown as Record<string, { size: [Mm, Mm, Mm]; center: [Mm, Mm] }>;
@@ -105,11 +109,19 @@ const builtins: CatalogItem[] = [
 export const CATALOG: CatalogItem[] = [...machineItems, ...builtins];
 const BY_ID = new Map(CATALOG.map((c) => [c.id, c]));
 
-export const catalogItem = (id: string): CatalogItem | undefined => BY_ID.get(id);
+/** The user's own models as catalog items, set by the library store whenever the library changes. */
+const CUSTOM = new Map<string, CatalogItem>();
+export function setCustomItems(models: readonly CustomModel[]): void {
+  CUSTOM.clear();
+  for (const m of models) CUSTOM.set(m.id, { id: m.id, label: m.name, group: 'custom', size: { ...m.size }, summary: m.note, custom: m });
+}
+export const customItems = (): CatalogItem[] => [...CUSTOM.values()];
+
+export const catalogItem = (id: string): CatalogItem | undefined => BY_ID.get(id) ?? CUSTOM.get(id);
 export const isMachine = (o: Pick<PlacedObject, 'assetId'>) => BY_ID.get(o.assetId)?.use === 'machine';
 /** A machine someone has to run. */
 export const needsOperator = (o: Pick<PlacedObject, 'assetId'>) => isMachine(o) && !BY_ID.get(o.assetId)?.unattended;
-export const useOf = (o: Pick<PlacedObject, 'assetId'>): UseKind | undefined => BY_ID.get(o.assetId)?.use;
+export const useOf = (o: Pick<PlacedObject, 'assetId'>): UseKind | undefined => catalogItem(o.assetId)?.use;
 
 /** A Mastrox machine's brochure data (price, specs, weight), from machines/data.js. */
 export interface MachineInfo {
@@ -163,7 +175,7 @@ export const machineInfo = (assetId: string): MachineInfo | undefined => INFO.ge
 
 export const MACHINE_CATEGORIES = CATEGORIES as { id: string; name: string; series: string }[];
 
-export const GROUP_ORDER: CatalogGroup[] = ['nesting', 'edge', 'drill', 'other', 'office', 'production', 'storage', 'amenity', 'decor'];
+export const GROUP_ORDER: CatalogGroup[] = ['nesting', 'edge', 'drill', 'other', 'office', 'production', 'storage', 'amenity', 'decor', 'custom'];
 
 /** A point in the object's own frame (x along its width, y toward its front) in plan coordinates. */
 export function localToPlan(o: Pick<PlacedObject, 'x' | 'y' | 'rotation'>, lx: Mm, ly: Mm): Vec2 {

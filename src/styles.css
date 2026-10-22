@@ -643,6 +643,114 @@ input[type='color'] {
   height: 100%;
   object-fit: contain;
 }
+.cat-item {
+  position: relative;
+}
+.cat-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 2px;
+}
+.cat-tags span {
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: #9a3412;
+}
+.cat-edit {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink-2);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.cat-edit svg {
+  width: 14px;
+  height: 14px;
+}
+.cat-item:hover .cat-edit,
+.cat-edit:focus {
+  opacity: 1;
+}
+.cat-edit:hover {
+  background: #fff;
+  color: var(--accent);
+}
+.model-form {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+.mf-field {
+  display: grid;
+  gap: 4px;
+}
+.mf-field > span {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.mf-field input:not([type='color']),
+.mf-field select {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--card);
+}
+.mf-field input[type='color'] {
+  width: 48px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--card);
+}
+.mf-field input:focus,
+.mf-field select:focus {
+  outline: 2px solid var(--select);
+  outline-offset: -1px;
+}
+.mf-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.mf-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mf-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.mf-filename {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+.mf-field small {
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.mf-spacer {
+  flex: 1;
+}
 .thumb-wait {
   width: 22px;
   height: 22px;

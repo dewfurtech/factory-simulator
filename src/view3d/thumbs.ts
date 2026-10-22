@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { catalogItem } from '../model/catalog';
 import { builtinGeometry } from './furniture3d';
 import { FLAT } from './lowpoly';
+import { customInstance, customPlaceholder, customTemplate } from './customModel';
 import { hasModel, machineObject } from './machines3d';
 
 /**
@@ -30,10 +31,16 @@ function setup() {
   camera = new THREE.PerspectiveCamera(30, 160 / 112, 0.05, 200);
 }
 
-function render(id: string): string {
+async function render(id: string): Promise<string> {
   if (!renderer) setup();
   const item = catalogItem(id);
-  const obj = hasModel(id) ? machineObject(id)! : new THREE.Mesh(builtinGeometry(id, item?.size ?? { w: 1000, d: 1000, h: 1000 }), FLAT);
+  const dims = item?.size ?? { w: 1000, d: 1000, h: 1000 };
+  let obj: THREE.Object3D;
+  if (hasModel(id)) obj = machineObject(id)!;
+  else if (item?.custom) {
+    const t = await customTemplate(item.custom);
+    obj = t ? customInstance(t, dims) : customPlaceholder(item.custom, dims);
+  } else obj = new THREE.Mesh(builtinGeometry(id, dims), FLAT);
   scene.add(obj);
   const box = new THREE.Box3().setFromObject(obj);
   const size = box.getSize(new THREE.Vector3());
@@ -53,10 +60,10 @@ function pump() {
   const id = queue.shift();
   if (!id) return;
   busy = true;
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
     let url = '';
     try {
-      url = render(id);
+      url = await render(id);
     } catch {
       url = '';
     }
@@ -66,6 +73,11 @@ function pump() {
     busy = false;
     pump();
   });
+}
+
+/** A model's picture is taken again after it is edited (new colour, size or file). */
+export function forgetThumbnail(id: string): void {
+  urls.delete(id);
 }
 
 export function thumbnail(id: string, cb: (url: string) => void): void {

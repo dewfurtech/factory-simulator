@@ -3,6 +3,8 @@ import { newId } from '../model/id';
 import { migrate, projectFacts, type ProjectFacts } from '../model/project';
 import type { Id, Project } from '../model/types';
 import { underlayImageIds, vectorAssetId } from '../model/underlay';
+import type { CustomModel } from '../model/library';
+import { useLibrary } from './library';
 import { useProject } from './project';
 
 export interface ProjectSummary extends Partial<ProjectFacts> {
@@ -66,6 +68,8 @@ interface Bundle {
   version: 1;
   project: Project;
   assets: Record<string, { type: string; base64: string }>;
+  /** The user's own models the project places, so another browser can show them. */
+  library?: CustomModel[];
 }
 
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -90,7 +94,12 @@ export async function exportProject(id: Id): Promise<Blob> {
     const blob = await loadAsset(blobId);
     if (blob) assets[blobId] = { type: blob.type, base64: await blobToBase64(blob) };
   }
-  const bundle: Bundle = { format: 'factory-sim', version: 1, project, assets };
+  const used = useLibrary.getState().models.filter((m) => project.objects.some((o) => o.assetId === m.id));
+  for (const m of used) {
+    const blob = m.modelAssetId && (await loadAsset(m.modelAssetId));
+    if (blob && m.modelAssetId) assets[m.modelAssetId] = { type: blob.type, base64: await blobToBase64(blob) };
+  }
+  const bundle: Bundle = { format: 'factory-sim', version: 1, project, assets, ...(used.length && { library: used }) };
   return new Blob([JSON.stringify(bundle)], { type: 'application/json' });
 }
 
@@ -113,6 +122,7 @@ async function importBundle(raw: Partial<Bundle> & Partial<Project>): Promise<Pr
   if (!src?.plan) throw new Error('ไฟล์ไม่ใช่โปรเจกต์โรงงาน');
   const project: Project = migrate({ ...src, id: newId('p'), updatedAt: Date.now() });
   for (const [id, a] of Object.entries(raw.assets ?? {})) await saveAsset(id as Id, base64ToBlob(a.base64, a.type));
+  if (raw.library?.length) await useLibrary.getState().merge(raw.library);
   await saveProject(project);
   return project;
 }

@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Id, PlacedObject, Project } from '../model/types';
+import { catalogItem } from '../model/catalog';
 import { roomPolygon } from '../model/plan';
 import { bounds, pointInPolygon } from '../model/vec';
 import { buildAreas, buildBuilding, buildIsland, buildZoneLabels } from './building3d';
 import { builtinGeometry } from './furniture3d';
 import { disposeTree, FLAT, LABEL_LAYER } from './lowpoly';
+import { customInstance, customPlaceholder, customTemplate } from './customModel';
 import { hasModel, machineFootprint, machineObject } from './machines3d';
 import { applyLook, environment, RealPipeline } from './realistic';
 
@@ -276,6 +278,21 @@ export class FactoryScene {
     this.updateSelectionBox();
   }
 
+  /** Rebuilds every placed copy of the given catalog items: a model in the library was edited or removed. */
+  refreshAssets(assetIds: ReadonlySet<string>) {
+    if (!this.project) return;
+    for (const [id, node] of this.objectMeshes) {
+      const o = this.objectKeys.get(id);
+      if (!o || !assetIds.has(o.assetId)) continue;
+      this.objects.remove(node);
+      disposeTree(node);
+      this.objectMeshes.delete(id);
+      this.objectKeys.delete(id);
+    }
+    this.syncObjects(this.project.objects);
+    this.dirty = true;
+  }
+
   /** Hidden objects never show; with the walls cut down, neither does anything up on a second floor. */
   private shows(o: PlacedObject): boolean {
     return !o.hidden && !(this.opts.cutaway && o.z >= 2500);
@@ -284,11 +301,25 @@ export class FactoryScene {
   private makeObject(o: PlacedObject): THREE.Object3D {
     const holder = new THREE.Group();
     holder.userData.objectId = o.id;
+    const custom = catalogItem(o.assetId)?.custom;
     if (hasModel(o.assetId)) {
       const m = machineObject(o.assetId, o.options)!;
       const base = machineFootprint(o.assetId, o.options)!.size;
       m.scale.set(o.size.w / base.w, o.size.h / base.h, o.size.d / base.d);
       holder.add(m);
+    } else if (custom) {
+      holder.add(customPlaceholder(custom, o.size));
+      if (custom.modelAssetId)
+        void customTemplate(custom).then((t) => {
+          // The thing may have been replaced or removed while its file loaded.
+          if (!t || this.objectMeshes.get(o.id) !== holder) return;
+          holder.clear();
+          const inst = customInstance(t, o.size);
+          inst.traverse((x) => (x.userData.objectId = o.id));
+          if (this.opts.realistic) applyLook(inst, true);
+          holder.add(inst);
+          this.dirty = true;
+        });
     } else {
       const mesh = new THREE.Mesh(builtinGeometry(o.assetId, o.size), FLAT);
       mesh.castShadow = mesh.receiveShadow = true;

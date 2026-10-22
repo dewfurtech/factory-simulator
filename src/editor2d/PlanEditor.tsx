@@ -568,12 +568,26 @@ const ObjectShape = memo(function ObjectShape({ o, px, sel, above, bad }: { o: P
         </text>
       </g>
     );
-  const fill = machine ? GROUP_FILL.machine : open ? '#fde68a' : (GROUP_FILL[item?.group ?? 'decor'] ?? '#fff');
+  const custom = item?.custom;
+  const fill = custom ? custom.color : machine ? GROUP_FILL.machine : open ? '#fde68a' : (GROUP_FILL[item?.group ?? 'decor'] ?? '#fff');
+  const round = custom?.shape === 'cylinder';
   return (
     <g opacity={o.hidden ? 0.15 : undefined}>
+      {round && (
+        <ellipse
+          cx={o.x}
+          cy={o.y}
+          rx={o.size.w / 2}
+          ry={o.size.d / 2}
+          transform={`rotate(${(o.rotation * 180) / Math.PI} ${o.x} ${o.y})`}
+          fill={bad ? '#fee2e2' : fill}
+          fillOpacity={0.55}
+          stroke="none"
+        />
+      )}
       <polygon
         points={pts(poly)}
-        fill={bad ? '#fee2e2' : fill}
+        fill={round ? 'none' : bad ? '#fee2e2' : fill}
         fillOpacity={open ? 0.6 : 0.95}
         stroke={sel ? 'var(--select)' : bad ? 'var(--danger)' : machine ? '#c2410c' : '#52525b'}
         strokeWidth={(sel || bad ? 2.5 : machine ? 1.6 : 1) * px}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLibrary } from '../store/library';
 import { useProject } from '../store/project';
 import { DRAWING_TOOLS, rememberRealistic, useUi } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
@@ -41,6 +42,18 @@ export default function View3D() {
   }, []);
 
   useEffect(() => sceneRef.current?.setProject(project), [project]);
+  // Placed copies of the user's own models follow edits to the library (colour, size, file) and removals.
+  const models = useLibrary((s) => s.models);
+  const prevModels = useRef(models);
+  useEffect(() => {
+    const before = prevModels.current;
+    prevModels.current = models;
+    if (before === models) return;
+    const changed = new Set<string>();
+    for (const m of models) if (!before.includes(m)) changed.add(m.id);
+    for (const m of before) if (!models.includes(m)) changed.add(m.id);
+    if (changed.size) sceneRef.current?.refreshAssets(changed);
+  }, [models]);
   useEffect(() => sceneRef.current?.select(selection?.kind === 'object' ? selection.id : null), [selection]);
   useEffect(() => sceneRef.current?.setOptions({ cutaway, shadows, realistic, island, areas }), [cutaway, shadows, realistic, island, areas]);
 
