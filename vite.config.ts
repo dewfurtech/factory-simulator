@@ -17,29 +17,61 @@ function shareDevApi(): Plugin {
     res.setHeader('content-type', 'application/json; charset=utf-8');
     res.end(JSON.stringify(body));
   };
+  const read = (req: IncomingMessage, done: (data: Buffer) => void) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (c: Buffer) => chunks.push(c));
+    req.on('end', () => done(Buffer.concat(chunks)));
+  };
+  const newId = () => randomUUID().replace(/-/g, '').slice(0, 12);
+  const partFile = (id: string) => resolve(dir, 'part', id);
   const handle = (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    // One gzip piece of a shared plan.
+    const part = req.url?.match(/^\/api\/share-part(?:\/([A-Za-z0-9_-]+))?(?:\?.*)?$/);
+    if (part) {
+      const id = part[1];
+      if (req.method === 'POST' && !id) {
+        return read(req, (data) => {
+          if (data.length > 5_000_000) return send(res, 413, { error: 'ชิ้นข้อมูลใหญ่เกินไป' });
+          const pid = newId();
+          mkdirSync(resolve(dir, 'part'), { recursive: true });
+          writeFileSync(partFile(pid), data);
+          send(res, 200, { id: pid });
+        });
+      }
+      if (req.method === 'GET' && id) {
+        if (!existsSync(partFile(id))) return send(res, 404, { error: 'ไม่พบข้อมูลของลิงก์นี้' });
+        res.statusCode = 200;
+        res.setHeader('content-type', 'application/octet-stream');
+        return res.end(readFileSync(partFile(id)));
+      }
+      return send(res, 405, { error: 'method not allowed' });
+    }
     const m = req.url?.match(/^\/api\/share(?:\/([A-Za-z0-9_-]+))?(?:\?.*)?$/);
     if (!m) return next();
     const id = m[1];
     if (req.method === 'POST' && !id) {
-      const chunks: Buffer[] = [];
-      req.on('data', (c: Buffer) => chunks.push(c));
-      req.on('end', () => {
-        const text = Buffer.concat(chunks).toString('utf8');
-        if (text.length > 6_000_000) return send(res, 413, { error: 'แปลนใหญ่เกินกว่าจะส่งเป็นลิงก์' });
-        let body: { bundle?: { project?: { plan?: unknown } }; meta?: unknown };
+      return read(req, (data) => {
+        const text = data.toString('utf8');
+        if (text.length > 5_000_000) return send(res, 413, { error: 'แปลนใหญ่เกินกว่าจะส่งเป็นลิงก์' });
+        let body: { bundle?: { project?: { plan?: unknown } }; parts?: unknown; meta?: unknown };
         try {
           body = JSON.parse(text);
         } catch {
           return send(res, 400, { error: 'ข้อมูลไม่ใช่ JSON' });
         }
-        if (!body?.bundle?.project?.plan) return send(res, 400, { error: 'ข้อมูลไม่ใช่แปลนโรงงาน' });
-        const newId = randomUUID().replace(/-/g, '').slice(0, 12);
+        const sid = newId();
         mkdirSync(dir, { recursive: true });
-        writeFileSync(resolve(dir, `${newId}.json`), JSON.stringify({ bundle: body.bundle, meta: body.meta ?? {}, createdAt: Date.now() }));
-        send(res, 200, { id: newId });
+        if (Array.isArray(body?.parts)) {
+          const parts = body.parts as unknown[];
+          const ok = parts.length > 0 && parts.every((p) => typeof p === 'string' && /^[A-Za-z0-9_-]+$/.test(p) && existsSync(partFile(p)));
+          if (!ok) return send(res, 400, { error: 'ข้อมูลบางส่วนหายไป ลองใหม่อีกครั้ง' });
+          writeFileSync(resolve(dir, `${sid}.json`), JSON.stringify({ parts, meta: body.meta ?? {}, createdAt: Date.now() }));
+          return send(res, 200, { id: sid });
+        }
+        if (!body?.bundle?.project?.plan) return send(res, 400, { error: 'ข้อมูลไม่ใช่แปลนโรงงาน' });
+        writeFileSync(resolve(dir, `${sid}.json`), JSON.stringify({ bundle: body.bundle, meta: body.meta ?? {}, createdAt: Date.now() }));
+        send(res, 200, { id: sid });
       });
-      return;
     }
     if (req.method === 'GET' && id) {
       const file = resolve(dir, `${id}.json`);
