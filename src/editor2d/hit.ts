@@ -32,6 +32,14 @@ const off = (x: { hidden?: boolean; locked?: boolean } | undefined) => !x || x.h
 /** Topmost selectable thing under p, in the order the plan draws them; hidden and locked things are skipped. */
 export function hitTest(project: Project, p: Vec2, radius: Mm): Selection | null {
   const { plan } = project;
+  const level = viewLevel(project);
+  const objects = [...project.objects].filter((o) => onLevel(o, level)).reverse();
+  const hitObject = (outdoor: boolean): Selection | null => {
+    const o = objects.find((o) => isOutdoor(plan, o) === outdoor && !off(o) && pointInPolygon(p, obbCorners(objectObb(o))));
+    return o ? { kind: 'object', id: o.id } : null;
+  };
+  // A customer moves the machines and equipment only; the building stays as the seller drew it.
+  if (useUi.getState().customer) return hitObject(false) ?? hitObject(true);
   for (const c of Object.values(plan.corners)) if (dist(c, p) <= radius) return { kind: 'corner', id: c.id };
   for (const c of Object.values(project.columns)) if (!off(c) && inColumn(c, p, radius)) return { kind: 'column', id: c.id };
   for (const o of Object.values(plan.openings)) {
@@ -42,12 +50,6 @@ export function hitTest(project: Project, p: Vec2, radius: Mm): Selection | null
     const r = projectOnSegment(p, add(a, scale(d, o.offset - o.width / 2)), add(a, scale(d, o.offset + o.width / 2)));
     if (r.distance <= wall.thickness / 2 + radius / 2) return { kind: 'opening', id: o.id };
   }
-  const level = viewLevel(project);
-  const objects = [...project.objects].filter((o) => onLevel(o, level)).reverse();
-  const hitObject = (outdoor: boolean): Selection | null => {
-    const o = objects.find((o) => isOutdoor(plan, o) === outdoor && !off(o) && pointInPolygon(p, obbCorners(objectObb(o))));
-    return o ? { kind: 'object', id: o.id } : null;
-  };
   const indoor = hitObject(false);
   if (indoor) return indoor;
   for (const w of Object.values(plan.walls)) if (!off(w) && pointInPolygon(p, wallFootprint(plan, w.id))) return { kind: 'wall', id: w.id };
@@ -105,6 +107,9 @@ export function boxSelect(project: Project, from: Vec2, to: Vec2): Selection[] {
   const crossing = isCrossing(from, to);
   const caught = (shape: Vec2[], closed = true) => (crossing ? touchesBox(shape, lo, hi, closed) : shape.every((p) => inBox(p, lo, hi)));
   const out: Selection[] = [];
+  const customer = !!useUi.getState().customer;
+  for (const o of project.objects) if (!off(o) && onLevel(o, viewLevel(project)) && caught(obbCorners(objectObb(o)))) out.push({ kind: 'object', id: o.id });
+  if (customer) return out;
   for (const w of Object.values(plan.walls)) if (!off(w) && caught(wallFootprint(plan, w.id))) out.push({ kind: 'wall', id: w.id });
   const wallsIn = new Set(out.map((s) => s.id));
   for (const o of Object.values(plan.openings)) {
@@ -115,7 +120,6 @@ export function boxSelect(project: Project, from: Vec2, to: Vec2): Selection[] {
     if (caught([add(a, scale(d, o.offset - o.width / 2)), add(a, scale(d, o.offset + o.width / 2))], false)) out.push({ kind: 'opening', id: o.id });
   }
   for (const c of Object.values(project.columns)) if (!off(c) && caught(columnOutline(c))) out.push({ kind: 'column', id: c.id });
-  for (const o of project.objects) if (!off(o) && onLevel(o, viewLevel(project)) && caught(obbCorners(objectObb(o)))) out.push({ kind: 'object', id: o.id });
   if (!useUi.getState().areasHidden) for (const a of planAreas(plan)) if (!off(a) && caught(a.points)) out.push({ kind: 'area', id: a.id });
   return out;
 }

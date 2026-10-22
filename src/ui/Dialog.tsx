@@ -8,7 +8,8 @@ import { create } from 'zustand';
 
 type Open =
   | { kind: 'confirm'; title: string; message?: string; ok: string; danger?: boolean; resolve: (yes: boolean) => void }
-  | { kind: 'prompt'; title: string; label?: string; value: string; ok: string; resolve: (text: string | null) => void };
+  | { kind: 'prompt'; title: string; label?: string; value: string; ok: string; resolve: (text: string | null) => void }
+  | { kind: 'share'; title: string; message: string; ok: string; make: (note: string) => Promise<string>; resolve: () => void };
 
 interface DialogState {
   open: Open | null;
@@ -17,6 +18,16 @@ interface DialogState {
 const useDialog = create<DialogState>(() => ({ open: null }));
 
 const close = () => useDialog.setState({ open: null });
+
+/** Drops whatever dialog is open without an answer, e.g. when the page moves to another project. */
+export function closeDialog(): void {
+  const { open } = useDialog.getState();
+  if (!open) return;
+  close();
+  if (open.kind === 'confirm') open.resolve(false);
+  else if (open.kind === 'prompt') open.resolve(null);
+  else open.resolve();
+}
 
 /** Yes or no. Resolves false when dismissed. */
 export function confirmDialog(opts: { title: string; message?: string; ok?: string; danger?: boolean }): Promise<boolean> {
@@ -32,9 +43,20 @@ export function promptDialog(opts: { title: string; label?: string; value?: stri
   });
 }
 
+/**
+ * Makes a share link: an optional note, then `make` is called with it and the link it answers is shown to copy.
+ * Resolves when the dialog closes.
+ */
+export function shareDialog(opts: { title: string; message: string; ok: string; make: (note: string) => Promise<string> }): Promise<void> {
+  return new Promise((resolve) => {
+    useDialog.setState({ open: { kind: 'share', ...opts, resolve } });
+  });
+}
+
 export function DialogHost() {
   const open = useDialog((s) => s.open);
   if (!open) return null;
+  if (open.kind === 'share') return <Share d={open} />;
   return open.kind === 'confirm' ? <Confirm d={open} /> : <Prompt d={open} />;
 }
 
@@ -77,6 +99,88 @@ function Confirm({ d }: { d: Extract<Open, { kind: 'confirm' }> }) {
           {d.ok}
         </button>
       </div>
+    </Backdrop>
+  );
+}
+
+type ShareStep = { at: 'ask' } | { at: 'busy' } | { at: 'done'; url: string } | { at: 'failed'; error: string };
+
+function Share({ d }: { d: Extract<Open, { kind: 'share' }> }) {
+  const [note, setNote] = useState('');
+  const [step, setStep] = useState<ShareStep>({ at: 'ask' });
+  const [copied, setCopied] = useState(false);
+  const urlRef = useRef<HTMLInputElement>(null);
+  const done = () => {
+    close();
+    d.resolve();
+  };
+  const make = async () => {
+    setStep({ at: 'busy' });
+    try {
+      setStep({ at: 'done', url: await d.make(note.trim()) });
+    } catch (e) {
+      setStep({ at: 'failed', error: e instanceof Error ? e.message : String(e) });
+    }
+  };
+  const copy = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // No clipboard access (an http page, or denied): leave the link selected for Ctrl+C.
+      urlRef.current?.select();
+      return;
+    }
+    setCopied(true);
+  };
+  useEffect(() => {
+    if (step.at === 'done') urlRef.current?.select();
+  }, [step.at]);
+  return (
+    <Backdrop onDismiss={done}>
+      <h2>{d.title}</h2>
+      {step.at === 'done' ? (
+        <>
+          <p>ส่งลิงก์นี้ทาง LINE หรืออีเมล ผู้รับเปิดในเบราว์เซอร์ได้เลย ไม่ต้องติดตั้งอะไร</p>
+          <input ref={urlRef} readOnly value={step.url} onFocus={(e) => e.target.select()} data-testid="share-url" />
+          <div className="dialog-actions">
+            {typeof navigator.share === 'function' && (
+              <button type="button" className="btn" onClick={() => void navigator.share({ title: d.title, url: step.url }).catch(() => undefined)}>
+                แชร์…
+              </button>
+            )}
+            <button type="button" className="btn" onClick={done}>
+              ปิด
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => void copy(step.url)} data-testid="share-copy">
+              {copied ? 'คัดลอกแล้ว ✓' : 'คัดลอกลิงก์'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (step.at !== 'busy') void make();
+          }}
+        >
+          <p>{d.message}</p>
+          <label htmlFor="dialog-note">ข้อความถึงผู้รับ (ไม่บังคับ)</label>
+          <textarea id="dialog-note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} disabled={step.at === 'busy'} data-testid="share-note" />
+          {step.at === 'failed' && (
+            <p className="dialog-error" role="alert">
+              {step.error}
+            </p>
+          )}
+          <div className="dialog-actions">
+            <button type="button" className="btn" onClick={done}>
+              ยกเลิก
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={step.at === 'busy'} data-testid="share-make">
+              {step.at === 'busy' ? 'กำลังสร้างลิงก์…' : step.at === 'failed' ? 'ลองอีกครั้ง' : d.ok}
+            </button>
+          </div>
+        </form>
+      )}
     </Backdrop>
   );
 }

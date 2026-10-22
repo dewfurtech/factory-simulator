@@ -17,6 +17,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@netlify/blobs": "^8.2.0",
     "idb-keyval": "6.2.1",
     "immer": "10.1.1",
     "pdfjs-dist": "4.10.38",

@@ -7,63 +7,89 @@ import { useImport } from './store/importProgress';
 import { flushAutosave, keepStorage, loadProject, startAutosave } from './store/persist';
 import { useLibrary } from './store/library';
 import { useProject } from './store/project';
+import { openShare, shareIdFromHash } from './store/share';
 import { SELECT, useUi } from './store/ui';
+import { closeDialog } from './ui/Dialog';
 
-const projectIdFromHash = () => (location.hash.match(/^#\/p\/(.+)$/)?.[1] ?? null) as Id | null;
+/** `#/p/<id>` opens a project of this browser's; `#/s/<id>` a plan shared by link, in the customer view. */
+type Route = { kind: 'project'; id: Id } | { kind: 'share'; id: string } | null;
+
+function routeFromHash(): Route {
+  const project = location.hash.match(/^#\/p\/(.+)$/)?.[1] as Id | undefined;
+  if (project) return { kind: 'project', id: project };
+  const share = shareIdFromHash();
+  return share ? { kind: 'share', id: share } : null;
+}
+
+const routeKey = (r: Route) => (r ? `${r.kind}:${r.id}` : '');
 
 export function App() {
-  const [routeId, setRouteId] = useState(projectIdFromHash);
+  const [route, setRoute] = useState(routeFromHash);
   const project = useProject((s) => s.project);
-  const [missing, setMissing] = useState(false);
-  const [openId, setOpenId] = useState<Id | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [openKey, setOpenKey] = useState('');
 
   useEffect(() => startAutosave(), []);
   useEffect(keepStorage, []);
   useEffect(() => void useLibrary.getState().load(), []);
   useEffect(() => {
-    const onHash = () => setRouteId(projectIdFromHash());
+    const onHash = () => setRoute(routeFromHash());
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
   useEffect(() => {
-    setMissing(false);
-    setOpenId(null);
-    if (!routeId) {
+    setProblem(null);
+    setOpenKey('');
+    closeDialog();
+    useUi.setState({ customer: null });
+    if (!route) {
       flushAutosave();
       return;
     }
     let live = true;
-    void loadProject(routeId).then((p) => {
-      if (!live) return;
-      if (!p) return setMissing(true);
-      useUi.setState({ tool: SELECT, selection: null, boxed: [], dock: null, panelOpen: false, cursor: null, peek: false });
-      // A project started from a plan is built by the plan editor's underlay menu, which the 3D-only view leaves out.
-      if (useImport.getState().job && useUi.getState().view === '3d') useUi.setState({ view: 'split' });
-      useProject.getState().open(p);
-      setOpenId(routeId);
-    });
+    const opened = route.kind === 'project' ? loadProject(route.id).then((p) => p && { project: p, copy: null }) : openShare(route.id);
+    opened
+      .then((r) => {
+        if (!live) return;
+        if (!r) return setProblem('ไม่พบโปรเจกต์');
+        useUi.setState({
+          tool: SELECT,
+          selection: null,
+          boxed: [],
+          dock: null,
+          panelOpen: false,
+          cursor: null,
+          peek: false,
+          customer: route.kind === 'share' && r.copy ? { shareId: route.id, from: r.copy.meta.from, note: r.copy.meta.note } : null,
+        });
+        // A project started from a plan is built by the plan editor's underlay menu, which the 3D-only view leaves out.
+        if (useImport.getState().job && useUi.getState().view === '3d') useUi.setState({ view: 'split' });
+        useProject.getState().open(r.project);
+        setOpenKey(routeKey(route));
+      })
+      .catch((e: unknown) => live && setProblem(e instanceof Error ? e.message : String(e)));
     return () => {
       live = false;
     };
-  }, [routeId]);
+  }, [routeKey(route)]);
 
   return (
     <>
-      <Screen routeId={routeId} missing={missing} ready={openId === routeId && project?.id === routeId} />
+      <Screen route={route} problem={problem} ready={openKey === routeKey(route) && !!project} />
       <ImportOverlay />
     </>
   );
 }
 
-function Screen({ routeId, missing, ready }: { routeId: Id | null; missing: boolean; ready: boolean }) {
-  if (!routeId) return <ProjectList />;
-  if (missing)
+function Screen({ route, problem, ready }: { route: Route; problem: string | null; ready: boolean }) {
+  if (!route) return <ProjectList />;
+  if (problem)
     return (
-      <div className="empty">
-        ไม่พบโปรเจกต์ <a href="#/">กลับไปหน้ารายการ</a>
+      <div className="empty" data-testid="route-problem">
+        {problem} <a href="#/">ไปหน้ารายการโรงงาน</a>
       </div>
     );
-  if (!ready) return <div className="empty">กำลังโหลด…</div>;
+  if (!ready) return <div className="empty">{route.kind === 'share' ? 'กำลังโหลดแปลนจากลิงก์…' : 'กำลังโหลด…'}</div>;
   return <Editor />;
 }

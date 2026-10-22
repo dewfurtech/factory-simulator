@@ -63,7 +63,7 @@ export async function duplicateProject(id: Id): Promise<Project | undefined> {
 export const saveAsset = (id: Id, blob: Blob) => set(assetKey(id), blob);
 export const loadAsset = (id: Id) => get<Blob>(assetKey(id));
 
-interface Bundle {
+export interface Bundle {
   format: 'factory-sim';
   version: 1;
   project: Project;
@@ -89,6 +89,11 @@ function base64ToBlob(b64: string, type: string): Blob {
 export async function exportProject(id: Id): Promise<Blob> {
   const project = await loadProject(id);
   if (!project) throw new Error('ไม่พบโปรเจกต์');
+  return new Blob([JSON.stringify(await bundleProject(project))], { type: 'application/json' });
+}
+
+/** The project with its plan images and the user's own models it places: everything another browser needs to show it. */
+export async function bundleProject(project: Project): Promise<Bundle> {
   const assets: Bundle['assets'] = {};
   for (const blobId of underlayImageIds(project)) {
     const blob = await loadAsset(blobId);
@@ -99,8 +104,7 @@ export async function exportProject(id: Id): Promise<Blob> {
     const blob = m.modelAssetId && (await loadAsset(m.modelAssetId));
     if (blob && m.modelAssetId) assets[m.modelAssetId] = { type: blob.type, base64: await blobToBase64(blob) };
   }
-  const bundle: Bundle = { format: 'factory-sim', version: 1, project, assets, ...(used.length && { library: used }) };
-  return new Blob([JSON.stringify(bundle)], { type: 'application/json' });
+  return { format: 'factory-sim', version: 1, project, assets, ...(used.length && { library: used }) };
 }
 
 interface Backup {
@@ -117,7 +121,8 @@ export async function exportAll(): Promise<Blob> {
   return new Blob([JSON.stringify(backup)], { type: 'application/json' });
 }
 
-async function importBundle(raw: Partial<Bundle> & Partial<Project>): Promise<Project> {
+/** Saves the bundle's project as a new project here, with its images and models. */
+export async function importBundle(raw: Partial<Bundle> & Partial<Project>): Promise<Project> {
   const src = raw.format === 'factory-sim' ? raw.project : raw.plan ? (raw as Project) : undefined;
   if (!src?.plan) throw new Error('ไฟล์ไม่ใช่โปรเจกต์โรงงาน');
   const project: Project = migrate({ ...src, id: newId('p'), updatedAt: Date.now() });

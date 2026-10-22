@@ -6,9 +6,11 @@ import { CatalogPanel } from './panels/CatalogPanel';
 import { LayersPanel } from './panels/LayersPanel';
 import { PropertiesPanel } from './panels/PropertiesPanel';
 import { download, planPicture, shownScale, svgBlob, toPng } from './editor2d/exportImage';
-import { exportProject } from './store/persist';
+import { exportProject, flushAutosave } from './store/persist';
 import { useProject } from './store/project';
+import { createShare, shareUrl } from './store/share';
 import { SELECT, useUi, type ViewMode } from './store/ui';
+import { shareDialog } from './ui/Dialog';
 
 const View3D = lazy(() => import('./view3d/View3D'));
 
@@ -91,6 +93,50 @@ async function savePlanPicture(name: string, format: 'png' | 'svg') {
   if (blob) download(blob, `${name}.${format}`);
 }
 
+/**
+ * Makes a link to the open project as it stands. From the full editor it goes out to a customer; from a share link
+ * it is the customer's arrangement going back to the seller.
+ */
+function shareProject() {
+  const { customer } = useUi.getState();
+  flushAutosave();
+  const make = async (note: string) => {
+    const project = useProject.getState().project!;
+    const id = await createShare(project, customer ? { from: 'customer', note, parent: customer.shareId } : { from: 'vendor', note });
+    return shareUrl(id);
+  };
+  return customer
+    ? shareDialog({
+        title: 'ส่งการจัดวางกลับ',
+        message: 'สร้างลิงก์ของแปลนตามที่คุณย้ายเครื่องไว้ แล้วส่งลิงก์นั้นกลับให้ผู้ขาย',
+        ok: 'สร้างลิงก์',
+        make,
+      })
+    : shareDialog({
+        title: 'แชร์ลิงก์ให้ลูกค้า',
+        message: 'ลูกค้าเปิดลิงก์แล้วเห็นแปลนนี้ ย้ายเครื่องเองได้ และส่งการจัดวางกลับมาเป็นลิงก์ใหม่ แปลนในลิงก์เป็นสำเนา ณ ตอนนี้ แก้ต่อที่นี่ไม่กระทบลิงก์',
+        ok: 'สร้างลิงก์',
+        make,
+      });
+}
+
+/** The strip over the plan when it came from a share link: whose it is, their note, and the way to send it back. */
+function ShareBanner() {
+  const customer = useUi((s) => s.customer);
+  if (!customer) return null;
+  const reply = customer.from === 'customer';
+  return (
+    <div className="share-banner glass" data-testid="share-banner">
+      <Icon name={reply ? 'reply' : 'share'} />
+      <div className="share-text">
+        <strong>{reply ? 'การจัดวางที่ลูกค้าส่งกลับมา' : 'แปลนที่ผู้ขายส่งมาให้ดู'}</strong>
+        <span>{reply ? 'เปิดในโหมดแก้ไขเต็มได้จากเมนูมุมซ้ายบน' : 'ลากเครื่องเพื่อย้าย กด R หมุน แล้วกด "ส่งกลับ" เพื่อส่งการจัดวางของคุณ'}</span>
+        {customer.note && <q data-testid="share-note-shown">{customer.note}</q>}
+      </div>
+    </div>
+  );
+}
+
 function MainMenu() {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -108,14 +154,24 @@ function MainMenu() {
   }, [open]);
   const p = useProject((s) => s.project!);
   const hasPlan = useUi((s) => s.view !== '3d');
+  const customer = useUi((s) => !!s.customer);
   return (
     <div className="tb-menu" ref={root}>
       <BarButton icon="menu" label="เมนู" on={open} onClick={() => setOpen(!open)} testId="main-menu" />
       {open && (
         <div className="tb-pop glass" role="menu">
-          <a role="menuitem" href="#/">
-            <Icon name="back" /> กลับไปรายการโรงงาน
-          </a>
+          {customer ? (
+            <a role="menuitem" href={`#/p/${p.id}`} data-testid="open-full-editor">
+              <Icon name="edit" /> เปิดในโหมดแก้ไขเต็ม
+            </a>
+          ) : (
+            <a role="menuitem" href="#/">
+              <Icon name="back" /> กลับไปรายการโรงงาน
+            </a>
+          )}
+          <button role="menuitem" onClick={() => (setOpen(false), void shareProject())} data-testid="menu-share">
+            <Icon name={customer ? 'reply' : 'share'} /> {customer ? 'ส่งการจัดวางกลับเป็นลิงก์' : 'แชร์ลิงก์ให้ลูกค้า'}
+          </button>
           <button
             role="menuitem"
             onClick={() =>
@@ -161,6 +217,7 @@ export function Editor() {
   const hasSelection = useUi((s) => !!s.selection || s.boxed.length > 0);
   const snapOn = useUi((s) => s.snapOn);
   const level = useProject((s) => s.level);
+  const customer = useUi((s) => !!s.customer);
   const set = useUi.getState().set;
   // The right panel slides out whenever something is picked, and on demand for the factory's own settings.
   const showPanel = hasSelection || panelOpen;
@@ -168,7 +225,7 @@ export function Editor() {
   return (
     <div className={`editor${dock ? ' with-dock' : ''}`}>
       <header className="topbar">
-        <div className="tb-group">
+        <div className="tb-group tb-left">
           <MainMenu />
           <div className="brand">
             <Icon name="factory" />
@@ -180,55 +237,18 @@ export function Editor() {
           <BarButton icon="undo" label="เลิกทำ (Ctrl+Z)" disabled={!canUndo} onClick={() => useProject.getState().undo()} />
           <BarButton icon="redo" label="ทำซ้ำ (Ctrl+Y)" disabled={!canRedo} onClick={() => useProject.getState().redo()} />
           <BarButton icon="trash" label="ลบที่เลือก (Delete)" disabled={!hasSelection} onClick={deleteSelection} />
-          <BarButton icon="snap" label={`Snap ${snapOn ? 'เปิด' : 'ปิด'}`} on={snapOn} onClick={() => set({ snapOn: !snapOn })} />
-        </div>
-        <div className="tb-group tb-right">
-          <button
-            className={`tb-toggle${dock === 'catalog' ? ' on' : ''}`}
-            onClick={() => useUi.getState().toggleDock('catalog')}
-            aria-pressed={dock === 'catalog'}
-            data-testid="dock-catalog"
-          >
-            <Icon name="machine" />
-            <span>คลังโมเดล</span>
-          </button>
-          <button
-            className={`tb-toggle${dock === 'layers' ? ' on' : ''}`}
-            onClick={() => useUi.getState().toggleDock('layers')}
-            aria-pressed={dock === 'layers'}
-            title="เลเยอร์: รายการห้อง ผนัง เสา เครื่องจักร ซ่อน/ล็อก และไปดูได้"
-            data-testid="dock-layers"
-          >
-            <Icon name="layers" />
-            <span>เลเยอร์</span>
-          </button>
-          <button
-            className={`tb-toggle${showPanel ? ' on' : ''}`}
-            onClick={() => (showPanel ? set({ panelOpen: false, selection: null }) : set({ panelOpen: true }))}
-            aria-pressed={showPanel}
-            title="รายละเอียด / ตั้งค่าโรงงาน"
-            data-testid="panel-toggle"
-          >
-            <Icon name="props" />
-            <span>รายละเอียด</span>
-          </button>
           <span className="tb-sep" />
-          {view !== '3d' && (
-            <div className="seg" role="tablist" aria-label="ชั้น" title="ชั้นที่แสดงในแปลน 2D">
-              {['ชั้น 1', 'ชั้น 2'].map((label, i) => (
-                <button
-                  key={i}
-                  role="tab"
-                  aria-selected={level === i}
-                  className={level === i ? 'on' : ''}
-                  onClick={() => (set({ selection: null, boxed: [] }), useProject.getState().setLevel(i))}
-                  data-testid={`level-${i}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+          <button
+            className={`tb-chip${snapOn ? ' on' : ''}`}
+            onClick={() => set({ snapOn: !snapOn })}
+            aria-pressed={snapOn}
+            title={`Snap ${snapOn ? 'เปิด' : 'ปิด'}: ดูดเข้าหากริด มุม และผนัง`}
+          >
+            <Icon name="snap" />
+            <span>Snap</span>
+          </button>
+        </div>
+        <div className="tb-center">
           <div className="seg seg-icons" role="tablist" aria-label="มุมมอง">
             {VIEWS.map((v) => (
               <button
@@ -245,10 +265,73 @@ export function Editor() {
               </button>
             ))}
           </div>
+          {view !== '3d' && (
+            <div className="seg" role="tablist" aria-label="ชั้น" title="ชั้นที่แสดงในแปลน 2D">
+              {['ชั้น 1', 'ชั้น 2'].map((label, i) => (
+                <button
+                  key={i}
+                  role="tab"
+                  aria-selected={level === i}
+                  className={level === i ? 'on' : ''}
+                  onClick={() => (set({ selection: null, boxed: [] }), useProject.getState().setLevel(i))}
+                  data-testid={`level-${i}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="tb-group tb-right">
+          <button
+            className={`tb-toggle${customer ? ' tb-accent' : ''}`}
+            onClick={() => void shareProject()}
+            title={customer ? 'สร้างลิงก์การจัดวางของคุณ ส่งกลับให้ผู้ขาย' : 'สร้างลิงก์ให้ลูกค้าเปิดดูและย้ายเครื่องเอง'}
+            data-testid="share-link"
+          >
+            <Icon name={customer ? 'reply' : 'share'} />
+            <span>{customer ? 'ส่งกลับ' : 'แชร์ลิงก์'}</span>
+          </button>
+          <span className="tb-sep" />
+          <div className="seg seg-icons seg-panels" role="group" aria-label="แผง">
+            <button
+              className={dock === 'catalog' ? 'on' : ''}
+              onClick={() => useUi.getState().toggleDock('catalog')}
+              aria-pressed={dock === 'catalog'}
+              title="คลังโมเดล"
+              data-testid="dock-catalog"
+            >
+              <Icon name="machine" />
+              <span>คลังโมเดล</span>
+            </button>
+            {!customer && (
+              <button
+                className={dock === 'layers' ? 'on' : ''}
+                onClick={() => useUi.getState().toggleDock('layers')}
+                aria-pressed={dock === 'layers'}
+                title="เลเยอร์: รายการห้อง ผนัง เสา เครื่องจักร ซ่อน/ล็อก และไปดูได้"
+                data-testid="dock-layers"
+              >
+                <Icon name="layers" />
+                <span>เลเยอร์</span>
+              </button>
+            )}
+            <button
+              className={showPanel ? 'on' : ''}
+              onClick={() => (showPanel ? set({ panelOpen: false, selection: null }) : set({ panelOpen: true }))}
+              aria-pressed={showPanel}
+              title="รายละเอียด / ตั้งค่าโรงงาน"
+              data-testid="panel-toggle"
+            >
+              <Icon name="props" />
+              <span>รายละเอียด</span>
+            </button>
+          </div>
         </div>
       </header>
       {dock && <div className="dock-col">{dock === 'catalog' ? <CatalogPanel /> : <LayersPanel />}</div>}
       <main className="viewport">
+        <ShareBanner />
         <div className={`panes view-${view}`}>
           {view !== '3d' && (
             <div className="pane">

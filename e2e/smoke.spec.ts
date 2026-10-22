@@ -89,3 +89,37 @@ test('a project is renamed through the app’s own dialog', async ({ page }) => 
   await page.getByTestId('dialog-ok').click();
   await expect(page.locator('.card').first()).toContainText('โรงงานทดสอบ');
 });
+
+test('a plan is shared by link, moved by the customer and sent back', async ({ page, browser }) => {
+  await openSample(page);
+  await page.getByTestId('share-link').click();
+  await page.getByTestId('share-note').fill('ลองย้ายเครื่องดูครับ');
+  await page.getByTestId('share-make').click();
+  const url = await page.getByTestId('share-url').inputValue();
+  expect(url).toMatch(/#\/s\/[A-Za-z0-9_-]+$/);
+
+  // The customer: another browser with nothing stored, opening only the link.
+  const customer = await (await browser.newContext()).newPage();
+  await customer.goto(url);
+  await expect(customer.getByTestId('share-banner')).toBeVisible();
+  await expect(customer.getByTestId('share-note-shown')).toContainText('ลองย้ายเครื่องดูครับ');
+  await expect(customer.getByTestId('toolbar')).toBeVisible();
+  await expect(customer.getByTestId('group-wall')).toHaveCount(0);
+  const theirs = await projectState(customer);
+  expect(theirs.objects.some((o) => o.assetId === 'nebula')).toBe(true);
+  expect(theirs.rooms).toBeGreaterThan(5);
+
+  await customer.getByTestId('share-link').click();
+  await customer.getByTestId('share-note').fill('ย้ายแล้วครับ');
+  await customer.getByTestId('share-make').click();
+  const back = await customer.getByTestId('share-url').inputValue();
+  expect(back).not.toBe(url);
+
+  await page.goto(back);
+  await expect(page.getByTestId('share-banner')).toContainText('ลูกค้าส่งกลับ');
+  await expect(page.getByTestId('share-note-shown')).toContainText('ย้ายแล้วครับ');
+  await page.getByTestId('main-menu').click();
+  await page.getByTestId('open-full-editor').click();
+  await expect(page.getByTestId('group-wall')).toBeVisible();
+  await expect(page.getByTestId('share-banner')).toHaveCount(0);
+});

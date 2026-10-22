@@ -234,7 +234,7 @@ export function PlanEditor() {
     if (e.button !== 0) return;
     // Drawing an area point by point, a double-click closes it where it stands.
     if (finishArea()) return;
-    if (useUi.getState().tool.kind !== 'select') return;
+    if (useUi.getState().tool.kind !== 'select' || useUi.getState().customer) return;
     const hit = hitTest(editProject(), at.p, at.radius);
     if (hit && hit.kind !== 'wall' && hit.kind !== 'room') return;
     addDoorAt(at.p, at.radius);

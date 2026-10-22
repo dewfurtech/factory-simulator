@@ -24,4 +24,6 @@ export default tseslint.config(
     },
   },
   { files: ['vite.config.ts', 'eslint.config.js'], languageOptions: { globals: globals.node } },
+  // The share function runs on Netlify's Node with the web Request/Response and crypto globals.
+  { files: ['netlify/**/*.mjs'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
 );

@@ -48,8 +48,18 @@ export type ToolKind = Tool['kind'];
 export type ViewMode = '2d' | '3d' | 'split';
 export type Dock = 'catalog' | 'layers';
 
+/** A plan opened from a share link: the customer view, where only the machines and equipment can be moved. */
+export interface CustomerMode {
+  shareId: string;
+  /** Who sent it: the seller, or a customer sending their arrangement back. */
+  from: 'vendor' | 'customer';
+  note?: string;
+}
+
 interface UiState {
   view: ViewMode;
+  /** Set while a shared link is open; null in the full editor. */
+  customer: CustomerMode | null;
   tool: Tool;
   selection: Selection | null;
   boxed: Selection[];
@@ -104,6 +114,7 @@ export const DRAWING_TOOLS: ReadonlySet<ToolKind> = new Set<ToolKind>(['drawWall
 
 export const useUi = create<UiState>((set) => ({
   view: '2d',
+  customer: null,
   tool: SELECT,
   selection: null,
   boxed: [],

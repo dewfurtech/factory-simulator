@@ -72,6 +72,8 @@ const PATHS: Record<string, string> = {
   ruler: 'M3 16L16 3l5 5L8 21z M7 12l2 2 M10 9l2 2 M13 6l2 2',
   move: 'M12 3v18 M3 12h18 M9 6l3-3 3 3 M9 18l3 3 3-3 M6 9l-3 3 3 3 M18 9l3 3-3 3',
   menu: 'M4 6h16 M4 12h16 M4 18h16',
+  share: 'M18 5a2.5 2.5 0 1 0 0.01 0 M6 12a2.5 2.5 0 1 0 0.01 0 M18 19a2.5 2.5 0 1 0 0.01 0 M8.2 10.8l7.6-4.4 M8.2 13.2l7.6 4.4',
+  reply: 'M9 7L4 12l5 5 M4 12h10a6 6 0 0 1 6 6v1',
   undo: 'M9 14L4 9l5-5 M4 9h10.5a5.5 5.5 0 0 1 0 11H11',
   redo: 'M15 14l5-5-5-5 M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
   trash: 'M4 7h16 M10 11v6 M14 11v6 M6 7l1 13h10l1-13 M9 7V4h6v3',
@@ -338,16 +340,22 @@ export function Toolbar() {
   }, [open]);
 
   const group = (id: string) => ({ open: open === id, setOpen: (o: boolean) => setOpen(o ? id : null) });
+  // From a share link the building is the seller's: only the machines move, so the drawing tools stay out of the way.
+  const customer = useUi((s) => !!s.customer);
 
   return (
     <nav className="toolbar rail glass" data-testid="toolbar" ref={ref}>
       <RailButton icon="select" text="เลือก" label="เลือก / ย้าย (Esc)" on={tool.kind === 'select'} onClick={() => setTool({ kind: 'select', drag: null })} testId="tool-select" />
       <hr />
-      <ToolGroup id="wall" text="ผนัง" label="ผนัง" items={WALL_ITEMS} {...group('wall')} />
-      <ToolGroup id="room" text="โซน" label="ห้อง / โซน" items={ROOM_ITEMS} {...group('room')} />
-      <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (กล่องโปร่งแสง)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
-      <ToolGroup id="opening" text="ประตู" label="ประตู / หน้าต่าง" items={OPENING_ITEMS} {...group('opening')} />
-      <ToolGroup id="column" text="เสา" label="เสา" items={COLUMN_ITEMS} {...group('column')} />
+      {!customer && (
+        <>
+          <ToolGroup id="wall" text="ผนัง" label="ผนัง" items={WALL_ITEMS} {...group('wall')} />
+          <ToolGroup id="room" text="โซน" label="ห้อง / โซน" items={ROOM_ITEMS} {...group('room')} />
+          <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (กล่องโปร่งแสง)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
+          <ToolGroup id="opening" text="ประตู" label="ประตู / หน้าต่าง" items={OPENING_ITEMS} {...group('opening')} />
+          <ToolGroup id="column" text="เสา" label="เสา" items={COLUMN_ITEMS} {...group('column')} />
+        </>
+      )}
       <RailButton
         icon="ruler"
         text="วัด"
@@ -365,7 +373,7 @@ export function Toolbar() {
         onClick={() => useUi.getState().set({ dock: dock === 'catalog' ? null : 'catalog' })}
         testId="tool-catalog"
       />
-      <UnderlayMenu />
+      {!customer && <UnderlayMenu />}
     </nav>
   );
 }

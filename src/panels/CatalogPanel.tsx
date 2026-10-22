@@ -112,25 +112,29 @@ export function CatalogPanel() {
           onClick={() => setShelf('general')}
           data-testid="shelf-general"
         >
-          อุปกรณ์โรงงาน
+          อุปกรณ์
         </button>
         <button role="tab" aria-selected={shelf === 'mine'} className={`shelf-tab${shelf === 'mine' ? ' on' : ''}`} onClick={() => setShelf('mine')} data-testid="shelf-mine">
           ของฉัน{models.length > 0 && <span className="shelf-count">{models.length}</span>}
         </button>
       </div>
-      <div className="search">
-        <Icon name="search" />
-        <input
-          placeholder={shelf === 'mastrox' ? 'ค้นหาเครื่องจักร Mastrox' : shelf === 'mine' ? 'ค้นหาชื่อหรือ tag' : 'ค้นหาอุปกรณ์'}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-      </div>
-      {!searching && shelf === 'mine' && (
-        <div className="cat-chips">
-          <button className="chip strong" onClick={() => setForm({})} data-testid="add-model">
-            + เพิ่มโมเดล
+      <div className="cat-search">
+        <div className="search">
+          <Icon name="search" />
+          <input
+            placeholder={shelf === 'mastrox' ? 'ค้นหาเครื่องจักร Mastrox' : shelf === 'mine' ? 'ค้นหาชื่อหรือ tag' : 'ค้นหาอุปกรณ์'}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+        {shelf === 'mine' && (
+          <button className="btn btn-primary btn-sm" onClick={() => setForm({})} title="เพิ่มโมเดลของคุณเอง" data-testid="add-model">
+            <Icon name="plus" /> เพิ่ม
           </button>
+        )}
+      </div>
+      {!searching && shelf === 'mine' && tags.length > 0 && (
+        <div className="cat-chips">
           {tags.length > 0 && (
             <button className={`chip${tag === null ? ' on' : ''}`} onClick={() => setTag(null)}>
               ทั้งหมด
@@ -154,7 +158,7 @@ export function CatalogPanel() {
       )}
       <div className="dock-scroll">
         {!groups.length && shelf === 'mine' && !searching && (
-          <div className="cat-none muted">ยังไม่มีโมเดลของคุณ กด “เพิ่มโมเดล” แล้วตั้งชื่อ ขนาด สี และ tag หรืออัปโหลดไฟล์ 3D (GLB, glTF, OBJ, STL)</div>
+          <div className="cat-none muted">ยังไม่มีโมเดลของคุณ กดปุ่ม “+ เพิ่ม” แล้วตั้งชื่อ ขนาด สี และ tag หรืออัปโหลดไฟล์ 3D (GLB, glTF, OBJ, STL)</div>
         )}
         {!groups.length && (searching || shelf !== 'mine') && <div className="cat-none muted">ไม่พบ “{q.trim()}”</div>}
         {groups.map(({ g, items }) => (
