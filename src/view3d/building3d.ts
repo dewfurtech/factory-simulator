@@ -5,6 +5,9 @@ import { roomLabelPoint, roomPolygon, wallDir } from '../model/plan';
 import type { Column, Id, Plan, Project, Vec2, Mm } from '../model/types';
 import { bounds, dot, pointInPolygon, signedArea, sub } from '../model/vec';
 import { planAreas } from '../model/areas';
+import { AISLE_KINDS, aisleLabel, aisleOutline, LINE_COLOR, LINE_WIDTH, planAisles } from '../model/aisles';
+import { aisleMarkings, aisleNet, paintedAisle, zebraStripes } from '../model/aisleJoins';
+import { fmtLen } from '../format';
 import { zoneColor } from '../model/zones';
 import { GLASS, paint, textSprite } from './lowpoly';
 
@@ -70,6 +73,24 @@ function prism(poly: Vec2[], y0: number, y1: number, color: string, top = color,
   return painted;
 }
 
+/** A convex traffic mirror: a grey post with a round mirror in an orange rim at its top, facing the spot it shows. */
+function convexMirror(at: Vec2, watches: Vec2): THREE.BufferGeometry[] {
+  const x = at.x * M;
+  const z = at.y * M;
+  const face = Math.atan2(watches.x - at.x, watches.y - at.y);
+  const post = new THREE.CylinderGeometry(0.03, 0.03, 2.1, 8);
+  post.translate(x, 1.05, z);
+  const disc = (r: number, depth: number, back: number, color: string) => {
+    const g = new THREE.CylinderGeometry(r, r, depth, 24);
+    g.rotateX(Math.PI / 2);
+    g.translate(0, 0, back);
+    g.rotateY(face);
+    g.translate(x, 2.15, z);
+    return paint(g, color);
+  };
+  return [paint(post, '#64748b'), disc(0.34, 0.03, -0.02, '#f97316'), disc(0.3, 0.04, 0.01, '#dbeafe')];
+}
+
 export interface BuildingOptions {
   /** Walls cut down to this height (mm), or null for full height. */
   cutaway: number | null;
@@ -92,6 +113,32 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
     const g = prism(poly, -20, 0, zoneColor(r), zoneColor(r), holes);
     if (g) floors.push(g);
   }
+
+  // Aisles painted on the floor as one network: a tint between yellow lines that open where aisles meet. Where
+  // two overlap, the wider is a hair higher (the junction is the main aisle's) so they never flicker; the lines
+  // sit above every tint.
+  const base = new THREE.Color(zoneColor({ zone: 'production' }));
+  const net = aisleNet(plan);
+  const aisles = planAisles(plan).filter((a) => !a.hidden && a.points.length >= 2);
+  const widths = [...new Set(aisles.map((a) => a.width))].sort((p, q) => p - q);
+  const lineTop = 4 + widths.length * 2;
+  for (const a of aisles) {
+    const tint = base.clone().lerp(new THREE.Color(AISLE_KINDS[a.kind].fill), 0.55);
+    const fill = prism(aisleOutline(paintedAisle(net, a)), 0, 3 + widths.indexOf(a.width) * 2, `#${tint.getHexString()}`);
+    if (fill) floors.push(fill);
+    const marks = aisleMarkings(net, plan, a);
+    for (const l of [...marks.edges, ...marks.centre]) {
+      const g = prism(aisleOutline({ points: l, width: LINE_WIDTH }), 0, lineTop, LINE_COLOR);
+      if (g) floors.push(g);
+    }
+  }
+  // Zebra crossings over the lane paint, and a convex mirror on a post at each truck junction or blind bend.
+  for (const c of net.crossings)
+    for (const s of zebraStripes(c)) {
+      const g = prism(s, 0, lineTop, '#ffffff');
+      if (g) floors.push(g);
+    }
+  for (const m of net.mirrors) solid.push(...convexMirror(m.at, m.watches));
 
   for (const f of wallFootprints(plan)) {
     const wall = plan.walls[f.wallId];
@@ -220,6 +267,17 @@ export function buildAreas(plan: Plan): THREE.Group {
     const s = textSprite(a.name, { height: Math.min(0.9, Math.max(0.5, Math.sqrt(Math.abs(signedArea(a.points))) / 14000)), color: '#ffffff', bg: a.color });
     fitLabelTo(s, Math.min(b.max.x - b.min.x, b.max.y - b.min.y));
     s.position.set(((b.min.x + b.max.x) / 2) * M, a.height * M + 0.35, ((b.min.y + b.max.y) / 2) * M);
+    s.userData.baseScale = s.scale.clone();
+    g.add(s);
+  }
+  // Each aisle's type and width, a tag in its colour just above the floor on its longest run.
+  for (const a of planAisles(plan)) {
+    if (a.hidden || a.points.length < 2) continue;
+    const at = aisleLabel(a);
+    if (at.length < 2500) continue;
+    const s = textSprite(`${AISLE_KINDS[a.kind].short} · ${fmtLen(a.width)}`, { height: 0.5, color: '#ffffff', bg: AISLE_KINDS[a.kind].fill });
+    fitLabelTo(s, at.length);
+    s.position.set(at.at.x * M, 0.3, at.at.y * M);
     s.userData.baseScale = s.scale.clone();
     g.add(s);
   }

@@ -24,6 +24,7 @@ import type { Column, Id, Mm, PlacedObject, Project, Vec2 } from '../model/types
 import { add, dist, dot, perp, projectOnSegment, sub } from '../model/vec';
 import { alignToWalls, parallelWallOffset, weldPlan } from '../model/weld';
 import { addArea, boxOutline, closedOutline, extendOutline, moveArea } from '../model/areas';
+import { addAisle, cleanLine, moveAisle } from '../model/aisles';
 import { editProject, useProject } from '../store/project';
 import { levelZ } from '../model/levels';
 import { SELECT, useUi, type ColumnSpec, type Drag, type Selection, type Tool, type ToolKind } from '../store/ui';
@@ -137,6 +138,25 @@ function areaPointTo(tool: Of<'drawArea'>, p: Vec2, radius: Mm): void {
   else setTool({ ...tool, points: ext.points, entry: EMPTY_ENTRY });
 }
 
+/** Lays the aisle drawn so far, when it has a run to it, and selects it; the tool stays on for the next one. */
+function commitAisle(tool: Of<'drawAisle'>, points: Vec2[]): boolean {
+  const line = cleanLine(points);
+  if (line.length < 2) return false;
+  let id: Id | null = null;
+  edit((d) => {
+    id = addAisle(d.plan, line, { kind: tool.aisle });
+  });
+  setTool({ ...tool, points: [], entry: EMPTY_ENTRY });
+  if (id) ui().set({ selection: { kind: 'aisle', id } });
+  return true;
+}
+
+/** Ends the aisle being drawn where it stands (Enter, a double-click, or Esc). */
+export function finishAisle(): boolean {
+  const tool = ui().tool;
+  return tool.kind === 'drawAisle' && commitAisle(tool, tool.points);
+}
+
 /** Columns filling the rectangle a–b at the spacing, one at every grid node (corners included). */
 export function columnGridPoints(a: Vec2, b: Vec2, spacing: Mm): Vec2[] {
   const x0 = Math.min(a.x, b.x);
@@ -171,7 +191,7 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
         const o = p.objects.find((x) => x.id === hit.id)!;
         drag = { kind: 'object', id: hit.id, grab: sub(input.p, { x: o.x, y: o.y }) };
       } else if (hit.kind === 'column') drag = { kind: 'column', id: hit.id, grab: sub(input.p, p.columns[hit.id]) };
-      else if (hit.kind === 'area') drag = { kind: 'area', id: hit.id, origin: input.p, applied: { x: 0, y: 0 } };
+      else if (hit.kind === 'area' || hit.kind === 'aisle') drag = { kind: hit.kind, id: hit.id, origin: input.p, applied: { x: 0, y: 0 } };
       else drag = { kind: hit.kind, id: hit.id };
       useProject.getState().beginGesture();
       setTool({ ...tool, drag });
@@ -206,13 +226,13 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
         edit((d) => {
           d.plan.openings[drag.id].offset = Math.round(offset / step) * step;
         });
-      } else if (drag.kind === 'area') {
+      } else if (drag.kind === 'area' || drag.kind === 'aisle') {
         const step = snapping(input) ? ui().grid : 1;
         const raw = sub(input.p, drag.origin);
         const target = { x: Math.round(raw.x / step) * step, y: Math.round(raw.y / step) * step };
         const by = sub(target, drag.applied);
         if (by.x || by.y) {
-          edit((d) => moveArea(d.plan, drag.id, by));
+          edit((d) => (drag.kind === 'area' ? moveArea : moveAisle)(d.plan, drag.id, by));
           setTool({ ...tool, drag: { ...drag, applied: target } });
         }
       } else if (drag.kind === 'column') {
@@ -352,6 +372,43 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
         const last = (tool.mode === 'poly' ? tool.points[tool.points.length - 1] : tool.start)!;
         const at = ui().cursor?.point ?? last;
         areaPointTo(tool, tool.mode === 'box' ? rectCorner(last, at, tool.entry) : wallEnd(last, at, tool.entry), 1);
+        return true;
+      }
+      return false;
+    },
+  },
+
+  drawAisle: {
+    down(tool, input) {
+      const last = tool.points[tool.points.length - 1];
+      const s = snap(input, { from: last });
+      const p = last && hasTyped(tool.entry) ? wallEnd(last, s.point, tool.entry) : s.point;
+      // Clicking the last point again ends the aisle there.
+      if (last && dist(last, p) < input.radius) {
+        commitAisle(tool, tool.points);
+        return;
+      }
+      setTool({ ...tool, points: [...tool.points, p], entry: EMPTY_ENTRY });
+    },
+    move(tool, input) {
+      ui().set({ cursor: snap(input, { from: tool.points[tool.points.length - 1] }) });
+    },
+    key(tool, e) {
+      if (e.key === 'Escape') {
+        if (!finishAisle()) setTool(tool.points.length ? { ...tool, points: [], entry: EMPTY_ENTRY } : SELECT);
+        return true;
+      }
+      if (e.key === 'Enter' && !hasTyped(tool.entry)) return finishAisle();
+      const last = tool.points[tool.points.length - 1];
+      if (!last) return false;
+      const entry = entryKey(tool.entry, ENTRY_FIELDS.drawWall, e);
+      if (entry) {
+        setTool({ ...tool, entry });
+        return true;
+      }
+      if (e.key === 'Enter' && hasTyped(tool.entry)) {
+        const p = wallEnd(last, ui().cursor?.point ?? last, tool.entry);
+        setTool({ ...tool, points: [...tool.points, p], entry: EMPTY_ENTRY });
         return true;
       }
       return false;
@@ -674,6 +731,9 @@ function deleteOne(d: Project, sel: Selection): void {
     case 'area':
       delete d.plan.areas?.[sel.id];
       break;
+    case 'aisle':
+      delete d.plan.aisles?.[sel.id];
+      break;
   }
 }
 
@@ -704,6 +764,15 @@ export function duplicateSelection(): void {
           { name: `${a.name} (สำเนา)`, color: a.color, height: a.height },
         );
         made.push({ kind: 'area', id });
+      } else if (s.kind === 'aisle') {
+        const a = d.plan.aisles?.[s.id];
+        if (!a) continue;
+        const id = addAisle(
+          d.plan,
+          a.points.map((p) => ({ x: p.x + 500, y: p.y + 500 })),
+          { name: `${a.name} (สำเนา)`, kind: a.kind, width: a.width, vehicle: a.vehicle },
+        );
+        made.push({ kind: 'aisle', id });
       }
     }
   });

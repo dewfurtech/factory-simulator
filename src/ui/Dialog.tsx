@@ -90,7 +90,7 @@ function Confirm({ d }: { d: Extract<Open, { kind: 'confirm' }> }) {
   return (
     <Backdrop onDismiss={() => answer(false)}>
       <h2>{d.title}</h2>
-      {d.message && <p>{d.message}</p>}
+      {d.message && <p style={{ whiteSpace: 'pre-line' }}>{d.message}</p>}
       <div className="dialog-actions">
         <button className="btn" onClick={() => answer(false)}>
           ยกเลิก

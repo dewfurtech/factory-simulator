@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { ShapePresetId } from '../model/presets';
 import type { SnapResult } from '../model/snap';
 import type { OpeningPresetId } from '../model/openings';
-import type { Column, Id, Mm, Vec2 } from '../model/types';
+import type { AisleKind, Column, Id, Mm, Vec2 } from '../model/types';
 import type { Entry } from '../editor2d/entry';
 
 export type Selection =
@@ -12,13 +12,15 @@ export type Selection =
   | { kind: 'opening'; id: Id }
   | { kind: 'object'; id: Id }
   | { kind: 'column'; id: Id }
-  | { kind: 'area'; id: Id };
+  | { kind: 'area'; id: Id }
+  | { kind: 'aisle'; id: Id };
 
 export type Drag =
   | { kind: 'corner'; id: Id }
   | { kind: 'wall'; id: Id; origin: Vec2; applied: Mm }
   /** An area slides as a whole; `applied` is how far it has moved from where the drag began. */
   | { kind: 'area'; id: Id; origin: Vec2; applied: Vec2 }
+  | { kind: 'aisle'; id: Id; origin: Vec2; applied: Vec2 }
   | { kind: 'opening'; id: Id }
   | { kind: 'object'; id: Id; grab: Vec2 }
   | { kind: 'column'; id: Id; grab: Vec2 }
@@ -33,6 +35,8 @@ export type Tool =
   | { kind: 'drawRoomRect'; start: Vec2 | null; entry: Entry }
   /** Marks out an area: a box from two corners, or point by point until the outline closes. */
   | { kind: 'drawArea'; mode: 'box' | 'poly'; start: Vec2 | null; points: Vec2[]; entry: Entry }
+  /** Lays an aisle of a kind along a centre line, point by point; Enter, a double-click or Esc ends it. */
+  | { kind: 'drawAisle'; aisle: AisleKind; points: Vec2[]; entry: Entry }
   | { kind: 'placePreset'; preset: ShapePresetId; w: Mm; d: Mm; entry: Entry }
   | { kind: 'placeObject'; assetId: string }
   | { kind: 'addOpening'; preset: OpeningPresetId; hingeEnd: boolean; openB: boolean }
@@ -110,7 +114,7 @@ export function rememberRealistic(on: boolean) {
 export const SELECT: Tool = { kind: 'select', drag: null };
 
 /** Tools that put down walls, rooms or areas: while one is active the 3D ground shows whole, not as an island. */
-export const DRAWING_TOOLS: ReadonlySet<ToolKind> = new Set<ToolKind>(['drawWall', 'drawRoomRect', 'drawArea', 'placePreset', 'columnGrid']);
+export const DRAWING_TOOLS: ReadonlySet<ToolKind> = new Set<ToolKind>(['drawWall', 'drawRoomRect', 'drawArea', 'drawAisle', 'placePreset', 'columnGrid']);
 
 export const useUi = create<UiState>((set) => ({
   view: '2d',

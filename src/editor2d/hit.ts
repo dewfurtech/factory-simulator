@@ -5,6 +5,8 @@ import { roomOf, roomPolygon, wallDir } from '../model/plan';
 import type { Column, Mm, PlacedObject, Plan, Project, Vec2 } from '../model/types';
 import { add, dist, dot, fromAngle, perp, pointInPolygon, projectOnSegment, scale, segmentIntersect, signedArea, sub } from '../model/vec';
 import { planAreas } from '../model/areas';
+import { aisleOutline, onAisle, planAisles } from '../model/aisles';
+import { aisleNet, paintedAisle } from '../model/aisleJoins';
 import { useUi, type Selection } from '../store/ui';
 
 /** Objects whose centre sits in no room draw and hit-test beneath the rooms. */
@@ -64,6 +66,12 @@ export function hitTest(project: Project, p: Vec2, radius: Mm): Selection | null
     }
     if (area) return area;
   }
+  // Aisles are painted on the floor: under everything standing on it, over the rooms. The narrowest wins.
+  let aisle: Selection | null = null;
+  let narrowest = Infinity;
+  const net = aisleNet(plan);
+  for (const a of planAisles(plan)) if (!off(a) && a.width < narrowest && onAisle(paintedAisle(net, a), p, radius / 2)) [aisle, narrowest] = [{ kind: 'aisle', id: a.id }, a.width];
+  if (aisle) return aisle;
   let room: Selection | null = null;
   let area = Infinity;
   for (const r of Object.values(plan.rooms)) {
@@ -120,6 +128,7 @@ export function boxSelect(project: Project, from: Vec2, to: Vec2): Selection[] {
     if (caught([add(a, scale(d, o.offset - o.width / 2)), add(a, scale(d, o.offset + o.width / 2))], false)) out.push({ kind: 'opening', id: o.id });
   }
   for (const c of Object.values(project.columns)) if (!off(c) && caught(columnOutline(c))) out.push({ kind: 'column', id: c.id });
+  for (const a of planAisles(plan)) if (!off(a) && caught(aisleOutline(a))) out.push({ kind: 'aisle', id: a.id });
   if (!useUi.getState().areasHidden) for (const a of planAreas(plan)) if (!off(a) && caught(a.points)) out.push({ kind: 'area', id: a.id });
   return out;
 }

@@ -34,6 +34,10 @@ function inPlan(plan: Plan, sel: Selection, z: Mm): Spot | null {
     const a = plan.areas?.[sel.id];
     return a ? spotOf(a.points, z) : null;
   }
+  if (sel.kind === 'aisle') {
+    const a = plan.aisles?.[sel.id];
+    return a ? spotOf(a.points, z) : null;
+  }
   if (sel.kind === 'opening') {
     const o = plan.openings[sel.id];
     const w = o && plan.walls[o.wallId];

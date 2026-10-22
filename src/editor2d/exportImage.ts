@@ -16,6 +16,7 @@ export function planExtent(project: Project): { min: Vec2; max: Vec2 } | null {
   for (const c of Object.values(project.columns)) pts.push(...columnOutline(c));
   for (const o of project.objects) if (!o.hidden) pts.push(...obbCorners(objectObb(o)));
   for (const a of planAreas(project.plan)) pts.push(...a.points);
+  for (const a of Object.values(project.plan.aisles ?? {})) pts.push(...a.points);
   const u = project.underlay;
   if (u && !u.hidden) {
     const r = underlayRect(u);

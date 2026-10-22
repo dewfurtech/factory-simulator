@@ -2784,3 +2784,149 @@ button.start:hover:not(:disabled) {
 .dialog-error {
   color: var(--danger);
 }
+
+/* Aisles: the auto layout in the aisle flyout's footer */
+.flyout .flyout-auto {
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.flyout .flyout-auto .flyout-foot {
+  margin-top: 0;
+  border-top: none;
+  border-radius: 8px;
+}
+.flyout-auto-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 10px 6px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.flyout-auto-row select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+}
+.aisle-std {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(22, 163, 74, 0.1);
+  color: #15803d;
+  font-size: 12px;
+}
+.aisle-std span {
+  color: var(--ink-3);
+}
+.aisle-std.bad {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+.aisle-std .btn {
+  align-self: flex-start;
+}
+
+/* Aisles: what each colour means, at the plan's bottom left beside the tool rail */
+.aisle-legend {
+  position: absolute;
+  left: 84px;
+  bottom: 52px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+.aisle-legend-title {
+  font-weight: 700;
+  color: var(--ink);
+}
+.aisle-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+/* A short piece of aisle: the kind's tint between two yellow edge lines. */
+.aisle-swatch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  flex: none;
+  background: color-mix(in srgb, var(--kind) 35%, transparent);
+  border-top: 2px solid #eab308;
+  border-bottom: 2px solid #eab308;
+}
+.aisle-swatch.two-way::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 50%;
+  border-top: 2px dashed #eab308;
+  transform: translateY(-50%);
+}
+@media (max-width: 640px) {
+  .aisle-legend {
+    left: 12px;
+    bottom: 56px;
+    font-size: 11px;
+  }
+}
+.aisle-joints {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.aisle-joint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #15803d;
+}
+.aisle-joint-row.apart {
+  color: #dc2626;
+}
+.aisle-swatch.zebra {
+  border: none;
+  background: repeating-linear-gradient(0deg, #ffffff 0 3px, #f97316 3px 6px);
+  outline: 1px solid #cbd5e1;
+}
+.aisle-mirror-dot {
+  width: 14px;
+  height: 14px;
+  margin: 0 6px;
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0 35%, #ccfbf1 36%);
+  border: 2px solid #0f766e;
+}
+.aisle-law {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 118, 110, 0.08);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.aisle-law b {
+  color: #0f766e;
+}
+.aisle-law-count {
+  color: var(--ink-2);
+  font-weight: 600;
+}

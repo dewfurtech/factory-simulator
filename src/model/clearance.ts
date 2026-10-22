@@ -2,6 +2,8 @@ import { catalogItem, needsOperator, spotsOf } from './catalog';
 import { levelZ, onLevel, planOf } from './levels';
 import { findCollisions, objectObb, obbOverlap, wallObb, type Obb } from './objects';
 import { roomOf, roomTop } from './plan';
+import { aisleBoxes, planAisles } from './aisles';
+import { aisleNet, paintedAisle } from './aisleJoins';
 import type { Id, Mm, PlacedObject, Project } from './types';
 import { fromAngle, perp } from './vec';
 
@@ -10,7 +12,12 @@ import { fromAngle, perp } from './vec';
  * taller than the room, or a machine with nowhere for its operator to stand. Checked on every change, so the plan
  * shows it as it is drawn.
  */
-export type Issue = { kind: 'object'; otherId: Id; otherName: string } | { kind: 'wall'; wallId: Id } | { kind: 'ceiling'; top: Mm; ceiling: Mm } | { kind: 'spot' };
+export type Issue =
+  | { kind: 'object'; otherId: Id; otherName: string }
+  | { kind: 'wall'; wallId: Id }
+  | { kind: 'ceiling'; top: Mm; ceiling: Mm }
+  | { kind: 'spot' }
+  | { kind: 'aisle'; aisleId: Id; aisleName: string };
 
 /** Interpenetration under this is a touch, not a clash: things are pushed flush against walls and each other, a little into the plaster. */
 const TOUCH: Mm = 60;
@@ -63,6 +70,13 @@ export function checkClearance(project: Project): Map<Id, Issue[]> {
       const blocked = operatorBox(o).some((box) => walls.some((w) => obbOverlap(box, w, TOUCH)) || obbs.some((b, i) => objects[i].id !== o.id && obbOverlap(box, b, TOUCH)));
       if (blocked) add(o.id, { kind: 'spot' });
     }
+    // Nothing may stand in a marked aisle.
+    const net = aisleNet(plan);
+    for (const a of planAisles(plan)) {
+      if (a.hidden) continue;
+      const boxes = aisleBoxes(paintedAisle(net, a), floor);
+      for (let i = 0; i < objects.length; i++) if (boxes.some((b) => obbOverlap(b, obbs[i], TOUCH))) add(objects[i].id, { kind: 'aisle', aisleId: a.id, aisleName: a.name });
+    }
   }
   return out;
 }
@@ -78,5 +92,7 @@ export function issueText(issue: Issue): string {
       return `สูง ${(issue.top / 1000).toFixed(2)} ม. เกินเพดานห้อง ${(issue.ceiling / 1000).toFixed(2)} ม.`;
     case 'spot':
       return 'ไม่มีที่ยืนทำงานหน้าเครื่อง (ติดผนังหรือของอื่น)';
+    case 'aisle':
+      return `วางกีดขวางทางเดิน ${issue.aisleName}`;
   }
 }
