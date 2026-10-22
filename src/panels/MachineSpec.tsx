@@ -1,5 +1,7 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Icon } from '../editor2d/Toolbar';
 import { MACHINE_CATEGORIES, machineInfo, machineOptions, optionsPrice } from '../model/catalog';
+import { machinePhoto } from '../model/photos';
 import type { Size3 } from '../model/types';
 
 const baht = (n: number) => `${n.toLocaleString('th-TH')} บาท`;
@@ -55,7 +57,73 @@ function SizeDiagram({ size }: { size: [number, number, number] }) {
   );
 }
 
-/** A Mastrox machine's details: its 3D model, size, price and brochure specs. Nothing for other objects. */
+/**
+ * The machine as the customer will see it: its photo first, when there is one, with a switch to the 3D model
+ * (which is the only view for a machine without a photo). The photo opens full-screen on a click or the expand button.
+ */
+function MachinePreview({ assetId, name, options }: { assetId: string; name: string; options: readonly string[] }) {
+  const photo = machinePhoto(assetId);
+  const [mode, setMode] = useState<'photo' | '3d'>(photo ? 'photo' : '3d');
+  const [big, setBig] = useState(false);
+  useEffect(() => {
+    if (!big) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setBig(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [big]);
+  const viewer = (
+    <Suspense
+      fallback={
+        <div className="model-viewer loading">
+          <span className="thumb-wait" />
+        </div>
+      }
+    >
+      <ModelViewer assetId={assetId} name={name} options={options} />
+    </Suspense>
+  );
+  if (!photo) return viewer;
+  return (
+    <div className="ms-preview">
+      <div className="seg sm ms-preview-modes" role="tablist" aria-label="ภาพเครื่อง">
+        {(
+          [
+            ['photo', 'รูปจริง'],
+            ['3d', 'โมเดล 3D'],
+          ] as ['photo' | '3d', string][]
+        ).map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={mode === id} className={mode === id ? 'on' : ''} onClick={() => setMode(id)} data-testid={`preview-${id}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {mode === '3d' ? (
+        viewer
+      ) : (
+        <figure className={`ms-photo${big ? ' big' : ''}`} data-testid="machine-photo">
+          <img src={photo.url} alt={`ภาพจริง ${name}`} onClick={() => setBig(!big)} />
+          {big && <div className="mv-title">{name}</div>}
+          {photo.standIn && (
+            <figcaption>
+              ยังไม่มีรูป {name} · ใช้รูป {machineInfo(photo.standIn)?.name ?? photo.standIn} (รุ่นใกล้เคียง)
+            </figcaption>
+          )}
+          <div className="mv-tools">
+            <button className="ib sm" onClick={() => setBig(!big)} title={big ? 'ย่อ (Esc)' : 'ขยายเต็มจอ'}>
+              <Icon name={big ? 'close' : 'expand'} />
+            </button>
+          </div>
+        </figure>
+      )}
+    </div>
+  );
+}
+
+/** A Mastrox machine's details: its photo or 3D model, size, price and brochure specs. Nothing for other objects. */
 export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: string; placed?: Size3; options?: readonly string[]; onOptions?: (next: string[]) => void }) {
   const m = machineInfo(assetId);
   if (!m) return null;
@@ -81,15 +149,8 @@ export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: 
   const specs = Object.entries(m.specs ?? {});
   return (
     <div className="machine-spec" data-testid="machine-spec">
-      <Suspense
-        fallback={
-          <div className="model-viewer loading">
-            <span className="thumb-wait" />
-          </div>
-        }
-      >
-        <ModelViewer assetId={m.id} name={m.name} options={chosen} />
-      </Suspense>
+      {/* Keyed by machine: picking another machine starts at its photo again. */}
+      <MachinePreview key={m.id} assetId={m.id} name={m.name} options={chosen} />
       {m.summary && <p className="ms-summary">{m.summary}</p>}
       {addons.length > 0 && onOptions && (
         <section className="ms-addons" data-testid="machine-addons">

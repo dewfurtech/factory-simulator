@@ -2317,6 +2317,68 @@ button.start:hover:not(:disabled) {
     opacity: 0;
   }
 }
+/* machine preview: the photo first, the 3D model behind a switch */
+.ms-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ms-preview-modes {
+  align-self: flex-end;
+}
+.ms-photo {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: radial-gradient(ellipse at 50% 35%, #ffffff, #e6ebf1 75%);
+  display: grid;
+  place-items: center;
+}
+.ms-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8px;
+  box-sizing: border-box;
+  cursor: zoom-in;
+}
+.ms-photo figcaption {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 7px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink-3);
+  font-size: 11px;
+  text-align: center;
+  pointer-events: none;
+}
+.ms-photo.big {
+  position: fixed;
+  inset: 24px;
+  z-index: 2000;
+  aspect-ratio: auto;
+  border: none;
+  background: #fff;
+  box-shadow:
+    0 0 0 100vmax rgba(15, 23, 42, 0.6),
+    0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: fade 0.15s ease-out;
+}
+.ms-photo.big img {
+  padding: 48px 24px 32px;
+  cursor: zoom-out;
+}
+.ms-photo.big .mv-tools {
+  top: 12px;
+  right: 12px;
+}
 /* machine size */
 .ms-size {
   display: flex;
