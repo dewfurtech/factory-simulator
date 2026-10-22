@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../editor2d/Toolbar';
+import { confirmDialog, promptDialog } from '../ui/Dialog';
 import { storeUnderlayFile, UNDERLAY_ACCEPT } from '../editor2d/underlayFile';
 import { useImport } from '../store/importProgress';
 import { newProject } from '../model/project';
@@ -193,7 +194,7 @@ export function ProjectList() {
                   className="ib sm"
                   title="เปลี่ยนชื่อ"
                   onClick={async () => {
-                    const name = prompt('ชื่อโรงงาน', p.name);
+                    const name = await promptDialog({ title: 'เปลี่ยนชื่อโรงงาน', label: 'ชื่อโรงงาน', value: p.name, ok: 'บันทึก' });
                     const proj = name && (await loadProject(p.id));
                     if (proj) await saveProject({ ...proj, name, updatedAt: Date.now() });
                     refresh();
@@ -210,8 +211,9 @@ export function ProjectList() {
                 <button
                   className="ib sm danger"
                   title="ลบ"
-                  onClick={() => {
-                    if (confirm(`ลบ “${p.name}”?`)) void deleteProject(p.id).then(refresh);
+                  onClick={async () => {
+                    if (await confirmDialog({ title: `ลบ “${p.name}”?`, message: 'ลบแล้วเอากลับไม่ได้ ถ้ายังไม่แน่ใจให้ส่งออกเป็นไฟล์เก็บไว้ก่อน', ok: 'ลบ', danger: true }))
+                      void deleteProject(p.id).then(refresh);
                   }}
                 >
                   <Icon name="trash" />
