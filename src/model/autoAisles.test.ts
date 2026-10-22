@@ -5,6 +5,7 @@ import { objectObb, obbOverlap } from './objects';
 import { addPolygon } from './plan';
 import { newProject } from './project';
 import { addAisle } from './aisles';
+import { aisleNet } from './aisleJoins';
 import { checkClearance } from './clearance';
 import { mastroxLayout, sampleFactory } from './sample';
 import type { Id, PlacedObject, Vec2 } from './types';
@@ -101,6 +102,22 @@ describe('autoAisles', () => {
     expect(blocked).toEqual([]);
     // Laying aisles adds no other issue either.
     expect(checkClearance(p).size).toBe(before.size);
+  });
+
+  it('joins everything it lays in the sample factory into one network, through the doors', () => {
+    const p = sampleFactory();
+    for (const a of autoAisles(p, { trunk: 'mixed' }).aisles) addAisle(p.plan, a.points, { ...a, auto: true });
+    const net = aisleNet(p.plan);
+    const ids = Object.keys(p.plan.aisles!);
+    const seen = new Set<string>([ids[0]]);
+    const todo = [ids[0]];
+    while (todo.length)
+      for (const n of net.joined.get(todo.pop() as never) ?? [])
+        if (!seen.has(n)) {
+          seen.add(n);
+          todo.push(n);
+        }
+    expect(seen.size).toBe(ids.length);
   });
 
   it('leaves offices alone', () => {

@@ -240,7 +240,7 @@ class Grid {
    * extra, and so does hugging the things beside the route. Null when there is no way through.
    */
   route(from: number, width: Mm): number[] | null {
-    if (this.tree[from]) return [from];
+    if (this.spine[from]) return [from];
     const { nx, ny, c } = this;
     const n = nx * ny;
     const cost = new Float32Array(n * 4).fill(Infinity);
@@ -259,19 +259,12 @@ class Grid {
       const i = s >> 2;
       const d = s & 3;
       const here = cost[s];
-      if (this.tree[i]) {
+      // Done on reaching an aisle's centre line, not just its edge: the new aisle runs into the old one and
+      // overlaps it fully, so the two read as one junction rather than strips touching at a corner.
+      if (this.spine[i]) {
         const cells: number[] = [];
         for (let t = s; t !== -1; t = prev[t]) cells.push(t >> 2);
-        cells.reverse();
-        // Carry on straight across the strip to its centre line, so the two aisles meet in a clean T.
-        for (let k = 0, at = i; k < nx + ny && !this.spine[at]; k++) {
-          const ax = (at % nx) + DX[d];
-          const ay = Math.floor(at / nx) + DY[d];
-          if (ax < 0 || ay < 0 || ax >= nx || ay >= ny || !this.tree[ay * nx + ax] || !this.fits(ay * nx + ax, width)) break;
-          at = ay * nx + ax;
-          cells.push(at);
-        }
-        return cells;
+        return cells.reverse();
       }
       const x = i % nx;
       const y = (i - x) / nx;
@@ -490,7 +483,8 @@ export function autoAisles(view: Project, opts: AutoOptions): AutoResult {
     // A walkway to the front of everything, nearest first so the far ones can join them.
     for (const { o } of order) {
       const from = reach(o, branchWidth);
-      const cells = from >= 0 ? g.route(from, branchWidth) : null;
+      // Its front already on an aisle: nothing more to lay.
+      const cells = from < 0 ? null : g.tree[from] ? [from] : g.route(from, branchWidth);
       if (!cells) {
         result.unreached.push({ id: o.id, name: o.name || catalogItem(o.assetId)?.label || 'วัตถุ' });
         continue;
