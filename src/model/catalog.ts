@@ -3,7 +3,7 @@ import SIZES from '../machines/sizes.json';
 import type { Mm, PlacedObject, Size3, Vec2 } from './types';
 import { add, fromAngle, perp, scale } from './vec';
 
-/** What people do at a thing in the simulation. */
+/** What a thing is used for; sets its default shape, colour and where its front is. */
 export type UseKind =
   | 'machine'
   | 'desk'

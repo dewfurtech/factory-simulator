@@ -613,7 +613,6 @@ function deleteOne(d: Project, sel: Selection): void {
       break;
     case 'object':
       d.objects = d.objects.filter((o) => o.id !== sel.id);
-      for (const s of d.staff) if (s.stationId === sel.id) s.stationId = null;
       break;
     case 'column':
       delete d.columns[sel.id];

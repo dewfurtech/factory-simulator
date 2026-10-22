@@ -24,8 +24,8 @@ const footprintMiss = (a: { w: number; d: number }, b: { w: number; d: number })
   Math.min(Math.abs(a.w - b.w) + Math.abs(a.d - b.d), Math.abs(a.w - b.d) + Math.abs(a.d - b.w));
 
 /**
- * Which Mastrox machine a block or machine is: a block read off a plan (a footprint with no model) becomes a machine
- * the simulation runs, keeping its place and turn. The models nearest the block's size are offered first.
+ * Which Mastrox machine a block or machine is: a block read off a plan (a footprint with no model) becomes that
+ * machine, keeping its place and turn. The models nearest the block's size are offered first.
  */
 function MachineModelPicker({ o }: { o: PlacedObject }) {
   const models = CATALOG.filter((c) => c.use === 'machine');

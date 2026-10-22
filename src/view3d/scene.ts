@@ -1,16 +1,12 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { Id, Place, PlacedObject, Project } from '../model/types';
+import type { Id, PlacedObject, Project } from '../model/types';
 import { roomPolygon } from '../model/plan';
 import { bounds, pointInPolygon } from '../model/vec';
-import type { Agent, Engine } from '../sim/engine';
-import { MACHINE_STATES } from '../sim/activities';
 import { buildAreas, buildBuilding, buildIsland, buildZoneLabels } from './building3d';
 import { builtinGeometry } from './furniture3d';
 import { disposeTree, FLAT, LABEL_LAYER } from './lowpoly';
-import { hasModel, liveMachine, machineFootprint, machineObject, type LiveMachine } from './machines3d';
-import { heightOf, PersonMesh } from './people3d';
-import { RealPersonMesh } from './people3dReal';
+import { hasModel, machineFootprint, machineObject } from './machines3d';
 import { applyLook, environment, RealPipeline } from './realistic';
 
 FLAT.userData.shared = true;
@@ -22,9 +18,7 @@ const LOW_WALL = 300;
 export interface SceneOptions {
   cutaway: boolean;
   shadows: boolean;
-  names: boolean;
-  paths: boolean;
-  /** Smooth PBR materials, detailed people, soft shadows and ambient occlusion instead of the low-poly look. */
+  /** Smooth PBR materials, soft shadows and ambient occlusion instead of the low-poly look. */
   realistic: boolean;
   /** Ground as an island around the building (sky all round) instead of the endless plane. */
   island: boolean;
@@ -33,11 +27,10 @@ export interface SceneOptions {
 }
 
 export interface Picked {
-  agent?: string;
   object?: Id;
 }
 
-/** The low-poly 3D view: the building, its objects and, during the simulation, the people. Imperative, so per-frame updates skip React. */
+/** The low-poly 3D view: the building and its objects. Imperative, so redraws skip React. */
 export class FactoryScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -47,31 +40,20 @@ export class FactoryScene {
   private building = new THREE.Group();
   private labels = new THREE.Group();
   private objects = new THREE.Group();
-  private people = new THREE.Group();
   private overlay = new THREE.Group();
   private areas = new THREE.Group();
   private island: THREE.Mesh | null = null;
-  private persons = new Map<string, PersonMesh | RealPersonMesh>();
   private hemi = new THREE.HemisphereLight('#ffffff', '#b7c0c8', 1.7);
   private ground: THREE.Mesh;
   private pipeline: RealPipeline | null = null;
   private objectMeshes = new Map<Id, THREE.Object3D>();
-  private stateMarkers = new Map<Id, THREE.Mesh>();
-  /** Unbaked models with moving parts, built the first time each machine runs and kept for reuse. */
-  private liveMachines = new Map<Id, LiveMachine>();
   private selBox: THREE.LineSegments | null = null;
-  private pathLines = new Map<string, { path: THREE.Line; trail: THREE.Line }>();
   private project: Project | null = null;
-  private engine: Engine | null = null;
-  private opts: SceneOptions = { cutaway: false, shadows: false, names: true, paths: false, realistic: false, island: false, areas: true };
-  private selectedAgent: string | null = null;
+  private opts: SceneOptions = { cutaway: false, shadows: false, realistic: false, island: false, areas: true };
   private selectedObject: Id | null = null;
   private dirty = true;
   private raf = 0;
-  private clock = new THREE.Clock();
   private framed = false;
-  /** Called every frame with the picked agent's screen position, for the floating card. */
-  onAgentScreen?: (p: { x: number; y: number; visible: boolean } | null) => void;
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -91,7 +73,7 @@ export class FactoryScene {
     ground.receiveShadow = true;
     ground.name = 'ground';
     this.ground = ground;
-    this.scene.add(ground, this.building, this.labels, this.areas, this.objects, this.people, this.overlay);
+    this.scene.add(ground, this.building, this.labels, this.areas, this.objects, this.overlay);
     this.camera.position.set(30, 35, 55);
     this.camera.layers.enable(LABEL_LAYER);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -169,21 +151,6 @@ export class FactoryScene {
     } else if (!on && this.pipeline) {
       this.pipeline.dispose();
       this.pipeline = null;
-    }
-    // People are rebuilt in the other style.
-    if (this.engine) this.makePeople(this.engine);
-  }
-
-  private makePeople(e: Engine) {
-    for (const p of this.persons.values()) {
-      this.people.remove(p.root);
-      p.dispose();
-    }
-    this.persons.clear();
-    for (const a of e.agents) {
-      const p = this.opts.realistic ? new RealPersonMesh(a, this.upperZ()) : new PersonMesh(a, this.upperZ());
-      this.persons.set(a.id, p);
-      this.people.add(p.root);
     }
   }
 
@@ -280,7 +247,6 @@ export class FactoryScene {
         if (old) {
           this.objects.remove(old);
           disposeTree(old);
-          this.liveMachines.delete(o.id);
         }
         node = this.makeObject(o);
         this.objects.add(node);
@@ -297,12 +263,6 @@ export class FactoryScene {
       disposeTree(node);
       this.objectMeshes.delete(id);
       this.objectKeys.delete(id);
-      this.liveMachines.delete(id);
-      const mk = this.stateMarkers.get(id);
-      if (mk) {
-        this.overlay.remove(mk);
-        this.stateMarkers.delete(id);
-      }
     }
     this.updateSelectionBox();
   }
@@ -403,38 +363,7 @@ export class FactoryScene {
     this.dirty = true;
   }
 
-  setEngine(e: Engine | null) {
-    if (e === this.engine) return;
-    this.engine = e;
-    for (const p of this.persons.values()) {
-      this.people.remove(p.root);
-      p.dispose();
-    }
-    this.persons.clear();
-    for (const l of this.pathLines.values()) {
-      this.overlay.remove(l.path, l.trail);
-      l.path.geometry.dispose();
-      l.trail.geometry.dispose();
-    }
-    this.pathLines.clear();
-    for (const m of this.stateMarkers.values()) this.overlay.remove(m);
-    this.stateMarkers.clear();
-    for (const id of this.liveMachines.keys()) this.runMachine(id, false, 0);
-    if (e) {
-      this.makePeople(e);
-      for (const m of e.machines.values()) {
-        const mk = new THREE.Mesh(MARKER, new THREE.MeshBasicMaterial({ color: '#16a34a' }));
-        mk.position.set(m.obj.x * M, m.obj.size.h * M + 0.55, m.obj.y * M);
-        mk.userData.objectId = m.obj.id;
-        this.stateMarkers.set(m.obj.id, mk);
-        this.overlay.add(mk);
-      }
-    }
-    this.dirty = true;
-  }
-
-  select(agent: string | null, object: Id | null) {
-    this.selectedAgent = agent;
+  select(object: Id | null) {
     this.selectedObject = object;
     this.updateSelectionBox();
     this.dirty = true;
@@ -456,128 +385,10 @@ export class FactoryScene {
     this.overlay.add(box);
   }
 
-  private line(color: string, dashed: boolean): THREE.Line {
-    const mat = dashed ? new THREE.LineDashedMaterial({ color, dashSize: 0.5, gapSize: 0.3, depthTest: false, transparent: true }) : new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.45, depthTest: false });
-    const l = new THREE.Line(new THREE.BufferGeometry(), mat);
-    l.renderOrder = 5;
-    l.frustumCulled = false;
-    return l;
-  }
-
-  /** Points the camera at a person, at the height they are (upstairs, or on a stair). */
-  focusAgent(a: Agent, dist = 15) {
-    this.focus(a.pos.x, a.pos.y, dist, heightOf(a.pos, this.upperZ()));
-  }
-
-  /** Second-floor height, metres. */
-  private upperZ() {
-    return (this.project?.upper?.z ?? 3200) * M;
-  }
-
-  private setLine(l: THREE.Line, pts: Place[], y: number) {
-    const arr = new Float32Array(pts.length * 3);
-    const up = this.upperZ();
-    pts.forEach((p, i) => arr.set([p.x * M, y + heightOf(p, up), p.y * M], i * 3));
-    l.geometry.dispose();
-    l.geometry = new THREE.BufferGeometry();
-    l.geometry.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-    if ((l.material as THREE.LineDashedMaterial).isLineDashedMaterial) l.computeLineDistances();
-  }
-
-  private frameNo = 0;
-  private lastFrame = 0;
-  private lastT = -1;
-
-  /** Shows the moving model and steps its animation while the machine runs; the still baked one otherwise. */
-  private runMachine(id: Id, running: boolean, dt: number) {
-    const holder = this.objectMeshes.get(id);
-    const o = this.objectKeys.get(id);
-    if (!holder || !o || !hasModel(o.assetId)) return;
-    let live = this.liveMachines.get(id);
-    if (running && !live) {
-      live = liveMachine(o.assetId, { options: o.options })!;
-      live.object.scale.copy(holder.children[0].scale);
-      live.object.traverse((x) => (x.userData.objectId = id));
-      this.liveMachines.set(id, live);
-      holder.add(live.object);
-    }
-    holder.children[0].visible = !running;
-    if (!live) return;
-    live.object.visible = running;
-    if (running) live.update(dt);
-  }
-
-  private updatePeople(time: number, dt: number) {
-    const e = this.engine;
-    if (!e) return;
-    this.frameNo++;
-    for (const p of this.persons.values()) p.update(time, p.agent.id === this.selectedAgent, this.opts.names);
-    for (const [id, mk] of this.stateMarkers) {
-      const m = e.machines.get(id);
-      if (!m) continue;
-      (mk.material as THREE.MeshBasicMaterial).color.set(MACHINE_STATES[m.state].color);
-      this.runMachine(id, m.state === 'running', dt);
-      mk.rotation.y = time * 1.5;
-      mk.position.y = m.obj.size.h * M + 0.55 + Math.sin(time * 2 + m.obj.x) * 0.08;
-    }
-    // Paths: the picked person's every frame, everyone's now and then.
-    const want = new Set<string>();
-    for (const a of e.agents) if (a.present && (a.id === this.selectedAgent || this.opts.paths)) want.add(a.id);
-    for (const [id, l] of this.pathLines)
-      if (!want.has(id)) {
-        this.overlay.remove(l.path, l.trail);
-        l.path.geometry.dispose();
-        l.trail.geometry.dispose();
-        this.pathLines.delete(id);
-      }
-    for (const id of want) {
-      const a = this.persons.get(id)!.agent;
-      let l = this.pathLines.get(id);
-      if (!l) {
-        l = { path: this.line(a.color, true), trail: this.line(a.color, false) };
-        this.pathLines.set(id, l);
-        this.overlay.add(l.path, l.trail);
-      }
-      if (id !== this.selectedAgent && this.frameNo % 10) continue;
-      this.setLine(l.path, a.cur?.k === 'goto' ? [a.pos, ...a.path] : [], 0.08);
-      this.setLine(l.trail, id === this.selectedAgent ? a.trail.slice(-600) : a.trail.slice(-120), 0.05);
-    }
-    const sel = this.selectedAgent ? this.persons.get(this.selectedAgent) : null;
-    if (this.onAgentScreen) {
-      if (sel && sel.agent.present) {
-        const v = new THREE.Vector3(sel.agent.pos.x * M, 2.3 + heightOf(sel.agent.pos, this.upperZ()), sel.agent.pos.y * M).project(this.camera);
-        const r = this.renderer.domElement;
-        this.onAgentScreen({ x: ((v.x + 1) / 2) * r.clientWidth, y: ((1 - v.y) / 2) * r.clientHeight, visible: v.z < 1 });
-      } else this.onAgentScreen(null);
-    }
-  }
-
-  /** Follow the picked person with the camera target. */
-  follow = false;
 
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop);
-    const time = this.clock.getElapsedTime();
-    const dt = Math.min(0.1, time - this.lastFrame);
-    this.lastFrame = time;
-    if (this.follow && this.selectedAgent) {
-      const a = this.persons.get(this.selectedAgent)?.agent;
-      if (a?.present) {
-        const t = new THREE.Vector3(a.pos.x * M, 0, a.pos.y * M);
-        const d = t.clone().sub(this.controls.target).multiplyScalar(0.1);
-        this.controls.target.add(d);
-        this.camera.position.add(d);
-      }
-    }
     this.controls.update();
-    // People move only while the day runs; a paused day with a still camera isn't redrawn.
-    if (this.engine && (this.engine.t !== this.lastT || this.follow || this.dirty)) {
-      // Machines animate in real time only while the day runs, so a paused day freezes them too.
-      const running = this.engine.t !== this.lastT;
-      this.lastT = this.engine.t;
-      this.updatePeople(time, running ? dt : 0);
-      this.dirty = true;
-    }
     if (!this.dirty) return;
     this.dirty = false;
     this.fitLabels();
@@ -622,21 +433,7 @@ export class FactoryScene {
     const ndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this.camera);
-    if (this.engine) {
-      const hits = ray.intersectObjects(this.people.children, true);
-      const h = hits.find((x) => x.object.userData.agentId && x.object.visible);
-      if (h) return { agent: h.object.userData.agentId };
-      // People are small: take the nearest one within a short distance of the ray instead.
-      let best: { id: string; d: number } | null = null;
-      for (const p of this.persons.values()) {
-        if (!p.agent.present) continue;
-        const c = new THREE.Vector3(p.agent.pos.x * M, 1 + heightOf(p.agent.pos, this.upperZ()), p.agent.pos.y * M);
-        const d = ray.ray.distanceToPoint(c);
-        if (d < 0.6 && (!best || d < best.d)) best = { id: p.agent.id, d };
-      }
-      if (best) return { agent: best.id };
-    }
-    const hits = ray.intersectObjects([...this.objects.children, ...this.stateMarkers.values()], true);
+    const hits = ray.intersectObjects(this.objects.children, true);
     const h = hits.find((x) => x.object.userData.objectId);
     return h ? { object: h.object.userData.objectId } : {};
   }
@@ -658,7 +455,6 @@ export class FactoryScene {
   dispose() {
     cancelAnimationFrame(this.raf);
     for (const d of this.disposers) d();
-    this.setEngine(null);
     this.pipeline?.dispose();
     this.controls.dispose();
     disposeTree(this.scene);
@@ -667,7 +463,5 @@ export class FactoryScene {
   }
 }
 
-const MARKER = new THREE.OctahedronGeometry(0.34, 0);
-MARKER.userData.shared = true;
 const SEL_LINE = new THREE.LineBasicMaterial({ color: '#2563eb' });
 SEL_LINE.userData.shared = true;

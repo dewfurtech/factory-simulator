@@ -4,7 +4,7 @@ import { OPENING_PRESETS, type OpeningPresetId } from './openings';
 import { addPolygon, DEFAULT_WALL, emptyPlan, GLASS_WALL, openingOffsetAt, OUTER_WALL, roomAt, wallAt } from './plan';
 import MASTROX from './mastrox-layout.json';
 import { migrate, newProject } from './project';
-import type { Column, Id, Mm, Place, PlacedObject, Plan, Project, RoleId, Staff, Vec2, ZoneKind } from './types';
+import type { Column, Id, Mm, Place, PlacedObject, Plan, Project, Vec2, ZoneKind } from './types';
 
 const rect = (x0: Mm, y0: Mm, x1: Mm, y1: Mm): Vec2[] => [
   { x: x0, y: y0 },
@@ -89,17 +89,15 @@ export function sampleFactory(name = 'โรงงานตัวอย่าง
   const E = -Math.PI / 2; // east
 
   // Production hall.
-  const m = {
-    rakete: put('rakete-3500a', 13500, 3500),
-    nebula: put('nebula', 22000, 3600),
-    novax4: put('nova-x4', 29500, 3200),
-    boosterE10: put('booster-e10', 36500, 3000),
-    moon: put('moon-40', 22000, 10500),
-    aurora: put('aurora-open', 30000, 10500),
-    press: put('cold-presso', 37500, 10500),
-    glue: put('glue-spreader', 20500, 17800),
-    boosterE6: put('booster-e6', 28500, 17800),
-  };
+  put('rakete-3500a', 13500, 3500);
+  put('nebula', 22000, 3600);
+  put('nova-x4', 29500, 3200);
+  put('booster-e10', 36500, 3000);
+  put('moon-40', 22000, 10500);
+  put('aurora-open', 30000, 10500);
+  put('cold-presso', 37500, 10500);
+  put('glue-spreader', 20500, 17800);
+  put('booster-e6', 28500, 17800);
   put('vair-10', 45800, 11500, R, 'VAir ปั๊มลม');
   put('conveyor', 36500, 17800);
   put('floor-mark', 44000, 14000, 0, 'ทางเข้าออกรถ');
@@ -146,29 +144,6 @@ export function sampleFactory(name = 'โรงงานตัวอย่าง
   for (const x of [43000, 44200, 45400, 46600]) put('toilet', x, 29200, R);
   put('sink', 46800, 22000, 0);
 
-  const people: [string, RoleId, Id?][] = [
-    ['สมชาย', 'manager', desks[0]],
-    ['วิภา', 'supervisor', desks[1]],
-    ['ธนา', 'operator', m.rakete],
-    ['เอก', 'operator', m.nebula],
-    ['นุ่น', 'operator', m.novax4],
-    ['บอย', 'operator', m.boosterE10],
-    ['ต้น', 'operator', m.moon],
-    ['แจ็ค', 'operator', m.aurora],
-    ['ฝน', 'operator', m.boosterE6],
-    ['หนึ่ง', 'operator', m.glue],
-    ['ช่างเปี๊ยก', 'technician'],
-    ['ช่างโอ๊ต', 'technician'],
-    ['ป้อม', 'warehouse'],
-    ['เบียร์', 'warehouse'],
-    ['มายด์', 'qc'],
-    ['แพร', 'sales', desks[2]],
-    ['ก้อง', 'sales', desks[3]],
-    ['อร', 'admin', desks[4]],
-    ['มิ้นท์', 'reception'],
-    ['ป้าศรี', 'cleaner'],
-  ];
-  p.staff = people.map(([n, role, stationId]): Staff => ({ id: newId('s'), name: n, role, ...(stationId && { stationId }) }));
   return p;
 }
 
@@ -287,20 +262,13 @@ function addSecondFloor(p: Project) {
     p.objects.push(o);
     return o.id;
   };
-  const officeDesks = [item('desk', 1800, 42700), item('desk', 4400, 42700), item('desk', 1800, 45600), item('desk', 4400, 45600)];
+  for (const [x, y] of [[1800, 42700], [4400, 42700], [1800, 45600], [4400, 45600]]) item('desk', x, y);
   item('cabinet', 3100, 47800, N);
-  const managerDesk = item('desk', 18600, 42400, 0, 'โต๊ะผู้จัดการ');
+  item('desk', 18600, 42400, 0, 'โต๊ะผู้จัดการ');
   item('sofa', 21600, 43900, N);
   item('cabinet', 22400, 41300, W);
   item('meeting-table', 19100, 46450, 0, 'โต๊ะประชุมชั้น 2', 4800);
   item('plant', 22600, 47800);
   item('water', 13700, 41300, W);
   item('plant', 13600, 47800);
-  const desk = (role: RoleId, id: Id) => {
-    const st = p.staff.find((x) => x.role === role && !x.stationId);
-    if (st) st.stationId = id;
-  };
-  desk('manager', managerDesk);
-  desk('admin', officeDesks[0]);
-  desk('sales', officeDesks[1]);
 }

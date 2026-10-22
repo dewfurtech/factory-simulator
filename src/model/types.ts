@@ -146,56 +146,6 @@ export interface PlacedObject extends LayerFlags {
   breakdownsPerDay?: number;
 }
 
-export type RoleId =
-  | 'manager'
-  | 'supervisor'
-  | 'operator'
-  | 'technician'
-  | 'warehouse'
-  | 'qc'
-  | 'sales'
-  | 'admin'
-  | 'reception'
-  | 'cleaner';
-
-export interface Staff {
-  id: Id;
-  name: string;
-  role: RoleId;
-  /** The object this person works at: a machine for an operator, a desk, a workbench… absent = auto. */
-  stationId?: Id | null;
-  /** Minutes after midnight; absent = the project schedule. */
-  start?: number;
-  end?: number;
-  /** Off today: doesn't come in. */
-  absent?: boolean;
-}
-
-export interface BreakPeriod {
-  id: Id;
-  label: string;
-  start: number;
-  end: number;
-  /** A meal: people go to the canteen rather than the nearest break spot. */
-  meal?: boolean;
-}
-
-export interface Schedule {
-  /** Minutes after midnight. */
-  start: number;
-  end: number;
-  breaks: BreakPeriod[];
-}
-
-export interface SimSettings {
-  /** Customers walking in over the day. */
-  customersPerDay: number;
-  /** Average breakdowns per machine per working day. */
-  breakdownsPerDay: number;
-  repairMin: [number, number];
-  seed: number;
-}
-
 /** An image of an existing plan placed in plan coordinates. */
 export interface Underlay {
   imageId: Id;
@@ -218,9 +168,6 @@ export interface Project {
   plan: Plan;
   columns: Record<Id, Column>;
   objects: PlacedObject[];
-  staff: Staff[];
-  schedule: Schedule;
-  sim: SimSettings;
   underlay?: Underlay;
   /** A second floor over part of the building, with its own walls, rooms and doors. */
   upper?: UpperFloor;

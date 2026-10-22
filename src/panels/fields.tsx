@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { parseClock, fmtClock } from '../model/project';
 import { useProject } from '../store/project';
 
 /** Edits made while a field has focus collapse into one undo step. */
@@ -124,31 +123,6 @@ export function RangeField({
 }
 
 /** A clock time (HH:MM) stored as minutes after midnight. */
-export function TimeField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
-  const [text, setText] = useState(fmtClock(value));
-  useEffect(() => setText(fmtClock(value)), [value]);
-  return (
-    <Field label={label}>
-      <input
-        type="text"
-        inputMode="numeric"
-        placeholder="08:00"
-        value={text}
-        {...gesture}
-        onChange={(e) => {
-          setText(e.target.value);
-          const v = parseClock(e.target.value);
-          if (v !== null) onChange(v);
-        }}
-        onBlur={(e) => {
-          gesture.onBlur();
-          if (parseClock(e.target.value) === null) setText(fmtClock(value));
-        }}
-      />
-    </Field>
-  );
-}
-
 export function SelectField<T extends string>({ label, value, options, onChange, testId }: { label: string; value: T; options: { id: T; label: string }[]; onChange: (v: T) => void; testId?: string }) {
   return (
     <Field label={label}>

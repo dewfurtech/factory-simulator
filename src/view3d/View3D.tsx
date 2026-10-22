@@ -40,8 +40,8 @@ export default function View3D() {
   }, []);
 
   useEffect(() => sceneRef.current?.setProject(project), [project]);
-  useEffect(() => sceneRef.current?.select(null, selection?.kind === 'object' ? selection.id : null), [selection]);
-  useEffect(() => sceneRef.current?.setOptions({ cutaway, shadows, names: false, paths: false, realistic, island, areas }), [cutaway, shadows, realistic, island, areas]);
+  useEffect(() => sceneRef.current?.select(selection?.kind === 'object' ? selection.id : null), [selection]);
+  useEffect(() => sceneRef.current?.setOptions({ cutaway, shadows, realistic, island, areas }), [cutaway, shadows, realistic, island, areas]);
 
   useEffect(() => rememberRealistic(realistic), [realistic]);
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
