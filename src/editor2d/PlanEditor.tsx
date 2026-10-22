@@ -38,6 +38,9 @@ interface View {
 
 const pts = (ps: Vec2[]) => ps.map((p) => `${p.x},${p.y}`).join(' ');
 
+/** What a press needs from its event; a touch held back for a moment is replayed from this. */
+type Pointerish = { clientX: number; clientY: number; altKey: boolean; shiftKey: boolean; timeStamp: number };
+
 export function PlanEditor() {
   const project = useEditProject()!;
   const tool = useUi((s) => s.tool);
@@ -107,7 +110,7 @@ export function PlanEditor() {
     return { x: view.cx + (clientX - r.left - size.w / 2) / view.s, y: view.cy + (clientY - r.top - size.h / 2) / view.s };
   };
   const toScreen = (p: Vec2) => ({ x: (p.x - view.cx) * view.s + size.w / 2, y: (p.y - view.cy) * view.s + size.h / 2 });
-  const input = (e: React.PointerEvent | React.MouseEvent) => ({ p: toPlan(e.clientX, e.clientY), radius: SNAP_PX / view.s, alt: e.altKey, shift: e.shiftKey });
+  const input = (e: Pointerish) => ({ p: toPlan(e.clientX, e.clientY), radius: SNAP_PX / view.s, alt: e.altKey, shift: e.shiftKey });
 
   const onWheel = (e: React.WheelEvent) => {
     const before = toPlan(e.clientX, e.clientY);
@@ -116,22 +119,80 @@ export function PlanEditor() {
     setView({ s, cx: before.x - (e.clientX - r.left - size.w / 2) / s, cy: before.y - (e.clientY - r.top - size.h / 2) / s });
   };
 
+  /** A press with the left button: the tool gets it, and a second one soon after counts as a double-click. */
+  const press = (e: Pointerish) => {
+    const i = input(e);
+    const prev = lastDown.current;
+    // A press soon after another is the second half of a double-click: keep the first one's spot.
+    if (!prev || e.timeStamp - prev.t > 600) firstClick.current = { p: i.p, radius: i.radius };
+    lastDown.current = { t: e.timeStamp };
+    dispatchPointer('down', i);
+  };
+
+  // Touch: one finger works like the mouse; two fingers pan and pinch-zoom. The first finger's press is held for a
+  // moment so a second finger landing can make it a pinch instead of a click or the start of a drag.
+  const touches = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ d0: number; mid0: Vec2; view0: View } | null>(null);
+  const held = useRef<{ e: Pointerish; timer: number } | null>(null);
+  /** After a pinch, the finger still down does nothing until it lifts. */
+  const afterPinch = useRef(false);
+  const snapshot = (e: React.PointerEvent): Pointerish => ({ clientX: e.clientX, clientY: e.clientY, altKey: e.altKey, shiftKey: e.shiftKey, timeStamp: e.timeStamp });
+  const releaseHeld = (go: boolean) => {
+    const h = held.current;
+    if (!h) return;
+    clearTimeout(h.timer);
+    held.current = null;
+    if (go) press(h.e);
+  };
+  const pinchTo = () => {
+    const p = pinch.current;
+    if (!p || touches.current.size < 2) return;
+    const [a, b] = [...touches.current.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const sc = Math.min(2, Math.max(0.004, (p.view0.s * d) / Math.max(1, p.d0)));
+    // The spot that was between the fingers stays between them.
+    const r = svgRef.current!.getBoundingClientRect();
+    setView({ s: sc, cx: p.mid0.x - (mid.x - r.left - size.w / 2) / sc, cy: p.mid0.y - (mid.y - r.top - size.h / 2) / sc });
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
-    svgRef.current!.setPointerCapture(e.pointerId);
+    try {
+      svgRef.current!.setPointerCapture(e.pointerId);
+    } catch {
+      /* a pointer the browser no longer tracks (or a synthetic one): the gesture still works without capture */
+    }
+    if (e.pointerType === 'touch') {
+      touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.current.size === 2 && !afterPinch.current) {
+        releaseHeld(false);
+        const [a, b] = [...touches.current.values()];
+        pinch.current = { d0: Math.hypot(a.x - b.x, a.y - b.y), mid0: toPlan((a.x + b.x) / 2, (a.y + b.y) / 2), view0: view };
+        useUi.getState().set({ cursor: null });
+        return;
+      }
+      if (touches.current.size > 1 || pinch.current || afterPinch.current) return;
+      const snap = snapshot(e);
+      held.current = { e: snap, timer: window.setTimeout(() => ((held.current = null), press(snap)), 90) };
+      return;
+    }
     if (e.button === 1 || e.button === 2) {
       pan.current = { x: e.clientX, y: e.clientY, view, moved: false };
       return;
     }
-    if (e.button === 0) {
-      const i = input(e);
-      const prev = lastDown.current;
-      // A press soon after another is the second half of a double-click: keep the first one's spot.
-      if (!prev || e.timeStamp - prev.t > 600) firstClick.current = { p: i.p, radius: i.radius };
-      lastDown.current = { t: e.timeStamp };
-      dispatchPointer('down', i);
-    }
+    if (e.button === 0) press(e);
   };
   const onPointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      if (touches.current.has(e.pointerId)) touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch.current) return pinchTo();
+      if (afterPinch.current) return;
+      if (held.current) {
+        // A finger that moves before the hold is over was a drag from the start: the tool gets the press now.
+        if (Math.hypot(e.clientX - held.current.e.clientX, e.clientY - held.current.e.clientY) < 6) return;
+        releaseHeld(true);
+      }
+    }
     if (pan.current) {
       const { x, y, view: v } = pan.current;
       if (Math.hypot(e.clientX - x, e.clientY - y) > 3) pan.current.moved = true;
@@ -141,6 +202,22 @@ export function PlanEditor() {
     dispatchPointer('move', input(e));
   };
   const onPointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      touches.current.delete(e.pointerId);
+      if (pinch.current) {
+        if (touches.current.size < 2) {
+          pinch.current = null;
+          afterPinch.current = touches.current.size > 0;
+        }
+        return;
+      }
+      if (afterPinch.current) {
+        if (!touches.current.size) afterPinch.current = false;
+        return;
+      }
+      // A tap shorter than the hold: the press and its release go to the tool together.
+      releaseHeld(true);
+    }
     if (pan.current) {
       pan.current = null;
       return;
@@ -218,6 +295,7 @@ export function PlanEditor() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
         onDoubleClick={onDoubleClick}
         onPointerLeave={() => useUi.getState().set({ cursor: null })}
         onContextMenu={(e) => e.preventDefault()}
