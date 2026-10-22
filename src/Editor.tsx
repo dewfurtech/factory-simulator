@@ -5,6 +5,7 @@ import { deleteSelection, dispatchKey, objectKey } from './editor2d/tools';
 import { CatalogPanel } from './panels/CatalogPanel';
 import { LayersPanel } from './panels/LayersPanel';
 import { PropertiesPanel } from './panels/PropertiesPanel';
+import { download, planPicture, shownScale, svgBlob, toPng } from './editor2d/exportImage';
 import { exportProject } from './store/persist';
 import { useProject } from './store/project';
 import { SELECT, useUi, type ViewMode } from './store/ui';
@@ -79,13 +80,15 @@ function BarButton({ icon, label, on, disabled, onClick, testId }: { icon: strin
   );
 }
 
-function download(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+/** The plan as a picture, PNG or SVG, when the 2D plan is on screen to take it from. */
+async function savePlanPicture(name: string, format: 'png' | 'svg') {
+  const svg = document.querySelector<SVGSVGElement>('svg.plan-svg');
+  const project = useProject.getState().project;
+  if (!svg || !project) return;
+  const pic = await planPicture(svg, project, shownScale(svg));
+  if (!pic) return;
+  const blob = format === 'svg' ? svgBlob(pic) : await toPng(pic);
+  if (blob) download(blob, `${name}.${format}`);
 }
 
 function MainMenu() {
@@ -104,6 +107,7 @@ function MainMenu() {
     };
   }, [open]);
   const p = useProject((s) => s.project!);
+  const hasPlan = useUi((s) => s.view !== '3d');
   return (
     <div className="tb-menu" ref={root}>
       <BarButton icon="menu" label="เมนู" on={open} onClick={() => setOpen(!open)} testId="main-menu" />
@@ -114,6 +118,12 @@ function MainMenu() {
           </a>
           <button role="menuitem" onClick={() => void exportProject(p.id).then((b) => download(b, `${p.name}.factory.json`)).then(() => setOpen(false))}>
             <Icon name="download" /> ส่งออกไฟล์ (.json)
+          </button>
+          <button role="menuitem" disabled={!hasPlan} title={hasPlan ? undefined : 'เปิดมุมมอง 2D หรือแบ่งจอก่อน'} onClick={() => void savePlanPicture(p.name, 'png').then(() => setOpen(false))} data-testid="export-png">
+            <Icon name="image" /> บันทึกแปลนเป็นรูป (PNG)
+          </button>
+          <button role="menuitem" disabled={!hasPlan} title={hasPlan ? undefined : 'เปิดมุมมอง 2D หรือแบ่งจอก่อน'} onClick={() => void savePlanPicture(p.name, 'svg').then(() => setOpen(false))} data-testid="export-svg">
+            <Icon name="image" /> บันทึกแปลนเป็นไฟล์ SVG
           </button>
         </div>
       )}

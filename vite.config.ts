@@ -1,8 +1,9 @@
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
+  test: { include: ['src/**/*.test.ts'] },
   server: { port: 5174 },
   // The Rakete models wait for their logo font with a top-level await.
   build: { target: 'es2022' },

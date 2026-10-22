@@ -452,6 +452,13 @@ export class FactoryScene {
     this.dirty = true;
   }
 
+  /** The view as it shows now, as a PNG. Drawn afresh: the canvas keeps no frame once it is on screen. */
+  snapshot(): Promise<Blob | null> {
+    if (this.pipeline) this.pipeline.render();
+    else this.renderer.render(this.scene, this.camera);
+    return new Promise((ok) => this.renderer.domElement.toBlob((b) => ok(b), 'image/png'));
+  }
+
   dispose() {
     cancelAnimationFrame(this.raf);
     for (const d of this.disposers) d();

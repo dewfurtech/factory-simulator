@@ -44,6 +44,7 @@ const PATHS: Record<string, string> = {
   rotate: 'M20 12a8 8 0 1 1-2.3-5.6 M20 4v4h-4',
   factory: 'M3 21V10l5 3V10l5 3V10l5 3V4h3v17z M7 17h2 M12 17h2 M17 17h2',
   download: 'M12 4v11 M7 10l5 5 5-5 M4 20h16',
+  image: 'M4 5h16v14H4z M4 15l5-5 4 4 3-3 4 4 M16 9a1 1 0 1 0 0.01 0',
   upload: 'M12 15V4 M7 9l5-5 5 5 M4 20h16',
   plus: 'M12 5v14 M5 12h14',
   edit: 'M4 20h4L19 9l-4-4L4 16z M14 6l4 4',

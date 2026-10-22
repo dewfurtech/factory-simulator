@@ -232,7 +232,7 @@ export function PlanEditor() {
             <path d={`M ${grid * 10} 0 L 0 0 0 ${grid * 10}`} fill="none" stroke="var(--grid-major)" strokeWidth={livePx} />
           </pattern>
         </defs>
-        <rect x={-1e7} y={-1e7} width={2e7} height={2e7} fill="url(#grid-major)" />
+        <rect x={-1e7} y={-1e7} width={2e7} height={2e7} fill="url(#grid-major)" data-export="skip" />
         <UnderlayImage px={px} peek={peek} />
         {/* Peeking at the plan image, the drawing fades to an outline over it. */}
         <g opacity={peek ? 0.18 : undefined} data-testid="drawing" data-peek={peek || undefined}>
@@ -245,16 +245,19 @@ export function PlanEditor() {
           <ColumnLayer columns={columns} {...shared} />
           <PlanLabels onEditDim={onEditDim} {...shared} />
         </g>
-        <GuideLayer underlay={project.underlay} px={livePx} />
-        <ToolOverlay px={livePx} />
-        {dragGhost && (
-          <g opacity={0.7} pointerEvents="none" data-testid="drag-ghost">
-            <ObjectShape o={dragGhost} px={livePx} sel />
-          </g>
-        )}
-        <BoxOverlay px={livePx} />
-        <CursorOverlay px={livePx} />
-        <CalibrateOverlay px={livePx} />
+        {/* Editing marks: a picture of the plan leaves them out. */}
+        <g data-export="skip">
+          <GuideLayer underlay={project.underlay} px={livePx} />
+          <ToolOverlay px={livePx} />
+          {dragGhost && (
+            <g opacity={0.7} pointerEvents="none" data-testid="drag-ghost">
+              <ObjectShape o={dragGhost} px={livePx} sel />
+            </g>
+          )}
+          <BoxOverlay px={livePx} />
+          <CursorOverlay px={livePx} />
+          <CalibrateOverlay px={livePx} />
+        </g>
       </svg>
       <CalibrateInput toScreen={toScreen} />
       <DrawEntry toScreen={toScreen} size={size} />
@@ -420,9 +423,11 @@ const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim }: 
           )}
         </g>
       ))}
-      {Object.values(plan.corners).map((c) => (
+      <g data-export="skip">
+        {Object.values(plan.corners).map((c) => (
           <circle key={c.id} cx={c.x} cy={c.y} r={(selCorner === c.id ? 5 : 2.5) * px} fill={selCorner === c.id ? 'var(--select)' : '#fff'} stroke="#18181b" strokeWidth={px} />
         ))}
+      </g>
     </>
   );
 });

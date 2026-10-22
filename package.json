@@ -8,7 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "sizes": "node scripts/bbox.mjs > src/machines/sizes.json"
+    "sizes": "node scripts/bbox.mjs > src/machines/sizes.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "idb-keyval": "6.2.1",
@@ -26,7 +28,8 @@
     "@types/three": "0.170.0",
     "@vitejs/plugin-react": "4.3.4",
     "typescript": "5.6.3",
-    "vite": "5.4.21"
+    "vite": "5.4.21",
+    "vitest": "^2.1.9"
   },
   "allowScripts": {
     "esbuild@0.21.5": true

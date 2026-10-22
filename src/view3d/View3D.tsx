@@ -4,6 +4,7 @@ import { DRAWING_TOOLS, rememberRealistic, useUi } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
 import { FactoryScene } from './scene';
 import { locate } from '../model/locate';
+import { download } from '../editor2d/exportImage';
 
 /** The 3D pane: the factory, with the picked object highlighted. */
 export default function View3D() {
@@ -86,6 +87,9 @@ export default function View3D() {
         </button>
         <button className="ib sm" onClick={() => sceneRef.current?.frame()} title="มุมมองทั้งโรงงาน">
           <Icon name="fit" />
+        </button>
+        <button className="ib sm" onClick={() => void sceneRef.current?.snapshot().then((b) => b && download(b, `${project.name} 3D.png`))} title="บันทึกรูปมุมมองนี้ (PNG)" data-testid="snapshot-3d">
+          <Icon name="image" />
         </button>
       </div>
       <div className="view-hint">{top ? 'มุมมองด้านบน · ลากเพื่อเลื่อน' : 'ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน'} · เลื่อนลูกกลิ้งเพื่อซูม · คลิกวัตถุเพื่อดูรายละเอียด · ดับเบิลคลิกเพื่อซูมไปจุดนั้น</div>
