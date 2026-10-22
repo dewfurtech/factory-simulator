@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { Icon } from '../editor2d/Toolbar';
 import { confirmDialog, promptDialog } from '../ui/Dialog';
 import { storeUnderlayFile, UNDERLAY_ACCEPT } from '../editor2d/underlayFile';
@@ -73,11 +73,23 @@ const ago = (t: number) => {
   return new Date(t).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+const area = (mm2: number) => {
+  const m2 = Math.round(mm2 / 1e6);
+  return `${m2.toLocaleString('th-TH')} ม²`;
+};
+
+const isJson = (f: File) => f.type === 'application/json' || /\.json$/i.test(f.name);
+
+/** The start screen: a way to begin a factory, and the factories already kept in this browser. */
 export function ProjectList() {
   const [list, setList] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
   /** The plan file being read while a project is started from one: a large PDF takes a while. */
   const [reading, setReading] = useState<string | null>(null);
+  /** A file is held over the page, about to be dropped. */
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
   const importRef = useRef<HTMLInputElement>(null);
   const planRef = useRef<HTMLInputElement>(null);
   const refresh = () => void listProjects().then(setList);
@@ -106,43 +118,127 @@ export function ProjectList() {
     }
   };
 
+  const fromJson = (file: File) => {
+    setError(null);
+    // One project opens; a backup of several just joins the list.
+    void importFile(file)
+      .then((ps) => (ps.length === 1 ? open(ps[0].id) : refresh()))
+      .catch((err: Error) => setError(err.message));
+  };
+
+  /** Any file dropped on the page: a saved project or backup is imported, anything else is tried as a plan. */
+  const takeFile = (file: File) => (isJson(file) ? fromJson(file) : void fromPlan(file));
+
+  const onDragEnter = (e: DragEvent) => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    dragDepth.current++;
+    setDragging(true);
+  };
+  const onDragLeave = () => {
+    if (--dragDepth.current <= 0) {
+      dragDepth.current = 0;
+      setDragging(false);
+    }
+  };
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f && !reading) takeFile(f);
+  };
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? list?.filter((p) => p.name.toLowerCase().includes(q)) : list;
+  }, [list, query]);
+
   return (
-    <div className="home">
-      <header className="home-head">
-        <div className="brand big">
-          <Icon name="factory" />
+    <div className={`home${dragging ? ' dragging' : ''}`} onDragEnter={onDragEnter} onDragOver={(e) => e.preventDefault()} onDragLeave={onDragLeave} onDrop={onDrop}>
+      <nav className="home-nav">
+        <div className="home-brand">
+          <span className="brand">
+            <Icon name="factory" />
+          </span>
+          <b>Factory Simulator</b>
         </div>
-        <div>
-          <h1>Factory Simulator</h1>
-          <p>ออกแบบผังโรงงาน วางเครื่องจักร Mastrox แล้วดูรายละเอียดและขนาดของแต่ละเครื่อง</p>
+        <div className="home-nav-actions">
+          <button className="btn btn-ghost" onClick={() => importRef.current?.click()} data-testid="import-file">
+            <Icon name="upload" /> นำเข้าไฟล์
+          </button>
+          <button
+            className="btn"
+            disabled={!list?.length}
+            title="ดาวน์โหลดโปรเจกต์ทั้งหมดเป็นไฟล์เดียว"
+            onClick={() => void exportAll().then((b) => save(b, `factory-backup-${new Date().toISOString().slice(0, 10)}.json`))}
+            data-testid="backup-all"
+          >
+            <Icon name="download" /> สำรองทั้งหมด
+          </button>
         </div>
-      </header>
-      <section className="home-actions">
-        <button className="action primary" onClick={() => void create(sampleFactory())} data-testid="new-sample">
-          <Icon name="factory" />
-          <b>โรงงานตัวอย่าง</b>
-          <span>ผังพร้อมเครื่องจักร 10 เครื่อง</span>
-        </button>
-        <button className="action primary" onClick={() => void create(mastroxLayout())} data-testid="new-mastrox">
-          <Icon name="factory" />
-          <b>Layout Mastrox</b>
-          <span>ผัง 42 × 48 ม. ตามแบบที่ส่งมา พร้อมเครื่องจักร</span>
-        </button>
-        <button className="action" onClick={() => planRef.current?.click()} disabled={!!reading} data-testid="new-from-plan">
-          <Icon name="underlay" />
-          <b>เริ่มจากแบบแปลน</b>
-          <span>{reading ? `กำลังอ่านไฟล์แปลน… (${reading})` : 'อัปโหลดรูป / PDF ของ layout แล้ววาดห้องทับ (PDF จาก CAD สร้างผนังให้เอง)'}</span>
-        </button>
-        <button className="action" onClick={() => void create(newProject('โรงงานใหม่'))} data-testid="new-blank">
-          <Icon name="plus" />
-          <b>ผังเปล่า</b>
-          <span>วาดผนัง โซน และเสาเอง</span>
-        </button>
-        <button className="action" onClick={() => importRef.current?.click()}>
-          <Icon name="upload" />
-          <b>นำเข้าไฟล์</b>
-          <span>ไฟล์ .json ที่ส่งออกจากโปรแกรมนี้ หรือไฟล์สำรองทั้งหมด</span>
-        </button>
+      </nav>
+
+      <section className="hero">
+        <div className="hero-text">
+          <span className="eyebrow">โปรแกรมวางผังโรงงาน</span>
+          <h1>
+            ออกแบบผังโรงงาน
+            <br />
+            วางเครื่องจักรให้เห็นภาพจริง
+          </h1>
+          <p>วาดผนังและโซนบนแบบแปลน วางเครื่องจักร Mastrox ลงไปตามขนาดจริง แล้วเดินดูใน 3D พร้อมรายละเอียดและขนาดของแต่ละเครื่อง</p>
+        </div>
+
+        <div className="start-grid">
+          <button className="start start-blank" onClick={() => void create(newProject('โรงงานใหม่'))} data-testid="new-blank">
+            <span className="start-icon">
+              <Icon name="plus" />
+            </span>
+            <b>ผังเปล่า</b>
+            <span>เริ่มจากกระดาษเปล่า วาดผนัง โซน และเสาเอง</span>
+            <i className="start-go" aria-hidden>
+              <Icon name="forward" />
+            </i>
+          </button>
+
+          <button className={`start start-plan${reading ? ' busy' : ''}`} onClick={() => planRef.current?.click()} disabled={!!reading} data-testid="new-from-plan">
+            <span className="start-icon">
+              <Icon name="underlay" />
+            </span>
+            <b>เริ่มจากแบบแปลน</b>
+            <span>{reading ? `กำลังอ่านไฟล์แปลน… (${reading})` : 'อัปโหลดรูปหรือ PDF ของ layout แล้ววาดห้องทับ PDF จาก CAD สร้างผนังให้เอง'}</span>
+            <small>
+              <Icon name="upload" /> ลากไฟล์ PNG · JPG · PDF มาวางที่นี่ หรือคลิกเพื่อเลือก
+            </small>
+          </button>
+
+          <div className="start start-templates">
+            <div className="start-head">
+              <span className="start-icon">
+                <Icon name="library" />
+              </span>
+              <b>เริ่มจากเทมเพลต</b>
+            </div>
+            <button className="template" onClick={() => void create(sampleFactory())} data-testid="new-sample">
+              <span className="template-swatch sw-sample" aria-hidden />
+              <span className="template-text">
+                <b>โรงงานตัวอย่าง</b>
+                <span>48 × 30 ม. · ผังพร้อมเครื่องจักร 10 เครื่อง</span>
+              </span>
+              <Icon name="forward" />
+            </button>
+            <button className="template" onClick={() => void create(mastroxLayout())} data-testid="new-mastrox">
+              <span className="template-swatch sw-mastrox" aria-hidden />
+              <span className="template-text">
+                <b>Layout Mastrox</b>
+                <span>42 × 48 ม. · ตามแบบที่ส่งมา พร้อมเครื่องจักร</span>
+              </span>
+              <Icon name="forward" />
+            </button>
+          </div>
+        </div>
+
         <input ref={planRef} type="file" accept={UNDERLAY_ACCEPT} hidden onChange={(e) => (e.target.files?.[0] && void fromPlan(e.target.files[0]), (e.target.value = ''))} />
         <input
           ref={importRef}
@@ -152,77 +248,125 @@ export function ProjectList() {
           onChange={(e) => {
             const f = e.target.files?.[0];
             e.target.value = '';
-            // One project opens; a backup of several just joins the list.
-            if (f)
-              void importFile(f)
-                .then((ps) => (ps.length === 1 ? open(ps[0].id) : refresh()))
-                .catch((err) => setError(err.message));
+            if (f) fromJson(f);
           }}
         />
       </section>
-      {error && <div className="error-note">{error}</div>}
+
+      {error && (
+        <div className="error-note" role="alert">
+          <Icon name="info" /> {error}
+        </div>
+      )}
+
       <section className="home-list">
-        <h2>โรงงานของฉัน</h2>
-        <div className="notice" data-testid="storage-notice">
-          <Icon name="panel" />
+        <div className="list-head">
+          <h2>
+            โรงงานของฉัน
+            {list && list.length > 0 && <span className="count">{list.length}</span>}
+          </h2>
+          {list && list.length > 3 && (
+            <label className="search list-search">
+              <Icon name="search" />
+              <input type="search" placeholder="ค้นหาชื่อโรงงาน" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="ค้นหาชื่อโรงงาน" />
+            </label>
+          )}
+        </div>
+
+        {list && !list.length && (
+          <div className="empty-state" data-testid="empty-state">
+            <span className="empty-art" aria-hidden>
+              <Icon name="factory" />
+            </span>
+            <b>ยังไม่มีโรงงานในเครื่องนี้</b>
+            <p>เริ่มจากผังเปล่า แบบแปลนของคุณ หรือลองเปิดโรงงานตัวอย่างดูก่อนก็ได้</p>
+            <button className="btn btn-primary" onClick={() => void create(sampleFactory())}>
+              <Icon name="factory" /> เปิดโรงงานตัวอย่าง
+            </button>
+          </div>
+        )}
+        {shown && list?.length ? (
+          shown.length ? (
+            <div className="cards">
+              {shown.map((p) => (
+                <article key={p.id} className="card" onClick={() => open(p.id)} tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && open(p.id)}>
+                  <div className="card-pic">
+                    <PlanThumb id={p.id} />
+                    <span className="card-open" aria-hidden>
+                      เปิด <Icon name="forward" />
+                    </span>
+                  </div>
+                  <div className="card-body">
+                    <b title={p.name}>{p.name}</b>
+                    <div className="card-meta">
+                      <span title="เครื่องจักร">
+                        <Icon name="machine" /> {p.machines ?? 0}
+                      </span>
+                      <span title="ห้อง">
+                        <Icon name="house" /> {p.rooms ?? 0}
+                      </span>
+                      <span title="พื้นที่ใช้สอย">
+                        <Icon name="ruler" /> {area(p.area ?? 0)}
+                      </span>
+                    </div>
+                    <span className="card-time">{ago(p.updatedAt)}</span>
+                  </div>
+                  <div className="card-actions" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                    <button
+                      className="ib sm"
+                      title="เปลี่ยนชื่อ"
+                      onClick={async () => {
+                        const name = await promptDialog({ title: 'เปลี่ยนชื่อโรงงาน', label: 'ชื่อโรงงาน', value: p.name, ok: 'บันทึก' });
+                        const proj = name && (await loadProject(p.id));
+                        if (proj) await saveProject({ ...proj, name, updatedAt: Date.now() });
+                        refresh();
+                      }}
+                    >
+                      <Icon name="edit" />
+                    </button>
+                    <button className="ib sm" title="ทำสำเนา" onClick={() => void duplicateProject(p.id).then(refresh)}>
+                      <Icon name="copy" />
+                    </button>
+                    <button className="ib sm" title="ส่งออก" onClick={() => void exportProject(p.id).then((b) => save(b, `${p.name}.factory.json`))}>
+                      <Icon name="download" />
+                    </button>
+                    <button
+                      className="ib sm danger"
+                      title="ลบ"
+                      onClick={async () => {
+                        if (await confirmDialog({ title: `ลบ “${p.name}”?`, message: 'ลบแล้วเอากลับไม่ได้ ถ้ายังไม่แน่ใจให้ส่งออกเป็นไฟล์เก็บไว้ก่อน', ok: 'ลบ', danger: true }))
+                          void deleteProject(p.id).then(refresh);
+                      }}
+                    >
+                      <Icon name="trash" />
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">ไม่พบโรงงานชื่อ “{query}”</p>
+          )
+        ) : null}
+
+        <p className="store-note" data-testid="storage-notice">
+          <Icon name="info" />
           <span>
-            โปรเจกต์ทั้งหมดเก็บอยู่ในเบราว์เซอร์เครื่องนี้เท่านั้น ถ้าล้างข้อมูลเว็บไซต์ เปลี่ยนเครื่อง หรือเปลี่ยนเบราว์เซอร์จะหาย ควรสำรองเป็นไฟล์เก็บไว้เป็นระยะ
-            แล้วนำเข้ากลับได้จากปุ่ม "นำเข้าไฟล์"
+            โปรเจกต์ทั้งหมดเก็บอยู่ในเบราว์เซอร์เครื่องนี้เท่านั้น ถ้าล้างข้อมูลเว็บไซต์ เปลี่ยนเครื่อง หรือเปลี่ยนเบราว์เซอร์จะหาย ควรกด “สำรองทั้งหมด” เก็บเป็นไฟล์ไว้เป็นระยะ
+            แล้วนำเข้ากลับได้จากปุ่ม “นำเข้าไฟล์”
           </span>
-          <button
-            className="btn btn-sm"
-            disabled={!list?.length}
-            onClick={() => void exportAll().then((b) => save(b, `factory-backup-${new Date().toISOString().slice(0, 10)}.json`))}
-            data-testid="backup-all"
-          >
-            <Icon name="download" /> สำรองทั้งหมด
-          </button>
-        </div>
-        {list && !list.length && <p className="muted">ยังไม่มีโปรเจกต์ เริ่มจากโรงงานตัวอย่างได้เลย</p>}
-        <div className="cards">
-          {list?.map((p) => (
-            <article key={p.id} className="card" onClick={() => open(p.id)}>
-              <PlanThumb id={p.id} />
-              <div className="card-body">
-                <b>{p.name}</b>
-                <span className="muted small">
-                  {p.machines ?? 0} เครื่อง · {Math.round((p.area ?? 0) / 1e6)} ม² · {ago(p.updatedAt)}
-                </span>
-              </div>
-              <div className="card-actions" onClick={(e) => e.stopPropagation()}>
-                <button
-                  className="ib sm"
-                  title="เปลี่ยนชื่อ"
-                  onClick={async () => {
-                    const name = await promptDialog({ title: 'เปลี่ยนชื่อโรงงาน', label: 'ชื่อโรงงาน', value: p.name, ok: 'บันทึก' });
-                    const proj = name && (await loadProject(p.id));
-                    if (proj) await saveProject({ ...proj, name, updatedAt: Date.now() });
-                    refresh();
-                  }}
-                >
-                  <Icon name="edit" />
-                </button>
-                <button className="ib sm" title="ทำสำเนา" onClick={() => void duplicateProject(p.id).then(refresh)}>
-                  <Icon name="copy" />
-                </button>
-                <button className="ib sm" title="ส่งออก" onClick={() => void exportProject(p.id).then((b) => save(b, `${p.name}.factory.json`))}>
-                  <Icon name="download" />
-                </button>
-                <button
-                  className="ib sm danger"
-                  title="ลบ"
-                  onClick={async () => {
-                    if (await confirmDialog({ title: `ลบ “${p.name}”?`, message: 'ลบแล้วเอากลับไม่ได้ ถ้ายังไม่แน่ใจให้ส่งออกเป็นไฟล์เก็บไว้ก่อน', ok: 'ลบ', danger: true }))
-                      void deleteProject(p.id).then(refresh);
-                  }}
-                >
-                  <Icon name="trash" />
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
+        </p>
       </section>
+
+      {dragging && (
+        <div className="drop-veil" aria-hidden>
+          <div className="drop-card glass">
+            <Icon name="upload" />
+            <b>วางไฟล์เพื่อเริ่มโปรเจกต์</b>
+            <span>รูป / PDF ของแบบแปลน หรือไฟล์ .json ที่ส่งออกไว้</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
