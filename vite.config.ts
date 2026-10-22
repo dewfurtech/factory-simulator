@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
-  test: { include: ['src/**/*.test.ts'] },
+  test: { include: ['src/**/*.test.ts'], exclude: ['e2e/**', 'node_modules/**'] },
   server: { port: 5174 },
   // The Rakete models wait for their logo font with a top-level await.
   build: {

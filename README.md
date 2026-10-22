@@ -11,6 +11,7 @@ npm run dev        # เปิด http://localhost:5174
 npm run build      # ตรวจ type แล้ว build ลง dist/
 npm run typecheck  # ตรวจ type อย่างเดียว
 npm test           # เทสต์โค้ดเรขาคณิตใน src/model ด้วย Vitest
+npm run test:e2e   # Playwright smoke test ของไหลงานหลักในเบราว์เซอร์ (ครั้งแรก: npx playwright install chromium)
 npm run lint       # ESLint (typescript-eslint + react-hooks)
 npm run format     # จัดรูปแบบโค้ดทั้งโปรเจกต์ด้วย Prettier
 ```
@@ -92,7 +93,7 @@ src/store        สถานะโปรเจกต์ (undo/redo), UI, คล
 src/machines     โมเดล Mastrox + ขนาด (sizes.json)
 ```
 
-เทสต์อยู่ข้างโค้ดที่มันตรวจ (`*.test.ts`) ครอบคลุมเวกเตอร์ ผัง/ห้อง weld snap พื้นที่ ประตู และการตรวจระยะวาง
+เทสต์อยู่ข้างโค้ดที่มันตรวจ (`*.test.ts`) ครอบคลุมเวกเตอร์ ผัง/ห้อง weld snap พื้นที่ ประตู และการตรวจระยะวาง ส่วน `e2e/` เป็น Playwright smoke test: เปิดโรงงานตัวอย่าง วาดห้อง วางเครื่อง เลิกทำ วัดระยะ ส่งออกรูป เปิด 3D เพิ่มโมเดลในคลังของฉัน และเปลี่ยนชื่อ รันบน GitHub Actions ทุก push ด้วย
 
 ## ขนาดไฟล์ที่โหลด
 

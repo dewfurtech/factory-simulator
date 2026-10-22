@@ -2,3 +2,5 @@ node_modules
 dist
 *.tsbuildinfo
 .plans/
+playwright-report/
+test-results/

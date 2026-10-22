@@ -5,7 +5,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   // Built output, dependencies, and the machine models copied in from Mastrox Models (edited there, not here).
-  { ignores: ['dist', 'node_modules', '.plans', '.claude', 'src/machines/**', 'scripts/**'] },
+  { ignores: ['dist', 'node_modules', '.plans', '.claude', 'src/machines/**', 'scripts/**', 'playwright-report', 'test-results'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
