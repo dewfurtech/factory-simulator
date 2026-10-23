@@ -2963,3 +2963,43 @@ button.start:hover:not(:disabled) {
 .view3d-canvas.moving:active {
   cursor: grabbing;
 }
+
+/* The 3D move switch: its own pill at the top left of the pane, orange while a drag moves machines. */
+.view-move {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  z-index: 6;
+  border-radius: 12px;
+}
+.view-move-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.view-move-btn svg {
+  width: 18px;
+  height: 18px;
+}
+.view-move-btn:hover {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+.view-move-btn.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}

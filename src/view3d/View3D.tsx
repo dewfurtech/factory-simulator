@@ -19,9 +19,9 @@ export default function View3D() {
   const cutaway = useUi((s) => s.cutaway);
   const areas = useUi((s) => !s.areasHidden);
   const [top, setTop] = useState(false);
-  // Move mode: dragging a machine slides it over the floor, as on the plan; on by default for a customer, who has no plan tools.
-  const customer = useUi((s) => !!s.customer);
-  const [moving, setMoving] = useState(customer);
+  // Move mode: dragging a machine slides it over the floor, as on the plan.
+  const moving = useUi((s) => s.move3d);
+  const setMoving = (on: boolean) => useUi.getState().set({ move3d: on });
   const goto = useUi((s) => s.goto);
 
   // A go-to from the layers panel: fly in over the thing, closer the smaller it is.
@@ -36,7 +36,15 @@ export default function View3D() {
     sceneRef.current = s;
     // The scene on window for the console and the browser tests (built with --mode e2e).
     if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') Object.assign(window, { __scene: s });
+    // Where the middle of this view meets the floor: the library drops a new machine there.
+    useUi.getState().set({
+      floorCentre: () => {
+        const r = s.renderer.domElement.getBoundingClientRect();
+        return s.floorPoint(r.left + r.width / 2, r.top + r.height / 2);
+      },
+    });
     return () => {
+      useUi.getState().set({ floorCentre: null });
       s.dispose();
       sceneRef.current = null;
     };
@@ -129,21 +137,25 @@ export default function View3D() {
         onDoubleClick={onDouble}
         data-testid="view3d"
       />
-      <div className="view-tools glass">
+      {/* The move switch stands on its own, apart from the view buttons: it changes what a drag does. */}
+      <div className="view-move glass">
         <button
-          className={`ib sm${moving ? ' on' : ''}`}
+          className={`view-move-btn${moving ? ' on' : ''}`}
           onClick={() => setMoving(!moving)}
-          title={moving ? 'โหมดย้ายเครื่อง: ลากเครื่องเพื่อย้าย กด R หมุน (คลิกเพื่อกลับไปหมุนมุมมอง)' : 'ย้ายเครื่องใน 3D: ลากเครื่องบนพื้นได้เลย'}
+          title={moving ? 'กำลังย้ายเครื่อง: ลากเครื่องเพื่อย้าย กด R หมุน · คลิกเพื่อกลับไปหมุนมุมมอง' : 'ย้ายเครื่องใน 3D: ลากเครื่องบนพื้นได้เลย'}
           aria-pressed={moving}
           data-testid="move-3d"
         >
           <Icon name="move" />
+          <span>{moving ? 'กำลังย้ายเครื่อง' : 'ย้ายเครื่อง'}</span>
         </button>
         {moving && selection?.kind === 'object' && (
           <button className="ib sm" onClick={() => rotateObject(selection.id, Math.PI / 2)} title="หมุน 90° (R)" data-testid="rotate-3d">
             <Icon name="rotate" />
           </button>
         )}
+      </div>
+      <div className="view-tools glass">
         <button
           className={`ib sm${cutaway ? ' on' : ''}`}
           onClick={() => useUi.getState().set({ cutaway: !cutaway })}

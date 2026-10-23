@@ -5,6 +5,7 @@ import { useLibrary } from '../store/library';
 import { ModelForm } from './ModelForm';
 import { useUi } from '../store/ui';
 import { ASSET_MIME, setDraggedAsset } from '../editor2d/PlanEditor';
+import { placeObjectAt } from '../editor2d/tools';
 import { Icon } from '../editor2d/Toolbar';
 
 function Thumb({ id }: { id: string }) {
@@ -65,6 +66,19 @@ export function CatalogPanel() {
   const models = useLibrary((s) => s.models);
   const tags = useMemo(() => allTags(models), [models]);
   const tool = useUi((s) => s.tool);
+  const in3d = useUi((s) => s.view === '3d');
+  /** On the plan a click arms the place tool; in 3D there is no plan to click, so the machine lands mid-view, ready to drag. */
+  const pick = (assetId: string, on: boolean) => {
+    const ui = useUi.getState();
+    if (in3d) {
+      const at = ui.floorCentre?.();
+      if (!at) return;
+      const id = placeObjectAt(assetId, at, 300, true);
+      ui.set({ selection: { kind: 'object', id }, move3d: true });
+      return;
+    }
+    ui.setTool(on ? { kind: 'select', drag: null } : { kind: 'placeObject', assetId });
+  };
   const setShelf = (s: Shelf) => {
     setShelfState(s);
     setGroup('all');
@@ -181,7 +195,7 @@ export function CatalogPanel() {
                       if (img) e.dataTransfer.setDragImage(img, 0, 0);
                     }}
                     onDragEnd={() => setDraggedAsset(null)}
-                    onClick={() => useUi.getState().setTool(on ? { kind: 'select', drag: null } : { kind: 'placeObject', assetId: c.id })}
+                    onClick={() => pick(c.id, on)}
                     title={`${c.label}${c.summary ? `\n${c.summary}` : ''}\n${fmtSize(c)}`}
                     data-testid={`cat-${c.id}`}
                   >

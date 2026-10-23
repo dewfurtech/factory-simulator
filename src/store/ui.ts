@@ -74,6 +74,10 @@ interface UiState {
   panelOpen: boolean;
   /** 3D walls cut down near the floor (on by default) so the layout and doorways read from above. */
   cutaway: boolean;
+  /** 3D move mode: dragging slides the machine under the pointer over the floor instead of turning the camera. */
+  move3d: boolean;
+  /** Set by the open 3D view: the plan point (mm) under the middle of its screen, where a new machine is dropped. */
+  floorCentre: (() => Vec2 | null) | null;
   /** Every area out of sight in both views, without touching the areas' own flags. */
   areasHidden: boolean;
   /** A request from the layers panel to bring the views to this thing; n makes each request distinct. */
@@ -102,6 +106,8 @@ export const useUi = create<UiState>((set) => ({
   dock: null,
   panelOpen: false,
   cutaway: true,
+  move3d: false,
+  floorCentre: null,
   areasHidden: false,
   goto: null,
   peek: false,
