@@ -1,4 +1,5 @@
-// Copied from D:/Job Dew/Model/mastrox-models/machines (blocky stand-ins). Re-copy to update.
+// Copied from D:/Job Dew/Model/mastrox-models/machines (blocky stand-ins). Re-copy to update, then put back the
+// placeLogo change: a logo sits on the block under it, not the front-most block in its direction (Dew, 2026-10-23).
 import * as THREE from 'three';
 import { logoTexture, LOGO_ASPECT } from './lib.js';
 
@@ -303,15 +304,16 @@ function placeLogo(lg, hosts) {
     ext.max(new THREE.Vector3(Math.abs(v.x), Math.abs(v.y), Math.abs(v.z)));
   }
   const others = ['x', 'y', 'z'].filter(k => k !== axis);
-  let face = null, under = false;
+  // The face it sits on: of the blocks directly under the logo's centre, the one whose face is nearest the logo
+  // along its facing (a cabinet's logo stays on the cabinet, not pushed onto a block further out in that direction).
+  let face = null;
   for (const hst of hosts) {
     const b = hst.box;
-    if (others.some(k => b.max[k] < lg.pos[k] - ext[k] || b.min[k] > lg.pos[k] + ext[k])) continue;
+    if (!others.every(k => b.min[k] <= lg.pos[k] && b.max[k] >= lg.pos[k])) continue;
     const f = sign > 0 ? b.max[axis] : b.min[axis];
-    face = face === null ? f : sign > 0 ? Math.max(face, f) : Math.min(face, f);
-    if (others.every(k => b.min[k] <= lg.pos[k] && b.max[k] >= lg.pos[k])) under = true;
+    if (face === null || Math.abs(f - lg.pos[axis]) < Math.abs(face - lg.pos[axis])) face = f;
   }
-  if (!under) return null;
+  if (face === null) return null;
   const pos = lg.pos.clone();
   pos[axis] = face + 0.006 * sign;
   return { ...lg, pos, side: axis + sign };
