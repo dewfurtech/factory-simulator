@@ -1216,7 +1216,8 @@ function Hud() {
 const RAIL_PX = 84;
 
 function initialView(project: Project, pane = { w: 800, h: 600 }): View {
-  const rail = RAIL_PX;
+  // On a phone the tool rail runs along the bottom, so nothing is kept clear on the left.
+  const rail = pane.w < 640 ? 0 : RAIL_PX;
   const room = { w: Math.max(200, pane.w - rail - 48), h: Math.max(160, pane.h - 96) };
   const fit = (c: Vec2, w: number, h: number, fill: number): View => {
     const s = Math.min(room.w / w, room.h / h) * fill;

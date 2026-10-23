@@ -3227,3 +3227,75 @@ body:has(.home) {
     height: 44px;
   }
 }
+
+/* The view switch: 2D and 3D as two equal halves, side by side as a small icon next to it. */
+.seg-view button {
+  min-width: 64px;
+  justify-content: center;
+}
+.split-toggle.on {
+  background: var(--ink);
+  color: #fff;
+}
+
+/* Phones: the tool rail runs along the bottom as one scrolling row, its flyouts open upward. */
+@media (max-width: 640px) {
+  .toolbar.rail {
+    top: auto;
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: visible;
+    scrollbar-width: none;
+    /* No frosted glass here: a backdrop filter would hold the fixed flyouts inside this scrolling row. */
+    backdrop-filter: none;
+    background: #fff;
+  }
+  .toolbar.rail::-webkit-scrollbar {
+    display: none;
+  }
+  .toolbar.rail .rail-btn {
+    flex: none;
+    width: 50px;
+    height: 46px;
+  }
+  .toolbar.rail .rail-head {
+    flex: none;
+    align-self: stretch;
+    margin: 6px 2px;
+    padding: 0;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    font-size: 0;
+  }
+  .toolbar.rail hr {
+    display: none;
+  }
+  .rail-btn[data-tip]:hover::after {
+    display: none;
+  }
+  .flyout {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: 70px;
+    min-width: 0;
+  }
+  .zoom-ctl {
+    bottom: 76px;
+  }
+  .issues-chip-wrap {
+    bottom: 76px;
+  }
+  .tapes-chip {
+    bottom: 76px;
+    right: 60px;
+  }
+  .aisle-legend {
+    bottom: 76px;
+  }
+}

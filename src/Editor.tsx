@@ -332,13 +332,14 @@ export function Editor() {
           </button>
         </div>
         <div className="tb-center">
-          <div className="seg seg-icons" role="tablist" aria-label="มุมมอง">
-            {VIEWS.map((v) => (
+          {/* A plain 2D/3D switch; side by side is a small extra beside it, for wide screens. */}
+          <div className="seg seg-icons seg-view" role="tablist" aria-label="มุมมอง">
+            {VIEWS.filter((v) => v.id !== 'split').map((v) => (
               <button
                 key={v.id}
                 role="tab"
                 aria-selected={view === v.id}
-                className={`${view === v.id ? 'on' : ''}${v.id === 'split' ? ' tb-desk' : ''}`}
+                className={view === v.id ? 'on' : ''}
                 onClick={() => set({ view: v.id })}
                 title={v.label}
                 data-testid={`view-${v.id}`}
@@ -348,6 +349,15 @@ export function Editor() {
               </button>
             ))}
           </div>
+          <button
+            className={`ib split-toggle tb-desk${view === 'split' ? ' on' : ''}`}
+            onClick={() => set({ view: view === 'split' ? '2d' : 'split' })}
+            aria-pressed={view === 'split'}
+            title="แบ่งจอ: แปลน 2D กับ 3D ข้างกัน"
+            data-testid="view-split"
+          >
+            <Icon name="split" />
+          </button>
           {view !== '3d' && hasUpper && (
             <div className="seg" role="tablist" aria-label="ชั้น" title="ชั้นที่แสดงในแปลน 2D">
               {['ชั้น 1', 'ชั้น 2'].map((label, i) => (
