@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { catalogItem } from '../model/catalog';
+import { catalogItem, localToPlan } from '../model/catalog';
+import { FLOW_IN, FLOW_OUT, flowArrows } from '../model/flow';
 import { levelOf, onLevel } from '../model/levels';
 import { obbCorners, objectObb } from '../model/objects';
 import { wallFootprints } from '../model/miter';
@@ -764,10 +765,33 @@ const ObjectShape = memo(function ObjectShape({ o, px, sel, above, bad }: { o: P
         </text>
       )}
       <circle cx={front.x} cy={front.y} r={2 * px} fill="#18181b" />
+      {machine && <FlowArrows o={o} px={px} />}
       {bad && <IssueBadge at={poly[1]} px={px} />}
     </g>
   );
 });
+
+/** Where the work goes in (red, pointing in) and comes out (blue, pointing away), beside the machine's edges. */
+function FlowArrows({ o, px }: { o: PlacedObject; px: number }) {
+  // No smaller than ~14 px on screen, so they still read when zoomed out.
+  const arrows = flowArrows(o, 14 * px);
+  if (!arrows.length) return null;
+  return (
+    <g pointerEvents="none" data-testid="flow-arrows">
+      {arrows.map((a) => (
+        <polygon
+          key={a.kind}
+          points={pts(a.points.map((p) => localToPlan(o, p.x, p.y)))}
+          fill={a.kind === 'in' ? FLOW_IN : FLOW_OUT}
+          stroke="var(--canvas)"
+          strokeWidth={0.8 * px}
+          strokeLinejoin="round"
+          opacity={0.95}
+        />
+      ))}
+    </g>
+  );
+}
 
 function CursorOverlay({ px }: { px: number }) {
   const tool = useUi((s) => s.tool);

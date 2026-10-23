@@ -130,7 +130,16 @@ export interface MachineInfo {
   /** L × W × H in mm as the brochure prints it; null when the brochure gives none. */
   size: [Mm, Mm, Mm] | null;
   summary?: string;
+  /** Where the work goes in and comes out, in the machine's own frame. */
+  flow?: MachineFlow;
   options?: MachineOption[];
+}
+
+/** A side of a machine in its own frame: front is where the operator stands (plan local +y), right is plan local +x. */
+export type FlowSide = 'front' | 'back' | 'left' | 'right';
+export interface MachineFlow {
+  in: FlowSide;
+  out: FlowSide;
 }
 
 /** An add-on a customer can tick for a placed machine; the footprint grows to take it in. */
@@ -138,6 +147,33 @@ export interface MachineOption {
   id: string;
   name: string;
   note?: string;
+  /** One end of the flow this add-on moves (a lift table takes boards in at its end). */
+  flow?: Partial<MachineFlow>;
+}
+
+export const FLOW_SIDE_LABEL: Record<FlowSide, string> = { front: 'ด้านหน้า', back: 'ด้านหลัง', left: 'ซ้าย', right: 'ขวา' };
+
+/** Where a placed machine takes work in and lets it out, with the ticked add-ons moving the ends; null for things without a flow. */
+export function machineFlow(assetId: string, chosen: readonly string[] | undefined): MachineFlow | null {
+  const base = INFO.get(assetId)?.flow;
+  if (!base) return null;
+  const flow = { ...base };
+  for (const o of machineOptions(assetId)) if (chosen?.includes(o.id) && o.flow) Object.assign(flow, o.flow);
+  return flow;
+}
+
+/** Unit direction (plan local frame) out of the machine through a side, and the half extent of the box that way. */
+export function sideOffset(side: FlowSide, size: Pick<Size3, 'w' | 'd'>): { lx: Mm; ly: Mm } {
+  switch (side) {
+    case 'front':
+      return { lx: 0, ly: size.d / 2 };
+    case 'back':
+      return { lx: 0, ly: -size.d / 2 };
+    case 'right':
+      return { lx: size.w / 2, ly: 0 };
+    case 'left':
+      return { lx: -size.w / 2, ly: 0 };
+  }
 }
 
 export const machineOptions = (assetId: string): MachineOption[] => INFO.get(assetId)?.options ?? [];

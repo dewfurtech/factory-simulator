@@ -2941,3 +2941,17 @@ button.start:hover:not(:disabled) {
   color: var(--ink-2);
   font-weight: 600;
 }
+
+/* Where the work goes in and comes out, under the machine's summary. */
+.ms-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ms-flow small {
+  flex-basis: 100%;
+  font-weight: 400;
+}

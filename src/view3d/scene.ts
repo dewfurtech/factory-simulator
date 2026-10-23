@@ -8,6 +8,7 @@ import { buildAreas, buildBuilding, buildIsland, buildZoneLabels } from './build
 import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
 import { machineObject } from './machines3d';
 import { machineFootprint } from '../model/catalog';
+import { FLOW_IN, FLOW_OUT, flowArrows } from '../model/flow';
 import { disposeTree, FLAT, LABEL_LAYER, textSprite } from './lowpoly';
 
 FLAT.userData.shared = true;
@@ -243,6 +244,15 @@ export class FactoryScene {
       const base = machineFootprint(o.assetId, o.options);
       if (blocky && base) blocky.scale.set(o.size.w / base.w, o.size.h / base.h, o.size.d / base.d);
       holder.add(blocky ?? new THREE.Mesh(machineBlock(o.size), FLAT));
+      // The in/out arrows painted on the floor beside the machine, in its own frame (x across, local y = +z).
+      for (const a of flowArrows(o)) {
+        const shape = new THREE.Shape(a.points.map((p) => new THREE.Vector2(p.x * M, -p.y * M)));
+        const g = new THREE.ExtrudeGeometry(shape, { depth: 0.015, bevelEnabled: false });
+        g.rotateX(-Math.PI / 2);
+        const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: a.kind === 'in' ? FLOW_IN : FLOW_OUT }));
+        mesh.position.y = 0.012;
+        holder.add(mesh);
+      }
       const s = textSprite(o.name, { height: 0.6, color: '#1f2937', bg: 'rgba(255,255,255,0.92)', border: '#64748b' });
       // Over the block's top, centred; a sprite always faces the camera, so the name reads from any side.
       s.position.set(0, o.size.h * M + 0.4, 0);

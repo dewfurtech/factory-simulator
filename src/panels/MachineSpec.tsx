@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '../editor2d/Toolbar';
-import { MACHINE_CATEGORIES, machineInfo, machineOptions } from '../model/catalog';
+import { FLOW_SIDE_LABEL, MACHINE_CATEGORIES, machineFlow, machineInfo, machineOptions } from '../model/catalog';
+import { FLOW_IN, FLOW_OUT } from '../model/flow';
 import { machinePhoto } from '../model/photos';
 import type { Size3 } from '../model/types';
 
@@ -96,6 +97,7 @@ export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: 
   const cat = MACHINE_CATEGORIES.find((c) => c.id === m.cat);
   // With add-ons ticked the brochure size no longer applies: the placed size is the machine measured with them.
   const withAddons = chosen.length > 0 && !!placed;
+  const flow = machineFlow(assetId, chosen);
   const size: [number, number, number] | null = withAddons ? [placed.w, placed.d, placed.h] : (m.size ?? (placed ? [placed.w, placed.d, placed.h] : null));
   return (
     <div className="machine-spec" data-testid="machine-spec">
@@ -105,6 +107,13 @@ export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: 
           {cat && <b>{m.kind ?? cat.name}</b>}
           {cat && m.summary && ' · '}
           {m.summary}
+        </p>
+      )}
+      {flow && (
+        <p className="ms-flow" data-testid="machine-flow">
+          <span style={{ color: FLOW_IN }}>▶ งานเข้า {FLOW_SIDE_LABEL[flow.in]}</span>
+          <span style={{ color: FLOW_OUT }}>▶ งานออก {FLOW_SIDE_LABEL[flow.out]}</span>
+          <small className="muted">มองจากด้านหน้าเครื่อง (ด้านที่มีขีดหนาบนผัง)</small>
         </p>
       )}
       {addons.length > 0 && onOptions && (
