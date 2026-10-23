@@ -1,7 +1,7 @@
 # Builds the app and publishes it to GitHub Pages on every push to main, at
 # https://<owner>.github.io/<repo>/ (the build takes that path as its base).
 # Run by hand only: the repository is private, which the free plan keeps off Pages. The app is hosted on
-# Cloudflare Pages / Netlify from the same main branch instead (build: npm run build, output: dist).
+# Cloudflare Pages from the same main branch instead (build: npm run build, output: dist).
 name: Deploy to GitHub Pages
 
 on:

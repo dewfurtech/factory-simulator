@@ -34,7 +34,7 @@ export interface SharedCopy {
 
 const API = '/api/share';
 const PART_API = '/api/share-part';
-/** Netlify caps a function's request and answer near 6 MB, so the plan goes up and comes back in pieces under that. */
+/** The plan goes up and comes back in pieces of at most this much, so no one request is large (the server takes 5 MB a piece). */
 const PART_BYTES = 3_500_000;
 /** The server keeps at most this many pieces per share (about 140 MB compressed). */
 const MAX_PARTS = 40;

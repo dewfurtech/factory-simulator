@@ -7,8 +7,8 @@ import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
 /**
- * The share API for the dev and preview servers: the same routes as netlify/functions/share.mjs, with the shared plans
- * kept as files in .share-dev/ (ignored by git) instead of Netlify Blobs.
+ * The share API for the dev and preview servers: the same routes as src/server/share.ts (served on Cloudflare Pages by
+ * functions/api/[[path]].ts), with the shared plans kept as files in .share-dev/ (ignored by git) instead of Cloudflare KV.
  */
 function shareDevApi(): Plugin {
   const dir = resolve('.share-dev');

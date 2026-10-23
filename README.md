@@ -66,7 +66,7 @@ npm run format     # จัดรูปแบบโค้ดทั้งโป�
 
 ลิงก์เป็นสำเนา: แก้โปรเจกต์ต่อหลังแชร์ไม่กระทบลิงก์ที่ส่งไปแล้ว ขนาดที่ส่งเป็นลิงก์ได้ไม่เกินราว 5 MB (ภาพแปลนและโมเดลที่อัปโหลดนับรวม) เกินนั้นให้ส่งออกเป็นไฟล์แทน
 
-ฝั่งเซิร์ฟเวอร์คือ Netlify Function ใน `netlify/functions/share.mjs` (`POST /api/share` เก็บ, `GET /api/share/:id` อ่าน) เก็บลง Netlify Blobs ตอนพัฒนา `npm run dev` และ `vite preview` มี API เดียวกันจากปลั๊กอินใน `vite.config.ts` เก็บเป็นไฟล์ใน `.share-dev/` (ไม่เข้า git)
+ฝั่งเซิร์ฟเวอร์คือ `src/server/share.ts` (`POST /api/share` เก็บ, `GET /api/share/:id` อ่าน, ส่งเป็นชิ้น gzip ผ่าน `/api/share-part`) รันบน Cloudflare Pages ผ่าน `functions/api/[[path]].ts` และเก็บลง Cloudflare KV ตอนพัฒนา `npm run dev` และ `vite preview` มี API เดียวกันจากปลั๊กอินใน `vite.config.ts` เก็บเป็นไฟล์ใน `.share-dev/` (ไม่เข้า git)
 
 ## นำเข้าแปลนที่มีอยู่
 
@@ -120,4 +120,13 @@ three.js และโมเดลเครื่อง Mastrox แยกเป�
 
 ## การเผยแพร่
 
-Netlify build จาก `main` ด้วย `npm run build` และเสิร์ฟ `dist/` (ตั้งไว้ใน `netlify.toml`) workflow GitHub Pages มีไว้รันด้วยมือเท่านั้น
+เว็บอยู่บน **Cloudflare Pages** ต่อกับ GitHub repo นี้ build จาก `main` ทุก push (ฟรี 500 build ต่อเดือน) workflow GitHub Pages มีไว้รันด้วยมือเท่านั้น
+
+ตั้งครั้งแรกใน Cloudflare dashboard:
+
+1. **Workers & Pages → Create → Pages → Connect to Git** เลือก repo `factory-simulator` branch `main`
+2. Build command `npm run build` · Build output directory `dist` · ตัวแปร `NODE_VERSION` = `20`
+3. **Storage & Databases → KV → Create namespace** ตั้งชื่อ `factory-shares`
+4. กลับไปที่โปรเจกต์ Pages → **Settings → Bindings → Add → KV namespace** ชื่อตัวแปร `SHARES` เลือก `factory-shares` (ใส่ทั้ง Production และ Preview) แล้ว **Retry deployment** ครั้งหนึ่งให้ binding มีผล
+
+ถ้าลืมข้อ 4 หน้าเว็บเปิดได้ แต่กดแชร์ลิงก์จะขึ้นว่า "เซิร์ฟเวอร์ยังไม่ได้ตั้งที่เก็บลิงก์ (KV binding SHARES)" KV แบบฟรีเขียนได้ 1,000 ครั้งต่อวัน (แชร์หนึ่งครั้งใช้ราว 2–3 ครั้ง) และเก็บได้ 1 GB

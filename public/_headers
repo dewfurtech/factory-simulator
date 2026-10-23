@@ -1,0 +1,3 @@
+# Cloudflare Pages: module scripts must come with a JavaScript type, whatever their extension (the PDF worker is an .mjs).
+/assets/*.mjs
+  Content-Type: text/javascript; charset=utf-8
