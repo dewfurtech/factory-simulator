@@ -101,6 +101,12 @@ const aspectOf = art => art.h / (art.w * (1 + 2 * ART_PAD));
 export const LOGO_ASPECT = aspectOf(ARTS.thin), LOGO_ASPECT_BOLD = aspectOf(ARTS.bold);
 // Resolves once both cuts are loaded and logo textures are painted (for snapshots taken straight away).
 const artReady = [];
+// Written out in full so the bundler finds and copies them; a URL built from a variable is missing from the build
+// (Factory Simulator, 2026-10-23: the logos failed on the live site).
+const ART_URLS = {
+  'mastrox-logo-thin.png': new URL('../assets/mastrox-logo-thin.png', import.meta.url).href,
+  'mastrox-logo-badge.png': new URL('../assets/mastrox-logo-badge.png', import.meta.url).href,
+};
 export let logosReady;
 for (const art of Object.values(ARTS)) {
   art.mask = null; art.waiting = [];
@@ -121,7 +127,7 @@ for (const art of Object.values(ARTS)) {
     art.waiting.splice(0).forEach(f => f());
   };
   img.onerror = () => art.waiting.splice(0).forEach(f => f());
-  img.src = new URL('../assets/' + art.file, import.meta.url).href;
+  img.src = ART_URLS[art.file];
 }
 logosReady = Promise.all(artReady);
 
@@ -137,6 +143,8 @@ export function logoTexture({ mas = '#f2f2f2', trox = '#f26022', bold = false } 
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
   const paint = () => {
+    // The artwork did not load: leave the logo blank rather than throw.
+    if (!art.mask) return;
     const x = c.getContext('2d');
     x.clearRect(0, 0, W, H);
     x.drawImage(art.mask, pad, 0, artW, H);
