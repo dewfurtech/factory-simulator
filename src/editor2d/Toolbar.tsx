@@ -240,10 +240,11 @@ export function RailButton(props: {
   more?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   children?: ReactNode;
+  className?: string;
 }) {
   return (
     <button
-      className={`rail-btn${props.on ? ' on' : ''}`}
+      className={`rail-btn${props.on ? ' on' : ''}${props.className ? ` ${props.className}` : ''}`}
       onClick={props.onClick}
       draggable={!!props.onDragStart}
       onDragStart={props.onDragStart}
@@ -355,9 +356,10 @@ export function Toolbar() {
   return (
     <nav className="toolbar rail glass" data-testid="toolbar" ref={ref}>
       <RailButton icon="select" text="เลือก" label="เลือก / ย้าย (Esc)" on={tool.kind === 'select'} onClick={() => setTool({ kind: 'select', drag: null })} testId="tool-select" />
-      <hr />
+      {/* Three groups in the order the work goes: the building, what goes in it, and checking it. */}
       {!customer && (
         <>
+          <div className="rail-head">อาคาร</div>
           <ToolGroup id="wall" text="ผนัง" label="ผนัง" items={WALL_ITEMS} {...group('wall')} />
           <RailButton
             icon="drawRoomRect"
@@ -367,21 +369,11 @@ export function Toolbar() {
             onClick={() => setTool(ROOM_ITEMS[0].tool())}
             testId="tool-drawRoomRect"
           />
-          <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (กล่องโปร่งแสง)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
-          <ToolGroup id="aisle" text="ทางเดิน" label="ทางเดิน / ทางรถ / ทิศทางงาน" items={AISLE_ITEMS} {...group('aisle')} />
           <ToolGroup id="opening" text="ประตู" label="ประตู / หน้าต่าง" items={OPENING_ITEMS} {...group('opening')} />
           <ToolGroup id="column" text="เสา" label="เสา" items={COLUMN_ITEMS} {...group('column')} />
         </>
       )}
-      <RailButton
-        icon="ruler"
-        text="วัด"
-        label="วัดระยะ: คลิก 2 จุด ดูดเข้าหามุม ผนัง และขอบเครื่อง"
-        on={tool.kind === 'measure'}
-        onClick={() => setTool({ kind: 'measure', a: null, b: null })}
-        testId="tool-measure"
-      />
-      <hr />
+      <div className="rail-head">จัดวาง</div>
       <RailButton
         icon="machine"
         text="เครื่อง"
@@ -389,6 +381,22 @@ export function Toolbar() {
         on={dock === 'catalog' || tool.kind === 'placeObject'}
         onClick={() => useUi.getState().set({ dock: dock === 'catalog' ? null : 'catalog' })}
         testId="tool-catalog"
+        className="accent"
+      />
+      {!customer && (
+        <>
+          <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (กล่องโปร่งแสง)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
+          <ToolGroup id="aisle" text="ทางเดิน" label="ทางเดิน / ทางรถ / ทิศทางงาน" items={AISLE_ITEMS} {...group('aisle')} />
+        </>
+      )}
+      <div className="rail-head">ดู</div>
+      <RailButton
+        icon="ruler"
+        text="วัด"
+        label="วัดระยะ: คลิก 2 จุด ดูดเข้าหามุม ผนัง และขอบเครื่อง"
+        on={tool.kind === 'measure'}
+        onClick={() => setTool({ kind: 'measure', a: null, b: null })}
+        testId="tool-measure"
       />
       {!customer && (
         <Suspense fallback={null}>

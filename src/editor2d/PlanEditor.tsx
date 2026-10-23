@@ -280,6 +280,7 @@ export function PlanEditor() {
   const livePx = 1 / view.s;
   const px = 1 / drawScale;
   const vb = `${view.cx - size.w / 2 / view.s} ${view.cy - size.h / 2 / view.s} ${size.w / view.s} ${size.h / view.s}`;
+  const drawingNow = useUi((s) => DRAWING_TOOLS.has(s.tool.kind) || s.tool.kind === 'calibrate');
   const grid = view.s > 0.08 ? 100 : 1000;
   // What cannot stand where it is put (clashes, through a wall, over the ceiling, no room for the operator), by object.
   const issues = useMemo(() => checkClearance(project), [project]);
@@ -320,7 +321,8 @@ export function PlanEditor() {
             <path d={`M ${grid * 10} 0 L 0 0 0 ${grid * 10}`} fill="none" stroke="var(--grid-major)" strokeWidth={livePx} />
           </pattern>
         </defs>
-        <rect x={-1e7} y={-1e7} width={2e7} height={2e7} fill="url(#grid-major)" data-export="skip" />
+        {/* The grid shows only while drawing, where it helps place corners; otherwise the plan stands on a plain ground. */}
+        {drawingNow && <rect x={-1e7} y={-1e7} width={2e7} height={2e7} fill="url(#grid-major)" data-export="skip" />}
         <UnderlayImage px={px} peek={peek} />
         {/* Peeking at the plan image, the drawing fades to an outline over it. */}
         <g opacity={peek ? 0.18 : undefined} data-testid="drawing" data-peek={peek || undefined}>
