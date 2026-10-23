@@ -63,18 +63,22 @@ export function PlanEditor() {
   }, [view.s]);
 
   const underlayId = project.underlay?.imageId;
-  const shownUnderlay = useRef(underlayId);
+  const scaleKey = project.underlay?.calibrated ? project.underlay.mmPerPx : null;
+  // The view fits the plan image when it arrives, and again when its true scale is read (a CAD PDF is placed first
+  // and measured a moment later, which can make it many times bigger) while nothing has been drawn on it yet.
+  const shownUnderlay = useRef(`${underlayId}|${scaleKey}`);
   useEffect(() => {
-    if (underlayId === shownUnderlay.current) return;
-    shownUnderlay.current = underlayId;
+    const key = `${underlayId}|${scaleKey}`;
+    if (key === shownUnderlay.current) return;
+    const rescaled = key.split('|')[0] === shownUnderlay.current.split('|')[0];
+    shownUnderlay.current = key;
     const u = project.underlay;
-    if (!u) return;
+    if (!u || (rescaled && Object.keys(project.plan.walls).length)) return;
     const r = underlayRect(u);
     setView({ cx: u.x, cy: u.y, s: Math.min(size.w / r.w, size.h / r.h) * 0.9 });
-  }, [underlayId]);
+  }, [underlayId, scaleKey]);
 
   // The plan image's lines, for snapping to: read once it is placed and, for a picture, once its scale is known.
-  const scaleKey = project.underlay?.calibrated ? project.underlay.mmPerPx : null;
   useEffect(() => {
     const u = project.underlay;
     if (u) void ensureGuides(u);

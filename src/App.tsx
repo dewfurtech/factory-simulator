@@ -63,8 +63,12 @@ export function App() {
           peek: false,
           customer: route.kind === 'share' && r.copy ? { shareId: route.id, from: r.copy.meta.from, note: r.copy.meta.note } : null,
         });
-        // A project started from a plan is built by the plan editor's underlay menu, which the 3D-only view leaves out.
-        if (useImport.getState().job && useUi.getState().view === '3d') useUi.setState({ view: 'split' });
+        // A project started from a plan is built by the plan editor's underlay menu, which the 3D-only view leaves out;
+        // and a plan with nothing drawn on it yet has nothing to show in 3D, so it opens on the plan.
+        if (useUi.getState().view === '3d') {
+          if (useImport.getState().job) useUi.setState({ view: 'split' });
+          else if (!Object.keys(r.project.plan.walls).length) useUi.setState({ view: '2d' });
+        }
         useProject.getState().open(r.project);
         setOpenKey(routeKey(route));
       })
