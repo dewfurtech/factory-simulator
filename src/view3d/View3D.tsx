@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useLibrary } from '../store/library';
 import { useProject } from '../store/project';
 import { useUi } from '../store/ui';
+import { moveWithStack, snapObject } from '../model/objects';
+import { rotateObject } from '../editor2d/tools';
+import type { Id, Vec2 } from '../model/types';
 import { Icon } from '../editor2d/Toolbar';
 import { FactoryScene } from './scene';
 import { locate } from '../model/locate';
@@ -16,6 +19,9 @@ export default function View3D() {
   const cutaway = useUi((s) => s.cutaway);
   const areas = useUi((s) => !s.areasHidden);
   const [top, setTop] = useState(false);
+  // Move mode: dragging a machine slides it over the floor, as on the plan; on by default for a customer, who has no plan tools.
+  const customer = useUi((s) => !!s.customer);
+  const [moving, setMoving] = useState(customer);
   const goto = useUi((s) => s.goto);
 
   // A go-to from the layers panel: fly in over the thing, closer the smaller it is.
@@ -28,7 +34,8 @@ export default function View3D() {
   useEffect(() => {
     const s = new FactoryScene(host.current!);
     sceneRef.current = s;
-    if (import.meta.env.DEV) Object.assign(window, { __scene: s });
+    // The scene on window for the console and the browser tests (built with --mode e2e).
+    if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') Object.assign(window, { __scene: s });
     return () => {
       s.dispose();
       sceneRef.current = null;
@@ -53,10 +60,51 @@ export default function View3D() {
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
 
   const down = useRef<{ x: number; y: number } | null>(null);
-  const onPointerDown = (e: React.PointerEvent) => void (down.current = { x: e.clientX, y: e.clientY });
+  /** A machine being dragged over the floor: which, and where under it the pointer took hold. */
+  const drag = useRef<{ id: Id; grab: Vec2; moved: boolean } | null>(null);
+  const onPointerDown = (e: React.PointerEvent) => {
+    down.current = { x: e.clientX, y: e.clientY };
+    if (!moving || e.button !== 0) return;
+    const s = sceneRef.current!;
+    const hit = s.pick(e.clientX, e.clientY);
+    const o = hit.object && project.objects.find((x) => x.id === hit.object);
+    const floor = s.floorPoint(e.clientX, e.clientY);
+    if (!o || o.locked || !floor) return;
+    drag.current = { id: o.id, grab: { x: floor.x - o.x, y: floor.y - o.y }, moved: false };
+    s.controls.enabled = false;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    useUi.getState().set({ selection: { kind: 'object', id: o.id } });
+    useProject.getState().beginGesture();
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    const floor = sceneRef.current!.floorPoint(e.clientX, e.clientY);
+    if (!floor) return;
+    d.moved = true;
+    const target = { x: floor.x - d.grab.x, y: floor.y - d.grab.y };
+    useProject.getState().apply((p) => {
+      const o = p.objects.find((x) => x.id === d.id);
+      if (!o) return;
+      // Snaps flush to walls and neighbours the way the plan does, unless snapping is off or Alt is held.
+      const pose = useUi.getState().snapOn && !e.altKey ? snapObject(p.plan, p.objects, o, target, 250) : { ...target, z: o.z, rotation: o.rotation, guides: [] };
+      moveWithStack(p.objects, d.id, pose);
+    });
+  };
+  const endDrag = () => {
+    if (!drag.current) return;
+    drag.current = null;
+    sceneRef.current!.controls.enabled = true;
+    useProject.getState().endGesture();
+  };
   const onPointerUp = (e: React.PointerEvent) => {
     const d = down.current;
     down.current = null;
+    if (drag.current) {
+      const dragged = drag.current.moved;
+      endDrag();
+      if (dragged) return;
+    }
     if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4 || e.button !== 0) return;
     const hit = sceneRef.current!.pick(e.clientX, e.clientY);
     // A locked object can't be picked here either, the same as on the plan.
@@ -71,8 +119,31 @@ export default function View3D() {
 
   return (
     <div className="view3d">
-      <div ref={host} className="view3d-canvas" onPointerDown={onPointerDown} onPointerUp={onPointerUp} onDoubleClick={onDouble} data-testid="view3d" />
+      <div
+        ref={host}
+        className={`view3d-canvas${moving ? ' moving' : ''}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={endDrag}
+        onDoubleClick={onDouble}
+        data-testid="view3d"
+      />
       <div className="view-tools glass">
+        <button
+          className={`ib sm${moving ? ' on' : ''}`}
+          onClick={() => setMoving(!moving)}
+          title={moving ? 'โหมดย้ายเครื่อง: ลากเครื่องเพื่อย้าย กด R หมุน (คลิกเพื่อกลับไปหมุนมุมมอง)' : 'ย้ายเครื่องใน 3D: ลากเครื่องบนพื้นได้เลย'}
+          aria-pressed={moving}
+          data-testid="move-3d"
+        >
+          <Icon name="move" />
+        </button>
+        {moving && selection?.kind === 'object' && (
+          <button className="ib sm" onClick={() => rotateObject(selection.id, Math.PI / 2)} title="หมุน 90° (R)" data-testid="rotate-3d">
+            <Icon name="rotate" />
+          </button>
+        )}
         <button
           className={`ib sm${cutaway ? ' on' : ''}`}
           onClick={() => useUi.getState().set({ cutaway: !cutaway })}
@@ -97,7 +168,8 @@ export default function View3D() {
         </button>
       </div>
       <div className="view-hint">
-        {top ? 'มุมมองด้านบน · ลากเพื่อเลื่อน' : 'ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน'} · เลื่อนลูกกลิ้งเพื่อซูม · คลิกเครื่องเพื่อดูรูปและขนาด · ดับเบิลคลิกเพื่อซูมไปจุดนั้น
+        {moving ? 'โหมดย้าย: ลากเครื่องเพื่อย้าย · R หมุน · ลากพื้นเพื่อหมุนมุมมอง' : top ? 'มุมมองด้านบน · ลากเพื่อเลื่อน' : 'ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน'} ·
+        เลื่อนลูกกลิ้งเพื่อซูม · คลิกเครื่องเพื่อดูรูปและขนาด · ดับเบิลคลิกเพื่อซูมไปจุดนั้น
       </div>
     </div>
   );

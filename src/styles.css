@@ -2955,3 +2955,11 @@ button.start:hover:not(:disabled) {
   flex-basis: 100%;
   font-weight: 400;
 }
+
+/* In move mode the hand says the machines can be taken hold of. */
+.view3d-canvas.moving {
+  cursor: grab;
+}
+.view3d-canvas.moving:active {
+  cursor: grabbing;
+}

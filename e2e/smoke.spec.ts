@@ -147,3 +147,43 @@ test('an aisle is drawn and ended with a double-click, leaving nothing behind fo
   await page.keyboard.press('Enter');
   await expect.poll(aisles).toEqual([2, 2]);
 });
+
+test('a machine is dragged across the floor in the 3D view', async ({ page }) => {
+  await openSample(page);
+  await page.getByTestId('view-3d').click();
+  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible();
+  await page.waitForTimeout(1500);
+  await page.getByTestId('move-3d').click();
+  // Where the Nebula stands on screen, through the scene's own camera.
+  const spot = () =>
+    page.evaluate(() => {
+      const s = (
+        window as unknown as {
+          __scene: {
+            camera: { position: { constructor: new (x: number, y: number, z: number) => { project(c: unknown): void; x: number; y: number } } };
+            renderer: { domElement: HTMLElement };
+          };
+        }
+      ).__scene;
+      const o = (
+        window as unknown as { __factory: { project: { getState(): { project: { objects: { name: string; x: number; y: number; z: number; size: { h: number } }[] } } } } }
+      ).__factory.project
+        .getState()
+        .project.objects.find((x) => x.name === 'Nebula')!;
+      const v = new s.camera.position.constructor(o.x / 1000, (o.z + o.size.h / 2) / 1000, o.y / 1000);
+      v.project(s.camera);
+      const r = s.renderer.domElement.getBoundingClientRect();
+      return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height, ox: o.x, oy: o.y };
+    });
+  const a = await spot();
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(a.x + 80, a.y + 60, { steps: 8 });
+  await page.mouse.up();
+  const b = await spot();
+  expect(Math.hypot(b.ox - a.ox, b.oy - a.oy)).toBeGreaterThan(500);
+  // One undo step for the whole drag.
+  await page.keyboard.press('Control+z');
+  const c = await spot();
+  expect(Math.round(c.ox)).toBe(Math.round(a.ox));
+});
