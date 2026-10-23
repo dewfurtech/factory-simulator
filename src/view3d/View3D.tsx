@@ -10,6 +10,7 @@ import { Icon } from '../editor2d/Toolbar';
 import { FactoryScene } from './scene';
 import { locate } from '../model/locate';
 import { download } from '../editor2d/exportImage';
+import { IssuesChip, useTroubled } from '../panels/IssuesChip';
 
 /** The 3D pane: the factory, with the picked object highlighted. */
 export default function View3D() {
@@ -65,6 +66,9 @@ export default function View3D() {
     if (changed.size) sceneRef.current?.refreshAssets(changed);
   }, [models]);
   useEffect(() => sceneRef.current?.select(selection?.kind === 'object' ? selection.id : null), [selection]);
+  // Things that cannot stand where they are get a red frame in 3D, as they get a red outline on the plan.
+  const troubled = useTroubled();
+  useEffect(() => sceneRef.current?.markTroubled(troubled.map((t) => t.id)), [troubled]);
   useEffect(() => sceneRef.current?.setOptions({ cutaway, areas }), [cutaway, areas]);
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
 
@@ -207,6 +211,7 @@ export default function View3D() {
           <Icon name="image" />
         </button>
       </div>
+      <IssuesChip />
       <div className="view-hint">
         {moving ? 'โหมดย้าย: ลากเครื่องเพื่อย้าย · R หมุน · ลากพื้นเพื่อหมุนมุมมอง' : top ? 'มุมมองด้านบน · ลากเพื่อเลื่อน' : 'ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน'} ·
         เลื่อนลูกกลิ้งเพื่อซูม · คลิกเครื่องเพื่อดูรูปและขนาด · ดับเบิลคลิกเพื่อซูมไปจุดนั้น

@@ -208,6 +208,7 @@ export class FactoryScene {
       this.objectKeys.delete(id);
     }
     this.updateSelectionBox();
+    this.updateTroubled();
   }
 
   /** Rebuilds every placed copy of the given catalog items: a model in the library was edited or removed. */
@@ -384,6 +385,33 @@ export class FactoryScene {
     this.dirty = true;
   }
 
+  private troubled = new THREE.Group();
+  private troubledIds: Id[] = [];
+
+  /** Red frames round the things that cannot stand where they are. */
+  markTroubled(ids: Id[]) {
+    this.troubledIds = ids;
+    this.updateTroubled();
+  }
+
+  private updateTroubled() {
+    for (const c of [...this.troubled.children]) {
+      this.troubled.remove(c);
+      (c as THREE.LineSegments).geometry.dispose();
+    }
+    if (!this.troubled.parent) this.overlay.add(this.troubled);
+    for (const id of this.troubledIds) {
+      const o = this.objectKeys.get(id);
+      if (!o || !this.shows(o)) continue;
+      const g = new THREE.EdgesGeometry(new THREE.BoxGeometry(o.size.w * M + 0.06, o.size.h * M + 0.06, o.size.d * M + 0.06));
+      const box = new THREE.LineSegments(g, BAD_LINE);
+      box.position.set(o.x * M, (o.z + o.size.h / 2) * M, o.y * M);
+      box.rotation.y = -o.rotation;
+      this.troubled.add(box);
+    }
+    this.dirty = true;
+  }
+
   private updateSelectionBox() {
     if (this.selBox) {
       this.overlay.remove(this.selBox);
@@ -484,4 +512,6 @@ export class FactoryScene {
 
 const GROUND = '#d5dbd2';
 const SEL_LINE = new THREE.LineBasicMaterial({ color: '#2563eb' });
+const BAD_LINE = new THREE.LineBasicMaterial({ color: '#dc2626' });
+BAD_LINE.userData.shared = true;
 SEL_LINE.userData.shared = true;

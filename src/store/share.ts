@@ -15,7 +15,61 @@ export interface ShareMeta {
   /** The share this one answers, when it is a customer's reply. */
   parent?: string;
   name: string;
+  /** Who sent it, as they typed their name (a person or a company). */
+  sender?: string;
 }
+
+/** A link made in this browser, kept so it can be found again and deleted. */
+export interface SentShare {
+  id: string;
+  /** What the server gave back for deleting this link; absent for links made before deleting existed. */
+  deleteKey?: string;
+  name: string;
+  note?: string;
+  sender?: string;
+  from: ShareMeta['from'];
+  createdAt: number;
+}
+
+const SENT_KEY = 'factory:sent-shares';
+export const sentShares = async (): Promise<SentShare[]> => (await get<SentShare[]>(SENT_KEY)) ?? [];
+
+/** Removes a link: from the server when this browser holds its delete key, and from the list here either way. */
+export async function deleteShare(id: string): Promise<void> {
+  const list = await sentShares();
+  const sent = list.find((s) => s.id === id);
+  if (sent?.deleteKey) {
+    let res: Response;
+    try {
+      res = await fetch(`${API}/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'x-delete-key': sent.deleteKey } });
+    } catch {
+      throw offline();
+    }
+    // Already gone on the server is as good as deleted.
+    if (!res.ok && res.status !== 404) throw await failure(res, 'ลบลิงก์ไม่สำเร็จ');
+  }
+  await set(
+    SENT_KEY,
+    list.filter((s) => s.id !== id),
+  );
+}
+
+/** The name last typed as the sender, offered again next time. */
+const SENDER_KEY = 'factory.sender';
+export const lastSender = (): string => {
+  try {
+    return localStorage.getItem(SENDER_KEY) ?? '';
+  } catch {
+    return '';
+  }
+};
+const rememberSender = (name: string) => {
+  try {
+    localStorage.setItem(SENDER_KEY, name);
+  } catch {
+    /* storage blocked: typed again next time */
+  }
+};
 
 /** The stored record: the plan as gzip pieces, or (shares made before pieces) the whole bundle inline. */
 interface Share {
@@ -112,7 +166,11 @@ export async function createShare(project: Project, meta: Omit<ShareMeta, 'name'
     throw offline();
   }
   if (!res.ok) throw await failure(res, 'สร้างลิงก์ไม่สำเร็จ');
-  return ((await res.json()) as { id: string }).id;
+  const made = (await res.json()) as { id: string; deleteKey?: string };
+  if (meta.sender) rememberSender(meta.sender);
+  const sent: SentShare = { id: made.id, deleteKey: made.deleteKey, name: project.name, note: meta.note, sender: meta.sender, from: meta.from, createdAt: Date.now() };
+  await set(SENT_KEY, [sent, ...(await sentShares())].slice(0, 200));
+  return made.id;
 }
 
 async function fetchShare(id: string): Promise<{ bundle: Bundle; meta: ShareMeta; createdAt: number }> {

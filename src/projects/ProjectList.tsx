@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { Icon } from '../editor2d/Toolbar';
 import { confirmDialog, promptDialog } from '../ui/Dialog';
 import { storeUnderlayFile, UNDERLAY_ACCEPT } from '../editor2d/underlayFile';
+import { SentLinks } from './SentLinks';
 import { useImport } from '../store/importProgress';
 import { newProject } from '../model/project';
 import type { Id, Project } from '../model/types';
@@ -356,6 +357,8 @@ export function ProjectList() {
           </span>
         </p>
       </section>
+
+      <SentLinks />
 
       {dragging && (
         <div className="drop-veil" aria-hidden>

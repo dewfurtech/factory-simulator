@@ -204,6 +204,29 @@ test('a machine is dragged across the floor in the 3D view', async ({ page }) =>
   expect(Math.round(c.ox)).toBe(Math.round(a.ox));
 });
 
+test('a link carries the sender, is listed on the start page, and stops working once deleted', async ({ page, browser }) => {
+  await openSample(page);
+  await page.getByTestId('share-link').click();
+  await page.getByTestId('share-sender').fill('บริษัท ทดสอบ');
+  await page.getByTestId('share-make').click();
+  const url = await page.getByTestId('share-url').inputValue();
+  const id = url.split('/s/')[1];
+
+  const customer = await (await browser.newContext()).newPage();
+  await customer.goto(url);
+  await expect(customer.getByTestId('share-banner')).toContainText('จาก บริษัท ทดสอบ');
+
+  await page.goto('/#/');
+  await expect(page.getByTestId(`sent-${id}`)).toContainText('บริษัท ทดสอบ');
+  await page.getByTestId(`sent-${id}`).getByTestId('sent-delete').click();
+  await page.getByTestId('dialog-ok').click();
+  await expect(page.getByTestId(`sent-${id}`)).toHaveCount(0);
+
+  const late = await (await browser.newContext()).newPage();
+  await late.goto(url);
+  await expect(late.getByTestId('route-problem')).toContainText('ไม่พบลิงก์นี้');
+});
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 

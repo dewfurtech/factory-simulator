@@ -9,7 +9,7 @@ import { create } from 'zustand';
 type Open =
   | { kind: 'confirm'; title: string; message?: string; ok: string; danger?: boolean; resolve: (yes: boolean) => void }
   | { kind: 'prompt'; title: string; label?: string; value: string; ok: string; resolve: (text: string | null) => void }
-  | { kind: 'share'; title: string; message: string; ok: string; make: (note: string) => Promise<string>; resolve: () => void };
+  | { kind: 'share'; title: string; message: string; ok: string; sender: string; make: (note: string, sender: string) => Promise<string>; resolve: () => void };
 
 interface DialogState {
   open: Open | null;
@@ -47,7 +47,7 @@ export function promptDialog(opts: { title: string; label?: string; value?: stri
  * Makes a share link: an optional note, then `make` is called with it and the link it answers is shown to copy.
  * Resolves when the dialog closes.
  */
-export function shareDialog(opts: { title: string; message: string; ok: string; make: (note: string) => Promise<string> }): Promise<void> {
+export function shareDialog(opts: { title: string; message: string; ok: string; sender: string; make: (note: string, sender: string) => Promise<string> }): Promise<void> {
   return new Promise((resolve) => {
     useDialog.setState({ open: { kind: 'share', ...opts, resolve } });
   });
@@ -107,6 +107,7 @@ type ShareStep = { at: 'ask' } | { at: 'busy' } | { at: 'done'; url: string } | 
 
 function Share({ d }: { d: Extract<Open, { kind: 'share' }> }) {
   const [note, setNote] = useState('');
+  const [sender, setSender] = useState(d.sender);
   const [step, setStep] = useState<ShareStep>({ at: 'ask' });
   const [copied, setCopied] = useState(false);
   const urlRef = useRef<HTMLInputElement>(null);
@@ -117,7 +118,7 @@ function Share({ d }: { d: Extract<Open, { kind: 'share' }> }) {
   const make = async () => {
     setStep({ at: 'busy' });
     try {
-      setStep({ at: 'done', url: await d.make(note.trim()) });
+      setStep({ at: 'done', url: await d.make(note.trim(), sender.trim()) });
     } catch (e) {
       setStep({ at: 'failed', error: e instanceof Error ? e.message : String(e) });
     }
@@ -164,6 +165,15 @@ function Share({ d }: { d: Extract<Open, { kind: 'share' }> }) {
           }}
         >
           <p>{d.message}</p>
+          <label htmlFor="dialog-sender">ชื่อผู้ส่ง (ไม่บังคับ)</label>
+          <input
+            id="dialog-sender"
+            value={sender}
+            onChange={(e) => setSender(e.target.value)}
+            disabled={step.at === 'busy'}
+            placeholder="เช่น ชื่อคุณ หรือชื่อบริษัท"
+            data-testid="share-sender"
+          />
           <label htmlFor="dialog-note">ข้อความถึงผู้รับ (ไม่บังคับ)</label>
           <textarea id="dialog-note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} disabled={step.at === 'busy'} data-testid="share-note" />
           {step.at === 'failed' && (

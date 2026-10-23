@@ -22,6 +22,7 @@ import { columnOutline, hitTest, isCrossing, isOutdoor, SNAP_PX } from './hit';
 import { addDoorAt, columnGridPoints, dispatchPointer, finishArea, finishAisle, objectAt, placeObjectAt, roomOutline } from './tools';
 import { ensureGuides, guideLines, useGuides } from './planGuides';
 import { checkClearance, type Issue } from '../model/clearance';
+import { IssuesChip } from '../panels/IssuesChip';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
 
 export const ASSET_MIME = 'application/x-factory-asset';
@@ -379,6 +380,7 @@ export function PlanEditor() {
       </div>
       <AisleLegend plan={plan} />
       <TapesChip />
+      <IssuesChip />
       <Hud />
     </div>
   );

@@ -9,6 +9,9 @@ function memoryStore(): ShareStore & { size(): number } {
     async put(key, value) {
       data.set(key, value);
     },
+    async delete(key) {
+      data.delete(key);
+    },
     async get(key: string, type: 'arrayBuffer' | 'text') {
       const v = data.get(key);
       if (v === undefined) return null;
@@ -40,6 +43,21 @@ describe('share API', () => {
     expect(new Uint8Array(await back.arrayBuffer())).toEqual(bytes);
   });
 
+  it('hands the delete key only to whoever made the link, and deletes with it', async () => {
+    const kv = memoryStore();
+    const part = (await (await handleShare(req('POST', '/api/share-part', new Uint8Array([1, 2])), kv)).json()) as { id: string };
+    const made = (await (await handleShare(req('POST', '/api/share', JSON.stringify({ parts: [part.id], meta: {} })), kv)).json()) as { id: string; deleteKey: string };
+    expect(made.deleteKey).toMatch(/^[a-f0-9]{32}$/);
+    const read = (await (await handleShare(req('GET', `/api/share/${made.id}`), kv)).json()) as Record<string, unknown>;
+    expect(read.deleteKey).toBeUndefined();
+
+    const del = (key: string) => handleShare(new Request(`https://example.test/api/share/${made.id}`, { method: 'DELETE', headers: { 'x-delete-key': key } }), kv);
+    expect((await del('wrong')).status).toBe(403);
+    expect((await del(made.deleteKey)).status).toBe(200);
+    expect(kv.size()).toBe(0);
+    expect((await handleShare(req('GET', `/api/share/${made.id}`), kv)).status).toBe(404);
+  });
+
   it('refuses a record whose pieces are not there', async () => {
     const kv = memoryStore();
     const res = await handleShare(req('POST', '/api/share', JSON.stringify({ parts: ['nosuchpiece1'] })), kv);
@@ -59,7 +77,8 @@ describe('share API', () => {
     expect((await handleShare(req('GET', '/api/share/abcdef123456'), kv)).status).toBe(404);
     expect((await handleShare(req('GET', '/api/share/..%2Fsecret'), kv)).status).toBe(404);
     expect((await handleShare(req('GET', '/api/share-part/abcdef123456'), kv)).status).toBe(404);
-    expect((await handleShare(req('DELETE', '/api/share/abcdef123456'), kv)).status).toBe(405);
+    expect((await handleShare(req('PUT', '/api/share/abcdef123456'), kv)).status).toBe(405);
+    expect((await handleShare(req('DELETE', '/api/share/abcdef123456'), kv)).status).toBe(404);
   });
 
   it('turns away a piece that is too big', async () => {

@@ -61,7 +61,7 @@ export function App() {
           panelOpen: false,
           cursor: null,
           peek: false,
-          customer: route.kind === 'share' && r.copy ? { shareId: route.id, from: r.copy.meta.from, note: r.copy.meta.note } : null,
+          customer: route.kind === 'share' && r.copy ? { shareId: route.id, from: r.copy.meta.from, note: r.copy.meta.note, sender: r.copy.meta.sender } : null,
           // The 3D move mode starts off for everyone; the button on the 3D pane turns it on.
           move3d: false,
           tapes: [],

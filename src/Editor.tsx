@@ -8,7 +8,7 @@ import { PropertiesPanel } from './panels/PropertiesPanel';
 import { download, planPicture, shownScale, svgBlob, toPng } from './editor2d/exportImage';
 import { exportProject, flushAutosave } from './store/persist';
 import { useProject } from './store/project';
-import { createShare, shareUrl } from './store/share';
+import { createShare, lastSender, shareUrl } from './store/share';
 import { SELECT, useUi, type ViewMode } from './store/ui';
 import { shareDialog } from './ui/Dialog';
 
@@ -124,22 +124,26 @@ async function savePlanPicture(name: string, format: 'png' | 'svg') {
 function shareProject() {
   const { customer } = useUi.getState();
   flushAutosave();
-  const make = async (note: string) => {
+  const make = async (note: string, sender: string) => {
     const project = useProject.getState().project!;
-    const id = await createShare(project, customer ? { from: 'customer', note, parent: customer.shareId } : { from: 'vendor', note });
+    const who = sender || undefined;
+    const id = await createShare(project, customer ? { from: 'customer', note, parent: customer.shareId, sender: who } : { from: 'vendor', note, sender: who });
     return shareUrl(id);
   };
+  const sender = lastSender();
   return customer
     ? shareDialog({
         title: 'ส่งการจัดวางกลับ',
         message: 'สร้างลิงก์ของแปลนตามที่คุณย้ายเครื่องไว้ แล้วส่งลิงก์นั้นกลับให้ผู้ขาย',
         ok: 'สร้างลิงก์',
+        sender,
         make,
       })
     : shareDialog({
         title: 'แชร์ลิงก์ให้ลูกค้า',
         message: 'ลูกค้าเปิดลิงก์แล้วเห็นแปลนนี้ ย้ายเครื่องเองได้ และส่งการจัดวางกลับมาเป็นลิงก์ใหม่ แปลนในลิงก์เป็นสำเนา ณ ตอนนี้ แก้ต่อที่นี่ไม่กระทบลิงก์',
         ok: 'สร้างลิงก์',
+        sender,
         make,
       });
 }
@@ -154,7 +158,10 @@ function ShareBanner() {
     <div className="share-banner glass" data-testid="share-banner">
       <Icon name={reply ? 'reply' : 'share'} />
       <div className="share-text">
-        <strong>{reply ? 'การจัดวางที่ลูกค้าส่งกลับมา' : 'แปลนที่ผู้ขายส่งมาให้ดู'}</strong>
+        <strong>
+          {reply ? 'การจัดวางที่ลูกค้าส่งกลับมา' : 'แปลนที่ผู้ขายส่งมาให้ดู'}
+          {customer.sender && <span className="share-from"> · จาก {customer.sender}</span>}
+        </strong>
         <span>{reply ? 'เปิดในโหมดแก้ไขเต็มได้จากเมนูมุมซ้ายบน' : 'ลากเครื่องเพื่อย้าย กด R หมุน แล้วกด "ส่งกลับ" เพื่อส่งการจัดวางของคุณ'}</span>
         {customer.note && <q data-testid="share-note-shown">{customer.note}</q>}
       </div>

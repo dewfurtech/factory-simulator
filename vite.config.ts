@@ -1,86 +1,49 @@
 import react from '@vitejs/plugin-react';
-import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
+import { handleShare, type ShareStore } from './src/server/share';
 
 /**
- * The share API for the dev and preview servers: the same routes as src/server/share.ts (served by the Cloudflare Worker in
- * worker/index.ts), with the shared plans kept as files in .share-dev/ (ignored by git) instead of Cloudflare KV.
+ * The share API for the dev and preview servers: the very code the Cloudflare Worker runs (src/server/share.ts), with
+ * a folder, .share-dev/ (ignored by git), standing in for the KV namespace.
  */
 function shareDevApi(): Plugin {
   const dir = resolve('.share-dev');
-  const send = (res: ServerResponse, status: number, body: unknown) => {
-    res.statusCode = status;
-    res.setHeader('content-type', 'application/json; charset=utf-8');
-    res.end(JSON.stringify(body));
+  // Keys as files: a piece `part/<id>` is part/<id>, a record `<id>` is <id>.json (the layout older dev data has).
+  const fileOf = (key: string) => (key.startsWith('part/') ? resolve(dir, key) : resolve(dir, `${key}.json`));
+  const store: ShareStore = {
+    async get(key: string, type: 'arrayBuffer' | 'text') {
+      const f = fileOf(key);
+      if (!existsSync(f)) return null;
+      const data = readFileSync(f);
+      return (type === 'text' ? data.toString('utf8') : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)) as never;
+    },
+    async put(key, value) {
+      const f = fileOf(key);
+      mkdirSync(dirname(f), { recursive: true });
+      writeFileSync(f, typeof value === 'string' ? value : Buffer.from(value));
+    },
+    async delete(key) {
+      rmSync(fileOf(key), { force: true });
+    },
   };
-  const read = (req: IncomingMessage, done: (data: Buffer) => void) => {
+  const handle = (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    if (!req.url?.startsWith('/api/')) return next();
     const chunks: Buffer[] = [];
     req.on('data', (c: Buffer) => chunks.push(c));
-    req.on('end', () => done(Buffer.concat(chunks)));
-  };
-  const newId = () => randomUUID().replace(/-/g, '').slice(0, 12);
-  const partFile = (id: string) => resolve(dir, 'part', id);
-  const handle = (req: IncomingMessage, res: ServerResponse, next: () => void) => {
-    // One gzip piece of a shared plan.
-    const part = req.url?.match(/^\/api\/share-part(?:\/([A-Za-z0-9_-]+))?(?:\?.*)?$/);
-    if (part) {
-      const id = part[1];
-      if (req.method === 'POST' && !id) {
-        return read(req, (data) => {
-          if (data.length > 5_000_000) return send(res, 413, { error: 'ชิ้นข้อมูลใหญ่เกินไป' });
-          const pid = newId();
-          mkdirSync(resolve(dir, 'part'), { recursive: true });
-          writeFileSync(partFile(pid), data);
-          send(res, 200, { id: pid });
-        });
-      }
-      if (req.method === 'GET' && id) {
-        if (!existsSync(partFile(id))) return send(res, 404, { error: 'ไม่พบข้อมูลของลิงก์นี้' });
-        res.statusCode = 200;
-        res.setHeader('content-type', 'application/octet-stream');
-        return res.end(readFileSync(partFile(id)));
-      }
-      return send(res, 405, { error: 'method not allowed' });
-    }
-    const m = req.url?.match(/^\/api\/share(?:\/([A-Za-z0-9_-]+))?(?:\?.*)?$/);
-    if (!m) return next();
-    const id = m[1];
-    if (req.method === 'POST' && !id) {
-      return read(req, (data) => {
-        const text = data.toString('utf8');
-        if (text.length > 5_000_000) return send(res, 413, { error: 'แปลนใหญ่เกินกว่าจะส่งเป็นลิงก์' });
-        let body: { bundle?: { project?: { plan?: unknown } }; parts?: unknown; meta?: unknown };
-        try {
-          body = JSON.parse(text);
-        } catch {
-          return send(res, 400, { error: 'ข้อมูลไม่ใช่ JSON' });
-        }
-        const sid = newId();
-        mkdirSync(dir, { recursive: true });
-        if (Array.isArray(body?.parts)) {
-          const parts = body.parts as unknown[];
-          const ok = parts.length > 0 && parts.every((p) => typeof p === 'string' && /^[A-Za-z0-9_-]+$/.test(p) && existsSync(partFile(p)));
-          if (!ok) return send(res, 400, { error: 'ข้อมูลบางส่วนหายไป ลองใหม่อีกครั้ง' });
-          writeFileSync(resolve(dir, `${sid}.json`), JSON.stringify({ parts, meta: body.meta ?? {}, createdAt: Date.now() }));
-          return send(res, 200, { id: sid });
-        }
-        if (!body?.bundle?.project?.plan) return send(res, 400, { error: 'ข้อมูลไม่ใช่แปลนโรงงาน' });
-        writeFileSync(resolve(dir, `${sid}.json`), JSON.stringify({ bundle: body.bundle, meta: body.meta ?? {}, createdAt: Date.now() }));
-        send(res, 200, { id: sid });
+    req.on('end', () => {
+      const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : Buffer.concat(chunks);
+      const headers = new Headers();
+      for (const [k, v] of Object.entries(req.headers)) if (typeof v === 'string') headers.set(k, v);
+      void handleShare(new Request(`http://localhost${req.url}`, { method: req.method, headers, body }), store).then(async (answer) => {
+        res.statusCode = answer.status;
+        answer.headers.forEach((v, k) => res.setHeader(k, v));
+        res.end(Buffer.from(await answer.arrayBuffer()));
       });
-    }
-    if (req.method === 'GET' && id) {
-      const file = resolve(dir, `${id}.json`);
-      if (!existsSync(file)) return send(res, 404, { error: 'ไม่พบลิงก์นี้' });
-      res.statusCode = 200;
-      res.setHeader('content-type', 'application/json; charset=utf-8');
-      return res.end(readFileSync(file));
-    }
-    send(res, 405, { error: 'method not allowed' });
+    });
   };
   return {
     name: 'share-dev-api',

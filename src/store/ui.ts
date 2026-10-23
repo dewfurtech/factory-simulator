@@ -56,6 +56,8 @@ export interface CustomerMode {
   /** Who sent it: the seller, or a customer sending their arrangement back. */
   from: 'vendor' | 'customer';
   note?: string;
+  /** Who sent it, when they gave a name. */
+  sender?: string;
 }
 
 interface UiState {
