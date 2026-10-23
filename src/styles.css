@@ -3010,17 +3010,17 @@ body:has(.home) {
 }
 
 /* Things that cannot stand where they are: a red chip over the view, a list on tap. */
+/* Top left of the view, beside the tool rail, clear of the plan menu and hints along the bottom; the list opens down. */
 .issues-chip-wrap {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 52px;
+  left: 84px;
+  top: 12px;
   z-index: 14;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex-direction: column-reverse;
+  align-items: flex-start;
   gap: 6px;
-  max-width: calc(100% - 24px);
+  max-width: calc(100% - 100px);
 }
 .issues-chip {
   display: inline-flex;
@@ -3069,11 +3069,6 @@ body:has(.home) {
 }
 .issues-pop b {
   color: #b91c1c;
-}
-@media (max-width: 640px) {
-  .issues-chip-wrap {
-    bottom: 16px;
-  }
 }
 
 /* Links made in this browser, on the start page. */
@@ -3289,7 +3284,10 @@ body:has(.home) {
     bottom: 76px;
   }
   .issues-chip-wrap {
+    top: auto;
+    left: 8px;
     bottom: 76px;
+    flex-direction: column;
   }
   .tapes-chip {
     bottom: 76px;

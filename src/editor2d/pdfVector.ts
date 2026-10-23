@@ -1,4 +1,4 @@
-import { applyPdfImport, readPdfPlan, type PdfImportCounts } from '../model/pdfplan/apply';
+import { applyPdfFurniture, applyPdfImport, readPdfPlan, type PdfImportCounts } from '../model/pdfplan/apply';
 import { readScale } from '../model/pdfplan/scale';
 import type { VectorPlan } from '../model/pdfplan/types';
 import type { Project, Underlay, Vec2 } from '../model/types';
@@ -28,7 +28,7 @@ export function scaleFromVector(drawing: VectorPlan): { underlayMmPerPx: number;
   return s && { underlayMmPerPx: s.mmPerPt / pdfPxPerPt(drawing), doors: s.doors };
 }
 
-export function buildFromVector(project: Project, u: Underlay, drawing: VectorPlan): VectorBuild | null {
+export function buildFromVector(project: Project, u: Underlay, drawing: VectorPlan, part: 'building' | 'furniture' = 'building'): VectorBuild | null {
   const imp = readPdfPlan(drawing);
   const pxPerPt = pdfPxPerPt(drawing);
   let mmPerPt: number;
@@ -46,6 +46,6 @@ export function buildFromVector(project: Project, u: Underlay, drawing: VectorPl
   const turn = (u.rotation * Math.PI) / 180;
   const centre = { x: (drawing.width * pxPerPt) / 2, y: (drawing.height * pxPerPt) / 2 };
   const toPlan = (p: Vec2) => add(u, rotate(scale(sub(scale(p, pxPerPt), centre), underlayMmPerPx), turn));
-  const counts = applyPdfImport(project, imp, toPlan, mmPerPt, turn);
+  const counts = (part === 'furniture' ? applyPdfFurniture : applyPdfImport)(project, imp, toPlan, mmPerPt, turn);
   return { counts, underlayMmPerPx, doors, gridPitch };
 }

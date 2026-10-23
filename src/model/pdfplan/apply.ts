@@ -436,8 +436,12 @@ const CATALOG_SIZED = new Set(['toilet', 'sink', 'chair']);
  * points to plan mm (the underlay's placement) and `turn` is the underlay's rotation in radians, for things with
  * a rotation of their own.
  */
+/**
+ * Builds the building from a read PDF: walls, doors, windows, columns and the names of the rooms. Machines and
+ * furniture are a separate step (applyPdfFurniture), so the building can be made without them.
+ */
 export function applyPdfImport(project: Project, imp: PdfImport, toPlan: (p: Vec2) => Vec2, mmPerPt: number, turn: number): PdfImportCounts {
-  const { structure, zones, machines, stairs } = imp;
+  const { structure, zones, machines } = imp;
   const plan = project.plan;
   const traced = applyTrace(plan, structure, toPlan, mmPerPt);
   // WC stalls' fronts are rarely drawn as walls, only their doors; the stalls are known from their bowls. Walled in
@@ -479,7 +483,6 @@ export function applyPdfImport(project: Project, imp: PdfImport, toPlan: (p: Vec
     project.columns[col.id] = col;
   }
 
-  project.objects = [];
   let namedZones = 0;
   const claimed = new Set<string>();
   const roomArea = (r: Room) => Math.abs(signedArea(roomPolygon(plan, r)));
@@ -504,6 +507,24 @@ export function applyPdfImport(project: Project, imp: PdfImport, toPlan: (p: Vec
     }
     // Areas only marked out on the hall floor are left off: the user asked for them gone.
   }
+
+  return { ...traced, columns: Object.keys(project.columns).length, zones: namedZones, machines: 0 };
+}
+
+/**
+ * Puts the machines, furniture and stairs drawn on the PDF onto the plan, inside its rooms (so the building comes first).
+ * What an earlier run put down is replaced; pieces placed by hand stay.
+ */
+export function applyPdfFurniture(project: Project, imp: PdfImport, toPlan: (p: Vec2) => Vec2, mmPerPt: number, turn: number): PdfImportCounts {
+  const { machines, stairs } = imp;
+  const plan = project.plan;
+  const bowls = machines.filter((m) => (m as { kind?: string }).kind === 'toilet');
+  const fronts = bowlFronts(
+    plan,
+    bowls.map((m) => ({ centre: toPlan(m.at), rotation: m.rotation + turn, bowl: Math.max(m.w, m.d) * mmPerPt })),
+  );
+  const facing = new Map(bowls.map((m, i) => [m, fronts[i]]));
+  project.objects = project.objects.filter((o) => !o.fromPlan);
 
   // Tables with their seats: the drawing gives the table, the catalog piece is drawn with its chairs or benches round it.
   const seated = (kind: string, at: Vec2, rotation: number, w: Mm, d: Mm): { at: Vec2; w: Mm; d: Mm } => {
@@ -561,11 +582,11 @@ export function applyPdfImport(project: Project, imp: PdfImport, toPlan: (p: Vec
   kept.push(...clear, ...flights.map((o) => ({ kind: 'stairs', o })));
   fitStalls(kept.filter((p) => p.kind === 'toilet').map((p) => p.o));
   clearChairs(kept);
-  project.objects.push(...kept.map((p) => p.o));
+  project.objects.push(...kept.map((p) => ({ ...p.o, fromPlan: true as const })));
   dropStallPartitions(
     plan,
     kept.filter((p) => p.kind === 'toilet').map((p) => p.o),
   );
 
-  return { ...traced, columns: Object.keys(project.columns).length, zones: namedZones, machines: kept.length };
+  return { walls: 0, doors: 0, windows: 0, columns: 0, zones: 0, machines: kept.length };
 }

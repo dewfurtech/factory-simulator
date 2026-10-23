@@ -158,6 +158,8 @@ export interface PlacedObject extends LayerFlags {
   size: Size3;
   /** Machines only: ids of the add-ons ticked for this one (see catalog machineOptions); the size then covers them. */
   options?: string[];
+  /** Put down by reading the plan's PDF: reading it again replaces these, and leaves hand-placed ones alone. */
+  fromPlan?: true;
   /** Machines only: average breakdowns per working day, overriding the project default. */
   breakdownsPerDay?: number;
 }

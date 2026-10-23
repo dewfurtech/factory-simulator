@@ -33,6 +33,8 @@ type Status =
   | { kind: 'choose' }
   | { kind: 'traced'; walls: number; doors: number; windows: number; scaleDoors: number }
   | { kind: 'built'; walls: number; doors: number; windows: number; columns: number; zones: number; machines: number; scaleDoors: number; gridPitch?: number }
+  /** Machines and furniture read off the PDF and put in the rooms. */
+  | { kind: 'furnished'; machines: number }
   | { kind: 'needScale'; then: 'choose' | 'build' }
   | { kind: 'failed'; message: string };
 
@@ -58,6 +60,17 @@ export function UnderlayMenu() {
   const u = useProject((s) => activeUnderlay(s.project!));
   const tool = useUi((s) => s.tool);
   const hasWalls = useProject((s) => Object.keys(s.project!.plan.walls).length > 0);
+  // Furniture can be read only off a vector PDF; a picture has no symbols to read.
+  const imageId = useProject((s) => s.project!.underlay?.imageId);
+  const [hasVector, setHasVector] = useState(false);
+  useEffect(() => {
+    let live = true;
+    setHasVector(false);
+    if (imageId) void vectorPlanFor(imageId).then((d) => live && setHasVector(!!d));
+    return () => {
+      live = false;
+    };
+  }, [imageId]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [style, setStyle] = useState<WallStyle | 'auto'>('auto');
@@ -66,7 +79,7 @@ export function UnderlayMenu() {
   const measure = () => useUi.getState().setTool({ kind: 'calibrate', a: null, b: null });
 
   /** A vector PDF is built from its lines; anything else is traced as a picture. */
-  const buildVector = async (from: Underlay) => {
+  const buildVector = async (from: Underlay, part: 'building' | 'furniture' = 'building') => {
     const drawing = await vectorPlanFor(from.imageId);
     if (!drawing) return false;
     setStatus({ kind: 'tracing' });
@@ -76,7 +89,7 @@ export function UnderlayMenu() {
     applyEdit((d) => {
       const u = d.underlay;
       if (!u || u.imageId !== from.imageId) return;
-      result.built = buildFromVector(d, u, drawing);
+      result.built = buildFromVector(d, u, drawing, part);
       if (result.built && !u.calibrated) Object.assign(u, { mmPerPx: result.built.underlayMmPerPx, calibrated: true });
     });
     const b = result.built;
@@ -86,8 +99,18 @@ export function UnderlayMenu() {
       return true;
     }
     useUi.getState().set({ selection: null });
-    setStatus({ kind: 'built', ...b.counts, scaleDoors: b.doors, gridPitch: b.gridPitch });
+    if (part === 'furniture') setStatus({ kind: 'furnished', machines: b.counts.machines });
+    else setStatus({ kind: 'built', ...b.counts, scaleDoors: b.doors, gridPitch: b.gridPitch });
     return true;
+  };
+
+  /** The machines and furniture drawn on a PDF, put into the rooms already on the plan. */
+  const furnish = async (from: Underlay) => {
+    try {
+      await buildVector(from, 'furniture');
+    } catch (e) {
+      setStatus({ kind: 'failed', message: message(e) });
+    }
   };
 
   /** Builds the storey from the plan, under the import loading screen when an import is what asked for it. */
@@ -322,6 +345,20 @@ export function UnderlayMenu() {
               <Glyph name={busy ? 'busy' : 'build'} />
               <span>{busy ? 'กำลังสร้าง…' : 'สร้างผนังอัตโนมัติ'}</span>
             </button>
+            {hasVector && (
+              <button
+                className="ul-btn ul-secondary ul-wide"
+                onClick={() => void furnish(u)}
+                disabled={busy || !hasWalls}
+                data-tip={
+                  hasWalls ? 'ใส่เครื่องจักรและเฟอร์นิเจอร์ที่วาดไว้ในแปลน PDF ลงในห้อง (แทนชุดเดิมที่ใส่จากแปลน · เลิกทำได้)' : 'สร้างผนังหรือวาดห้องก่อน แล้วค่อยใส่เฟอร์นิเจอร์'
+                }
+                data-testid="underlay-furnish"
+              >
+                <Glyph name="furniture" />
+                <span>ใส่เฟอร์นิเจอร์จากแปลน</span>
+              </button>
+            )}
             <button
               className={`ul-btn${peek ? ' on' : ''}`}
               onPointerDown={(e) => {
@@ -436,9 +473,15 @@ function statusNote(status: Status): { text: string; tip?: string; error?: boole
         tip: `${status.scaleDoors ? `สเกลจากประตู ${status.scaleDoors} บาน` : 'สเกลจากที่วัดไว้'} · กดเลิกทำเพื่อย้อน`,
         testId: 'underlay-traced',
       };
+    case 'furnished':
+      return {
+        text: status.machines ? `ใส่เครื่องและเฟอร์นิเจอร์จากแปลน ${status.machines} ชิ้น` : 'ไม่พบเครื่องหรือเฟอร์นิเจอร์ในห้องที่มีอยู่',
+        tip: 'อ่านจากสัญลักษณ์ในไฟล์ PDF · กดเลิกทำเพื่อย้อน',
+        testId: 'underlay-furnished',
+      };
     case 'built':
       return {
-        text: `ผนัง ${status.walls} · ประตู ${status.doors} · หน้าต่าง ${status.windows} · เสา ${status.columns} · โซน ${status.zones} · เครื่อง/อุปกรณ์ ${status.machines}`,
+        text: `ผนัง ${status.walls} · ประตู ${status.doors} · หน้าต่าง ${status.windows} · เสา ${status.columns} · โซน ${status.zones}`,
         tip: `อ่านจากเส้นในไฟล์ PDF · ${status.scaleDoors ? `สเกลจากประตู ${status.scaleDoors} บาน${status.gridPitch ? ` ปรับตามระยะเสา ${status.gridPitch / 1000} ม.` : ''}` : 'สเกลจากที่วัดไว้'} · กดเลิกทำเพื่อย้อน`,
         testId: 'underlay-built',
       };
@@ -465,6 +508,7 @@ function statusNote(status: Status): { text: string; tip?: string; error?: boole
 }
 
 const GLYPHS: Record<string, string> = {
+  furniture: 'M4 11h16v4H4z M6 15v4 M18 15v4 M7 11V7h10v4',
   upload: 'M12 15V4 M7 9l5-5 5 5 M4 15v5h16v-5',
   build: 'M4 20V9h9 M8 20v-7h5 M4 20h9 M18 3v6 M15 6h6',
   room: 'M4 6h16v12H4z M4 12h8v6 M12 6v6',
