@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { PlanEditor } from './editor2d/PlanEditor';
+import { EMPTY_ENTRY } from './editor2d/entry';
 import { Icon, Toolbar } from './editor2d/Toolbar';
 import { deleteSelection, dispatchKey, objectKey } from './editor2d/tools';
 import { CatalogPanel } from './panels/CatalogPanel';
@@ -146,6 +147,52 @@ function shareProject() {
         sender,
         make,
       });
+}
+
+/**
+ * Three steps over a new plan, until the plan has walls and a machine: draw the building, place machines, share.
+ * Each opens what it needs; the steps done so far are ticked. The seller can close it; a customer never sees it.
+ */
+function StartGuide() {
+  const customer = useUi((s) => !!s.customer);
+  const view = useUi((s) => s.view);
+  const hasWalls = useProject((s) => Object.keys(s.project!.plan.walls).length > 0 || !!s.project!.underlay);
+  const hasMachines = useProject((s) => s.project!.objects.length > 0);
+  const [closed, setClosed] = useState(false);
+  if (customer || closed || view === '3d' || (hasWalls && hasMachines)) return null;
+  const steps = [
+    {
+      done: hasWalls,
+      title: 'วาดอาคาร',
+      text: 'คลิก 2 มุมเพื่อวาดห้อง หรือใช้ปุ่ม “ภาพแปลน” ด้านซ้ายเพื่อวาดทับแปลนลูกค้า',
+      go: () => useUi.getState().setTool({ kind: 'drawRoomRect', start: null, entry: EMPTY_ENTRY }),
+      testId: 'guide-draw',
+    },
+    {
+      done: hasMachines,
+      title: 'วางเครื่อง',
+      text: 'เลือกเครื่อง Mastrox จากคลัง แล้วคลิกหรือลากลงแปลน',
+      go: () => useUi.getState().set({ dock: 'catalog' }),
+      testId: 'guide-place',
+    },
+    { done: false, title: 'แชร์ให้ลูกค้า', text: 'ได้ลิงก์ไปส่งทาง LINE ลูกค้าขยับเครื่องเองแล้วส่งกลับ', go: () => void shareProject(), testId: 'guide-share' },
+  ];
+  return (
+    <div className="start-guide glass" data-testid="start-guide">
+      <button className="ib sm start-guide-close" onClick={() => setClosed(true)} title="ปิด" aria-label="ปิด">
+        <Icon name="close" />
+      </button>
+      {steps.map((s, i) => (
+        <button key={s.title} className={`guide-step${s.done ? ' done' : ''}`} onClick={s.go} data-testid={s.testId}>
+          <span className="guide-num">{s.done ? '✓' : i + 1}</span>
+          <span className="guide-text">
+            <b>{s.title}</b>
+            <span>{s.text}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
 }
 
 /** The strip over the plan when it came from a share link: whose it is, their note, and the way to send it back. */
@@ -320,7 +367,7 @@ export function Editor() {
         </div>
         <div className="tb-group tb-right">
           <button
-            className={`tb-toggle${customer ? ' tb-accent' : ''}`}
+            className="tb-toggle tb-accent"
             onClick={() => void shareProject()}
             title={customer ? 'สร้างลิงก์การจัดวางของคุณ ส่งกลับให้ผู้ขาย' : 'สร้างลิงก์ให้ลูกค้าเปิดดูและย้ายเครื่องเอง'}
             data-testid="share-link"
@@ -368,6 +415,7 @@ export function Editor() {
       {dock && <div className="dock-col">{dock === 'catalog' ? <CatalogPanel /> : <LayersPanel />}</div>}
       <main className="viewport">
         <ShareBanner />
+        <StartGuide />
         <div className={`panes view-${view}`}>
           {view !== '3d' && (
             <div className="pane">

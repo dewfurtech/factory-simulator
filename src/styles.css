@@ -3113,3 +3113,89 @@ body:has(.home) {
   font-weight: 500;
   color: var(--ink-2);
 }
+
+/* Three steps over a new plan: draw, place, share. */
+.start-guide {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  gap: 6px;
+  padding: 8px 40px 8px 8px;
+  border-radius: 14px;
+  max-width: calc(100% - 200px);
+}
+.start-guide-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+.guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.guide-step:hover {
+  background: var(--accent-soft);
+  border-color: #fdba74;
+}
+.guide-num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+}
+.guide-step.done .guide-num {
+  background: var(--ok);
+}
+.guide-step.done b {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.guide-text {
+  display: grid;
+  gap: 2px;
+}
+.guide-text b {
+  font-size: 14px;
+}
+.guide-text span {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+@media (max-width: 900px) {
+  .start-guide {
+    flex-direction: column;
+    max-width: calc(100% - 120px);
+  }
+}
+@media (max-width: 640px) {
+  .start-guide {
+    left: 72px;
+    right: 8px;
+    transform: none;
+    max-width: none;
+  }
+  .guide-text span {
+    display: none;
+  }
+}
