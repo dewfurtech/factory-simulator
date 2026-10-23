@@ -1,20 +1,19 @@
 import { deg, fmtArea, fmtLen, fmtSize, rad } from '../format';
-import { CATALOG, catalogItem, GROUP_LABEL, GROUP_ORDER } from '../model/catalog';
+import { CATALOG, catalogItem, GROUP_LABEL, GROUP_ORDER, machineFootprint } from '../model/catalog';
 import { DOOR_STYLE_LABEL, isHanded, isSliding } from '../model/openings';
 import { checkClearance, issueText } from '../model/clearance';
-import { moveCorner, roomStats, setWallAngle, setWallLength, wallDir, wallLength } from '../model/plan';
+import { moveCorner, roomStats, setWallLength, wallLength } from '../model/plan';
 import { projectFacts } from '../model/project';
 import type { Area, Column, DoorStyle, OpeningKind, PlacedObject, Project, ZoneKind } from '../model/types';
-import { ZONE_IDS, ZONES, zoneColor } from '../model/zones';
+import { ZONE_IDS, ZONES } from '../model/zones';
 import { AREA_COLORS, areaStats } from '../model/areas';
-import { aisleNet, setApart } from '../model/aisleJoins';
-import { AISLE_KIND_IDS, AISLE_KINDS, aisleLength, setAisleKind, standardWidth, tooNarrow, usesVehicle, WALK_WIDTHS } from '../model/aisles';
+import { AISLE_KIND_IDS, AISLE_KINDS, aisleLength, isArrow, setAisleKind } from '../model/aisles';
 import type { Aisle, AisleKind } from '../model/types';
 import { applyEdit, useEditProject } from '../store/project';
 import { useUi, type Selection } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
 import { addDoorAt, deleteSelection, duplicateSelection, flipOpeningHinge, flipOpeningSide, rotateObject } from '../editor2d/tools';
-import { ColorField, Field, NumberField, SelectField, TextField } from './fields';
+import { Field, NumberField, SelectField, TextField } from './fields';
 import { MachineSpec } from './MachineSpec';
 
 const KIND_LABEL: Record<OpeningKind, string> = { door: 'ประตู', window: 'หน้าต่าง', opening: 'ช่องเปิด' };
@@ -146,7 +145,6 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
     case 'wall': {
       const w = plan.walls[sel.id];
       if (!w) return null;
-      const dir = wallDir(plan, w);
       const ops = Object.values(plan.openings).filter((o) => o.wallId === w.id);
       const set = (recipe: (x: typeof w) => void) => applyEdit((d) => recipe(d.plan.walls[sel.id]));
       return (
@@ -155,19 +153,12 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
           <div className="panel-body">
             <div className="two">
               <NumberField label="ความยาว" value={wallLength(plan, w)} scale={10} suffix="ซม." min={1} onChange={(v) => applyEdit((d) => setWallLength(d.plan, sel.id, v))} />
-              <NumberField label="มุม" value={Math.round(deg(Math.atan2(dir.y, dir.x)))} suffix="°" onChange={(v) => applyEdit((d) => setWallAngle(d.plan, sel.id, rad(v)))} />
               <NumberField label="ความหนา" value={w.thickness} scale={10} suffix="ซม." min={1} onChange={(v) => set((x) => void (x.thickness = v))} />
               <NumberField label="ความสูง" value={w.height} scale={10} suffix="ซม." min={10} onChange={(v) => set((x) => void (x.height = v))} />
             </div>
             <label className="check">
               <input type="checkbox" checked={!!w.glass} onChange={(e) => set((x) => void (x.glass = e.target.checked || undefined))} /> ผนังกระจก
             </label>
-            <ColorField
-              label="สีผนัง"
-              value={w.color ?? '#eceae5'}
-              onChange={(v) => set((x) => void (x.color = v))}
-              onReset={w.color ? () => set((x) => void delete x.color) : undefined}
-            />
             <button className="btn btn-sm" onClick={() => addDoorAt(null, 0, w.id)} data-testid="wall-add-door">
               + ใส่ประตูกลางผนัง
             </button>
@@ -217,12 +208,6 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
               <input type="checkbox" checked={!!r.outdoor} onChange={(e) => set((x) => void (e.target.checked ? (x.outdoor = true) : delete x.outdoor))} />
               <span>ลานนอกอาคาร (ไม่นับเป็นห้องและพื้นที่)</span>
             </label>
-            <ColorField
-              label="สีพื้น"
-              value={zoneColor(r)}
-              onChange={(v) => set((x) => void (x.color = v))}
-              onReset={r.color ? () => set((x) => void delete x.color) : undefined}
-            />
             <div className="stats">
               <div>
                 <b>{fmtArea(st.area)}</b>
@@ -271,9 +256,6 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
                 <input type="color" value={a.color} onChange={(e) => set((x) => void (x.color = e.target.value))} aria-label="สีอื่น" />
               </div>
             </Field>
-            <div className="two">
-              <NumberField label="สูง (กล่องใน 3D)" value={a.height} scale={10} suffix="ซม." min={10} onChange={(v) => set((x) => void (x.height = v))} />
-            </div>
             <div className="stats">
               <div>
                 <b>{fmtArea(st.area)}</b>
@@ -300,27 +282,19 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
       const a = plan.aisles?.[sel.id];
       if (!a) return null;
       const info = AISLE_KINDS[a.kind];
-      const std = standardWidth(a.kind, a.vehicle);
-      const narrow = tooNarrow(a);
+      const arrow = isArrow(a.kind);
       const length = aisleLength(a);
-      // Changing a laid-out aisle by hand makes it the user's: laying out again leaves it alone.
       const set = (recipe: (x: Aisle) => void) =>
         applyEdit((d) => {
           const x = d.plan.aisles?.[sel.id];
-          if (!x) return;
-          recipe(x);
-          delete x.auto;
+          if (x) recipe(x);
         });
-      const icon = { walk: 'aisleWalk', forklift: 'aisleForklift', forklift2: 'aisleForklift2', mixed: 'aisleMixed' }[a.kind];
-      const net = aisleNet(plan);
-      const joints = net.joints.filter((j) => j.a === a.id || j.b === a.id);
-      const crossings = net.crossings.filter((c) => c.lane === a.id || c.walk === a.id).length;
-      const mirrors = net.mirrors.filter((m) => m.aisles.includes(a.id)).length;
+      const icon = { walk: 'aisleWalk', forklift: 'aisleForklift', flow: 'flowArrow' }[a.kind];
       return (
         <>
-          <Header icon={icon} title={a.name} sub={`${info.label} · กว้าง ${fmtLen(a.width)}`} actions />
+          <Header icon={icon} title={a.name} sub={arrow ? info.label : `${info.label} · กว้าง ${fmtLen(a.width)}`} actions />
           <div className="panel-body">
-            <TextField label="ชื่อทางเดิน" value={a.name} onChange={(v) => set((x) => void (x.name = v))} />
+            <TextField label={arrow ? 'ชื่อ (เช่น วัตถุดิบเข้า, ส่งออก)' : 'ชื่อทางเดิน'} value={a.name} onChange={(v) => set((x) => void (x.name = v))} />
             <SelectField
               label="ประเภท"
               value={a.kind}
@@ -328,80 +302,24 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
               onChange={(v: AisleKind) => set((x) => setAisleKind(x, v))}
               testId="aisle-kind"
             />
-            <div className="two">
-              <NumberField label="กว้างทางเดิน" value={a.width} scale={10} step={10} suffix="ซม." min={30} testId="aisle-width" onChange={(v) => set((x) => void (x.width = v))} />
-              {usesVehicle(a.kind) && (
-                <NumberField label="กว้างรถ / สินค้า" value={a.vehicle ?? 1200} scale={10} step={10} suffix="ซม." min={50} onChange={(v) => set((x) => void (x.vehicle = v))} />
-              )}
-            </div>
-            <div className={`aisle-std${narrow ? ' bad' : ''}`} data-testid="aisle-standard">
-              <b>{narrow ? `แคบกว่ามาตรฐาน: ต้องกว้างอย่างน้อย ${fmtLen(std)}` : `ผ่านมาตรฐาน (ขั้นต่ำ ${fmtLen(std)})`}</b>
-              <span>{info.rule}</span>
-              {narrow && (
-                <button className="btn btn-sm" onClick={() => set((x) => void (x.width = std))}>
-                  ปรับเป็น {fmtLen(std)}
-                </button>
-              )}
-            </div>
-            <div className="aisle-law" data-testid="aisle-law">
-              <b>กฎหมายไทย</b>
-              {usesVehicle(a.kind) ? (
-                <>
-                  <span>กฎกระทรวงฯ ความปลอดภัยเกี่ยวกับเครื่องจักร ปั้นจั่น และหม้อน้ำ พ.ศ. 2564</span>
-                  <span>· ข้อ 37: นายจ้างต้องตีเส้นช่องทางเดินรถยกภายในอาคาร หรือกำหนดเส้นทางเดินรถยกในบริเวณอื่นที่ใช้รถยกเป็นประจำ</span>
-                  <span>· ข้อ 38: ติดกระจกนูนที่ทางแยกหรือทางโค้งที่มองไม่เห็น</span>
-                  <span>ไม่ได้กำหนดความกว้าง จึงใช้ตัวเลขจาก ASR A1.8</span>
-                </>
-              ) : (
-                <span>ยังไม่พบตัวเลขความกว้างทางเดินคนในกฎหมายไทย จึงใช้ตัวเลขจาก ASR A1.8 · จุดที่คนข้ามทางรถทำทางม้าลายตามแนวทาง HSE HSG76</span>
-              )}
-              {(crossings > 0 || mirrors > 0) && (
-                <span className="aisle-law-count">
-                  บนทางนี้: {crossings > 0 && `ทางม้าลาย ${crossings} จุด`}
-                  {crossings > 0 && mirrors > 0 && ' · '}
-                  {mirrors > 0 && `กระจกนูน ${mirrors} จุด`}
-                </span>
-              )}
-            </div>
-            {a.kind === 'walk' && (
-              <Field label="คนใช้ทางนี้ (ASR A1.8)">
-                <div className="color-chips">
-                  {WALK_WIDTHS.map((w) => (
-                    <button key={w.people} type="button" className={`btn btn-sm${a.width === w.width ? ' btn-primary' : ''}`} onClick={() => set((x) => void (x.width = w.width))}>
-                      ≤{w.people} คน · {fmtLen(w.width)}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-            )}
-            {joints.length > 0 && (
-              <div className="field">
-                <span>รอยต่อกับทางอื่น</span>
-                <div className="aisle-joints" data-testid="aisle-joints">
-                  {joints.map((j) => {
-                    const other = plan.aisles?.[j.a === a.id ? j.b : j.a];
-                    return (
-                      <div key={`${j.a}|${j.b}`} className={`aisle-joint-row${j.apart ? ' apart' : ''}`}>
-                        <span>
-                          {j.apart ? 'แยกกัน' : 'เชื่อมกัน'} · {other?.name ?? 'ทางเดิน'}
-                        </span>
-                        <button className="btn btn-sm" onClick={() => applyEdit((d) => setApart(d.plan, j.a, j.b, !j.apart))}>
-                          {j.apart ? 'เชื่อม' : 'แยก'}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+            {!arrow && (
+              <div className="two">
+                <NumberField
+                  label="กว้างทางเดิน"
+                  value={a.width}
+                  scale={10}
+                  step={10}
+                  suffix="ซม."
+                  min={30}
+                  testId="aisle-width"
+                  onChange={(v) => set((x) => void (x.width = v))}
+                />
               </div>
             )}
             <div className="stats">
               <div>
                 <b>{fmtLen(length)}</b>
                 <span>ยาว</span>
-              </div>
-              <div>
-                <b>{fmtArea(length * a.width)}</b>
-                <span>พื้นที่ทาง</span>
               </div>
               <div>
                 <b>{Math.max(0, a.points.length - 2)}</b>
@@ -411,7 +329,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
             <button className="btn btn-sm" onClick={duplicateSelection} title="Ctrl+D">
               <Icon name="copy" /> ทำสำเนา
             </button>
-            <p className="muted small">ลากบนแปลนเพื่อย้าย · ทางที่ชิดกันไม่เกิน 50 ซม. จะเชื่อมกันเอง คลิกปุ่มรอยต่อบนแปลนเพื่อแยก · ของที่วางทับทางเดินจะขึ้นเตือนสีแดง</p>
+            <p className="muted small">{arrow ? 'ลูกศรชี้ไปทางจุดสุดท้ายที่คลิก · ลากบนแปลนเพื่อย้าย' : 'ลากบนแปลนเพื่อย้าย · ของที่วางทับทางเดินจะขึ้นเตือนสีแดง'}</p>
           </div>
         </>
       );
@@ -457,22 +375,6 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
                   )}
                 </div>
               </Field>
-            )}
-            {o.kind !== 'window' && (
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={!!o.entrance}
-                  onChange={(e) =>
-                    applyEdit((d) => {
-                      for (const x of Object.values(d.plan.openings)) delete x.entrance;
-                      if (e.target.checked) d.plan.openings[sel.id].entrance = true;
-                    })
-                  }
-                  data-testid="entrance-toggle"
-                />{' '}
-                ทางเข้า-ออกหลัก
-              </label>
             )}
           </div>
         </>
@@ -544,18 +446,15 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
                 assetId={o.assetId}
                 placed={o.size}
                 options={o.options}
-                onOptions={(next) =>
-                  // The model with its add-ons is measured in the 3D module, loaded only once a machine is picked.
-                  void import('../view3d/machines3d').then(({ machineFootprint }) => {
-                    const f = machineFootprint(o.assetId, next);
-                    applyEdit((d) => {
-                      const x = d.objects.find((y) => y.id === sel.id);
-                      if (!x) return;
-                      x.options = next.length ? next : undefined;
-                      if (f) x.size = { ...f.size };
-                    });
-                  })
-                }
+                onOptions={(next) => {
+                  const f = machineFootprint(o.assetId, next);
+                  applyEdit((d) => {
+                    const x = d.objects.find((y) => y.id === sel.id);
+                    if (!x) return;
+                    x.options = next.length ? next : undefined;
+                    if (f) x.size = { ...f };
+                  });
+                }}
               />
             ) : (
               item?.summary && <p className="muted small">{item.summary}</p>

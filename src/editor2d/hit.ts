@@ -6,7 +6,6 @@ import type { Column, Mm, PlacedObject, Plan, Project, Vec2 } from '../model/typ
 import { add, dist, dot, fromAngle, perp, pointInPolygon, projectOnSegment, scale, segmentIntersect, signedArea, sub } from '../model/vec';
 import { planAreas } from '../model/areas';
 import { aisleOutline, onAisle, planAisles } from '../model/aisles';
-import { aisleNet, paintedAisle } from '../model/aisleJoins';
 import { useUi, type Selection } from '../store/ui';
 
 /** Objects whose centre sits in no room draw and hit-test beneath the rooms. */
@@ -69,8 +68,7 @@ export function hitTest(project: Project, p: Vec2, radius: Mm): Selection | null
   // Aisles are painted on the floor: under everything standing on it, over the rooms. The narrowest wins.
   let aisle: Selection | null = null;
   let narrowest = Infinity;
-  const net = aisleNet(plan);
-  for (const a of planAisles(plan)) if (!off(a) && a.width < narrowest && onAisle(paintedAisle(net, a), p, radius / 2)) [aisle, narrowest] = [{ kind: 'aisle', id: a.id }, a.width];
+  for (const a of planAisles(plan)) if (!off(a) && a.width < narrowest && onAisle(a, p, radius / 2)) [aisle, narrowest] = [{ kind: 'aisle', id: a.id }, a.width];
   if (aisle) return aisle;
   let room: Selection | null = null;
   let area = Infinity;

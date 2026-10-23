@@ -17,11 +17,10 @@ import {
   wallAt,
   wallDir,
 } from '../model/plan';
-import { SHAPE_PRESETS, type ShapePresetId } from '../model/presets';
 import { snapPoint, type SnapResult } from '../model/snap';
 import { clearSpan, onSideB, OPENING_PRESETS } from '../model/openings';
 import type { Column, Id, Mm, PlacedObject, Project, Vec2 } from '../model/types';
-import { add, dist, dot, perp, projectOnSegment, sub } from '../model/vec';
+import { dist, dot, perp, projectOnSegment, sub } from '../model/vec';
 import { alignToWalls, parallelWallOffset, weldPlan } from '../model/weld';
 import { addArea, boxOutline, closedOutline, extendOutline, moveArea } from '../model/areas';
 import { addAisle, cleanLine, moveAisle } from '../model/aisles';
@@ -30,7 +29,7 @@ import { levelZ } from '../model/levels';
 import { SELECT, useUi, type ColumnSpec, type Drag, type Selection, type Tool, type ToolKind } from '../store/ui';
 import { boxSelect, columnOutline, hitTest } from './hit';
 import { guideLines, snapToInk } from './planGuides';
-import { EMPTY_ENTRY, ENTRY_FIELDS, entryKey, hasTyped, rectCorner, typedNum, wallEnd } from './entry';
+import { EMPTY_ENTRY, ENTRY_FIELDS, entryKey, hasTyped, rectCorner, wallEnd } from './entry';
 
 export interface PointerInput {
   p: Vec2;
@@ -69,11 +68,6 @@ const snapping = (input: Pick<PointerInput, 'alt'>) => !input.alt && ui().snapOn
 /** A room outline to place, pulled onto nearby walls so neighbouring rooms share them. */
 export function roomOutline(points: Vec2[], input: Pick<PointerInput, 'alt' | 'radius'>): Vec2[] {
   return snapping(input) ? alignToWalls(project().plan, points, DEFAULT_WALL.thickness, input.radius) : points;
-}
-
-export function presetOutline(tool: { preset: ShapePresetId; w: Mm; d: Mm }, at: Vec2): Vec2[] {
-  const origin = sub(at, { x: tool.w / 2, y: tool.d / 2 });
-  return SHAPE_PRESETS[tool.preset].outline(tool.w, tool.d).map((p) => add(p, origin));
 }
 
 function commitSegment(from: Vec2, end: SnapResult, glass: boolean): boolean {
@@ -422,32 +416,6 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
     },
   },
 
-  placePreset: {
-    down(tool, input) {
-      const s = snap(input);
-      const outline = roomOutline(presetOutline(tool, s.point), input);
-      edit((d) => {
-        addPolygon(d.plan, outline);
-      });
-      setTool(SELECT);
-    },
-    move(_tool, input) {
-      ui().set({ cursor: snap(input) });
-    },
-    key(tool, e) {
-      if (e.key === 'Escape') {
-        setTool(SELECT);
-        return true;
-      }
-      const entry = entryKey(tool.entry, ENTRY_FIELDS.placePreset, e);
-      if (!entry) return false;
-      const w = typedNum(entry, 0);
-      const d = typedNum(entry, 1);
-      setTool({ ...tool, entry, w: w && w >= 50 ? w * 10 : tool.w, d: d && d >= 50 ? d * 10 : tool.d });
-      return true;
-    },
-  },
-
   placeObject: {
     down(tool, input) {
       placeObjectAt(tool.assetId, input.p, input.radius, !snapping(input));
@@ -777,7 +745,7 @@ export function duplicateSelection(): void {
         const id = addAisle(
           d.plan,
           a.points.map((p) => ({ x: p.x + 500, y: p.y + 500 })),
-          { name: `${a.name} (สำเนา)`, kind: a.kind, width: a.width, vehicle: a.vehicle },
+          { name: `${a.name} (สำเนา)`, kind: a.kind, width: a.width },
         );
         made.push({ kind: 'aisle', id });
       }

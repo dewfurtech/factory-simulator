@@ -286,3 +286,40 @@ export function builtinGeometry(assetId: string, size: Size3): THREE.BufferGeome
   }
   return g;
 }
+
+const MACHINE = '#9aa0a8';
+const MACHINE_FRONT = '#e8742a';
+
+const blocks = new Map<string, THREE.BufferGeometry>();
+
+/**
+ * A Mastrox machine on the floor: a plain grey block of its true size, with a stripe along the foot of its front
+ * (local +z, where the operator stands). What it is comes from the name over it and the photo in the panel.
+ */
+export function machineBlock(size: Size3): THREE.BufferGeometry {
+  const key = `${size.w}x${size.d}x${size.h}`;
+  let g = blocks.get(key);
+  if (!g) {
+    const w = size.w / 1000;
+    const d = size.d / 1000;
+    const h = size.h / 1000;
+    const p = new Parts();
+    p.block(w, h, d, 0, 0, 0, MACHINE);
+    p.block(w, 0.12, 0.06, 0, 0, d / 2 + 0.03, MACHINE_FRONT);
+    g = p.build();
+    g.userData.shared = true;
+    blocks.set(key, g);
+  }
+  return g;
+}
+
+/** A box or cylinder of the given size (mm), centred, standing on y = 0: the user's own models. */
+export function plainGeometry(shape: 'box' | 'cylinder', size: Size3): THREE.BufferGeometry {
+  const w = size.w / 1000;
+  const d = size.d / 1000;
+  const h = size.h / 1000;
+  const g = shape === 'cylinder' ? new THREE.CylinderGeometry(0.5, 0.5, 1, 24) : new THREE.BoxGeometry(1, 1, 1);
+  g.scale(w, h, d);
+  g.translate(0, h / 2, 0);
+  return g;
+}

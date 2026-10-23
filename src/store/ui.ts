@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import type { ShapePresetId } from '../model/presets';
 import type { SnapResult } from '../model/snap';
 import type { OpeningPresetId } from '../model/openings';
 import type { AisleKind, Column, Id, Mm, Vec2 } from '../model/types';
@@ -35,9 +34,8 @@ export type Tool =
   | { kind: 'drawRoomRect'; start: Vec2 | null; entry: Entry }
   /** Marks out an area: a box from two corners, or point by point until the outline closes. */
   | { kind: 'drawArea'; mode: 'box' | 'poly'; start: Vec2 | null; points: Vec2[]; entry: Entry }
-  /** Lays an aisle of a kind along a centre line, point by point; Enter, a double-click or Esc ends it. */
+  /** Lays an aisle (or a flow arrow) along a centre line, point by point; Enter, a double-click or Esc ends it. */
   | { kind: 'drawAisle'; aisle: AisleKind; points: Vec2[]; entry: Entry }
-  | { kind: 'placePreset'; preset: ShapePresetId; w: Mm; d: Mm; entry: Entry }
   | { kind: 'placeObject'; assetId: string }
   | { kind: 'addOpening'; preset: OpeningPresetId; hingeEnd: boolean; openB: boolean }
   | { kind: 'placeColumn'; spec: ColumnSpec }
@@ -76,11 +74,6 @@ interface UiState {
   panelOpen: boolean;
   /** 3D walls cut down near the floor (on by default) so the layout and doorways read from above. */
   cutaway: boolean;
-  shadows: boolean;
-  /** 3D in the realistic look (PBR, AO) rather than low poly. */
-  realistic: boolean;
-  /** 3D ground as an island around the building rather than an endless plane; the plane comes back while drawing. */
-  island: boolean;
   /** Every area out of sight in both views, without touching the areas' own flags. */
   areasHidden: boolean;
   /** A request from the layers panel to bring the views to this thing; n makes each request distinct. */
@@ -94,27 +87,7 @@ interface UiState {
   toggleDock(dock: Dock): void;
 }
 
-const REALISTIC_KEY = 'factory.realistic3d';
-const storedRealistic = () => {
-  try {
-    return localStorage.getItem(REALISTIC_KEY) === '1';
-  } catch {
-    return false;
-  }
-};
-/** Remembers the 3D look for next time, in this browser only. */
-export function rememberRealistic(on: boolean) {
-  try {
-    localStorage.setItem(REALISTIC_KEY, on ? '1' : '0');
-  } catch {
-    /* storage blocked: the choice lasts this session */
-  }
-}
-
 export const SELECT: Tool = { kind: 'select', drag: null };
-
-/** Tools that put down walls, rooms or areas: while one is active the 3D ground shows whole, not as an island. */
-export const DRAWING_TOOLS: ReadonlySet<ToolKind> = new Set<ToolKind>(['drawWall', 'drawRoomRect', 'drawArea', 'drawAisle', 'placePreset', 'columnGrid']);
 
 export const useUi = create<UiState>((set) => ({
   view: '2d',
@@ -129,9 +102,6 @@ export const useUi = create<UiState>((set) => ({
   dock: null,
   panelOpen: false,
   cutaway: true,
-  shadows: false,
-  realistic: storedRealistic(),
-  island: true,
   areasHidden: false,
   goto: null,
   peek: false,

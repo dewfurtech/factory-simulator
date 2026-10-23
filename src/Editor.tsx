@@ -217,6 +217,7 @@ export function Editor() {
   const hasSelection = useUi((s) => !!s.selection || s.boxed.length > 0);
   const snapOn = useUi((s) => s.snapOn);
   const level = useProject((s) => s.level);
+  const hasUpper = useProject((s) => !!s.project!.upper);
   const customer = useUi((s) => !!s.customer);
   const set = useUi.getState().set;
   // The right panel slides out whenever something is picked, and on demand for the factory's own settings.
@@ -265,7 +266,7 @@ export function Editor() {
               </button>
             ))}
           </div>
-          {view !== '3d' && (
+          {view !== '3d' && hasUpper && (
             <div className="seg" role="tablist" aria-label="ชั้น" title="ชั้นที่แสดงในแปลน 2D">
               {['ชั้น 1', 'ชั้น 2'].map((label, i) => (
                 <button

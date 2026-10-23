@@ -99,8 +99,12 @@ const ARTS = {
 const ART_PAD = 0.05; // clear space each side, as a share of the width
 const aspectOf = art => art.h / (art.w * (1 + 2 * ART_PAD));
 export const LOGO_ASPECT = aspectOf(ARTS.thin), LOGO_ASPECT_BOLD = aspectOf(ARTS.bold);
+// Resolves once both cuts are loaded and logo textures are painted (for snapshots taken straight away).
+const artReady = [];
+export let logosReady;
 for (const art of Object.values(ARTS)) {
   art.mask = null; art.waiting = [];
+  artReady.push(new Promise(res => art.waiting.push(res)));
   const img = new Image();
   img.onload = () => {
     const c = document.createElement('canvas');
@@ -116,8 +120,10 @@ for (const art of Object.values(ARTS)) {
     art.mask = c;
     art.waiting.splice(0).forEach(f => f());
   };
+  img.onerror = () => art.waiting.splice(0).forEach(f => f());
   img.src = new URL('../assets/' + art.file, import.meta.url).href;
 }
+logosReady = Promise.all(artReady);
 
 const logoCache = new Map();
 // Texture of the logo with "mas" and "trox" in the given colours (cached per cut and colour pair).
@@ -141,6 +147,7 @@ export function logoTexture({ mas = '#f2f2f2', trox = '#f26022', bold = false } 
     tex.needsUpdate = true;
   };
   if (art.mask) paint(); else art.waiting.push(paint);
+  tex.userData.mastroxLogo = { mas, trox, bold };   // blocky.js finds the logos by this
   logoCache.set(key, tex);
   return tex;
 }
@@ -159,6 +166,7 @@ export function badgeTexture() {
     badgeTex = new THREE.TextureLoader().load(new URL('../assets/mastrox-logo-badge.png', import.meta.url).href);
     badgeTex.colorSpace = THREE.SRGBColorSpace;
     badgeTex.anisotropy = 8;
+    badgeTex.userData.mastroxLogo = { badge: true };
   }
   return badgeTex;
 }

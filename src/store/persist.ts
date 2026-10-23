@@ -100,10 +100,6 @@ export async function bundleProject(project: Project): Promise<Bundle> {
     if (blob) assets[blobId] = { type: blob.type, base64: await blobToBase64(blob) };
   }
   const used = useLibrary.getState().models.filter((m) => project.objects.some((o) => o.assetId === m.id));
-  for (const m of used) {
-    const blob = m.modelAssetId && (await loadAsset(m.modelAssetId));
-    if (blob && m.modelAssetId) assets[m.modelAssetId] = { type: blob.type, base64: await blobToBase64(blob) };
-  }
   return { format: 'factory-sim', version: 1, project, assets, ...(used.length && { library: used }) };
 }
 

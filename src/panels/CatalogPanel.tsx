@@ -186,7 +186,7 @@ export function CatalogPanel() {
                     data-testid={`cat-${c.id}`}
                   >
                     <div className="cat-thumb">
-                      <Thumb id={c.id} key={c.custom ? `${c.id}:${c.custom.modelAssetId ?? ''}:${c.custom.color}:${c.custom.shape}:${c.size.w}x${c.size.d}x${c.size.h}` : c.id} />
+                      <Thumb id={c.id} key={c.custom ? `${c.id}:${c.custom.color}:${c.custom.shape}:${c.size.w}x${c.size.d}x${c.size.h}` : c.id} />
                     </div>
                     <div className="cat-name">{c.label}</div>
                     <div className="cat-size">{fmtSize(c)}</div>

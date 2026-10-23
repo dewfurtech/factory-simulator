@@ -12,7 +12,7 @@ test('a room is drawn from two corners on a blank plan', async ({ page }) => {
   await freshApp(page);
   await page.getByTestId('new-blank').click();
   await expect(page.getByTestId('plan')).toBeVisible();
-  await page.getByTestId('group-room').click();
+  await page.getByTestId('tool-drawRoomRect').click();
   const c = await planCentre(page);
   await page.mouse.click(c.x - 150, c.y - 100);
   await page.mouse.click(c.x + 150, c.y + 100);

@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { OPENING_PRESET_IDS, OPENING_PRESETS, type OpeningPresetId } from '../model/openings';
-import { SHAPE_PRESET_IDS, SHAPE_PRESETS, type ShapePresetId } from '../model/presets';
 import { useUi, type Tool } from '../store/ui';
 import { UnderlayMenu } from './UnderlayMenu';
 import { EMPTY_ENTRY } from './entry';
-import { AISLE_KIND_IDS, AISLE_KINDS, defaultWidth } from '../model/aisles';
+import { AISLE_KIND_IDS, AISLE_KINDS, defaultWidth, isArrow } from '../model/aisles';
 import type { AisleKind } from '../model/types';
 import { fmtLen } from '../format';
 
@@ -17,8 +16,7 @@ const PATHS: Record<string, string> = {
   areaPoly: 'M5 6l9-2 5 6-3 9-10-1z M5 6a1.5 1.5 0 1 0 .01 0 M14 4a1.5 1.5 0 1 0 .01 0 M19 10a1.5 1.5 0 1 0 .01 0 M16 19a1.5 1.5 0 1 0 .01 0 M6 18a1.5 1.5 0 1 0 .01 0',
   aisleWalk: 'M4 3v18 M20 3v18 M10 6a1.6 2.2 0 1 0 .01 0 M14 12a1.6 2.2 0 1 0 .01 0 M10 18a1.6 2.2 0 1 0 .01 0',
   aisleForklift: 'M4 3v18 M20 3v18 M12 5v13 M8.5 14.5L12 18l3.5-3.5',
-  aisleForklift2: 'M4 3v18 M20 3v18 M12 3v3 M12 10v4 M12 18v3 M8 6v12 M6 8l2-2 2 2 M16 6v12 M14 16l2 2 2-2',
-  aisleMixed: 'M3 3v18 M21 3v18 M9 5v13 M6.5 15.5L9 18l2.5-2.5 M15.5 8a1.5 1.5 0 1 0 .01 0 M15.5 11v4 M15.5 15l-1.5 4 M15.5 15l1.5 4 M13.5 12.5h4',
+  flowArrow: 'M4 18h6a4 4 0 0 0 4-4V6 M10 10l4-4 4 4',
   island: 'M3 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0 M6 13c1.5-1 3-1 4.5 0 M12 5c2 0 4 2 4 5v3H8v-3c0-3 2-5 4-5z M12 5v8',
   rect: 'M4 5h16v14H4z',
   L: 'M4 4h8v8h8v8H4z',
@@ -45,7 +43,6 @@ const PATHS: Record<string, string> = {
   cut: 'M4 20h16 M6 20v-8h12v8 M6 12l2-6h8l2 6',
   shadow: 'M12 4a6 6 0 1 0 0 12a6 6 0 1 0 0-12z M4 20h16 M7 20l3-4 M12 20l2-4',
   tag: 'M3 12V4h8l10 10-8 8z M7.5 8.5h.01',
-  realistic: 'M3 7l3-3h12l3 3v10l-3 3H6l-3-3z M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M15 7.5h.01',
   timeline: 'M4 6h10 M4 12h16 M4 18h7 M2 3v18',
   copy: 'M8 8h12v12H8z M4 16V4h12',
   rotate: 'M20 12a8 8 0 1 1-2.3-5.6 M20 4v4h-4',
@@ -146,15 +143,6 @@ const ROOM_ITEMS: Item[] = [
     isOn: (t) => t.kind === 'drawRoomRect',
     testId: 'tool-drawRoomRect',
   },
-  ...SHAPE_PRESET_IDS.map(
-    (id: ShapePresetId): Item => ({
-      id,
-      label: SHAPE_PRESETS[id].label,
-      tool: () => ({ kind: 'placePreset', preset: id, w: 8000, d: 6000, entry: EMPTY_ENTRY }),
-      isOn: (t) => t.kind === 'placePreset' && t.preset === id,
-      testId: `preset-${id}`,
-    }),
-  ),
 ];
 
 const AREA_ITEMS: Item[] = [
@@ -174,12 +162,12 @@ const AREA_ITEMS: Item[] = [
   },
 ];
 
-const AISLE_ICON: Record<AisleKind, string> = { walk: 'aisleWalk', forklift: 'aisleForklift', forklift2: 'aisleForklift2', mixed: 'aisleMixed' };
+const AISLE_ICON: Record<AisleKind, string> = { walk: 'aisleWalk', forklift: 'aisleForklift', flow: 'flowArrow' };
 
 const AISLE_ITEMS: Item[] = AISLE_KIND_IDS.map(
   (kind): Item => ({
     id: AISLE_ICON[kind],
-    label: `${AISLE_KINDS[kind].label} · กว้าง ${fmtLen(defaultWidth(kind))}`,
+    label: isArrow(kind) ? AISLE_KINDS[kind].label : `${AISLE_KINDS[kind].label} · กว้าง ${fmtLen(defaultWidth(kind))}`,
     tool: () => ({ kind: 'drawAisle', aisle: kind, points: [], entry: EMPTY_ENTRY }),
     isOn: (t) => t.kind === 'drawAisle' && t.aisle === kind,
     testId: `tool-aisle-${kind}`,
@@ -369,9 +357,16 @@ export function Toolbar() {
       {!customer && (
         <>
           <ToolGroup id="wall" text="ผนัง" label="ผนัง" items={WALL_ITEMS} {...group('wall')} />
-          <ToolGroup id="room" text="โซน" label="ห้อง / โซน" items={ROOM_ITEMS} {...group('room')} />
+          <RailButton
+            icon="drawRoomRect"
+            text="ห้อง"
+            label="ห้อง / โซน: คลิก 2 มุม"
+            on={tool.kind === 'drawRoomRect'}
+            onClick={() => setTool(ROOM_ITEMS[0].tool())}
+            testId="tool-drawRoomRect"
+          />
           <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (กล่องโปร่งแสง)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
-          <ToolGroup id="aisle" text="ทางเดิน" label="ทางเดิน / ทางรถ (ตีเส้นพื้น)" items={AISLE_ITEMS} {...group('aisle')} />
+          <ToolGroup id="aisle" text="ทางเดิน" label="ทางเดิน / ทางรถ / ทิศทางงาน" items={AISLE_ITEMS} {...group('aisle')} />
           <ToolGroup id="opening" text="ประตู" label="ประตู / หน้าต่าง" items={OPENING_ITEMS} {...group('opening')} />
           <ToolGroup id="column" text="เสา" label="เสา" items={COLUMN_ITEMS} {...group('column')} />
         </>

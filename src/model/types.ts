@@ -100,24 +100,18 @@ export interface Area extends LayerFlags {
   height: Mm;
 }
 
-/** Who uses an aisle: people on foot, forklifts one way or both ways, or forklifts and people together. */
-export type AisleKind = 'walk' | 'forklift' | 'forklift2' | 'mixed';
+/** What runs along a line on the floor: people on foot, forklifts, or the work itself (a flow arrow from one machine to the next). */
+export type AisleKind = 'walk' | 'forklift' | 'flow';
 
-/** A marked traffic route on the floor: a strip of a set width along a centre line, painted with edge lines. */
+/** A marked route on the floor: a strip of a set width along a centre line, or a flow arrow along it. */
 export interface Aisle extends LayerFlags {
   id: Id;
   name: string;
   kind: AisleKind;
   /** Centre line in plan coordinates, two points or more. */
   points: Vec2[];
-  /** Clear width between the edge lines. */
+  /** Clear width between the edge lines; a flow arrow's line thickness. */
   width: Mm;
-  /** Forklift aisles: width of the widest truck or load using it, which sets the standard width. */
-  vehicle?: Mm;
-  /** Laid out by the auto planner: running it again replaces these and leaves hand-drawn ones alone. */
-  auto?: true;
-  /** Aisles touching this one that the user chose not to join to it; kept on both of the pair. */
-  apart?: Id[];
 }
 
 export interface Plan {

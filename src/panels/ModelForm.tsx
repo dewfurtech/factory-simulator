@@ -1,12 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Icon } from '../editor2d/Toolbar';
-import { allTags, DEFAULT_COLOR, MODEL_FILE_ACCEPT, parseTags, type CustomModel } from '../model/library';
+import { useEffect, useState } from 'react';
+import { allTags, DEFAULT_COLOR, parseTags, type CustomModel } from '../model/library';
 import type { Size3 } from '../model/types';
 import { useLibrary } from '../store/library';
 import { confirmDialog } from '../ui/Dialog';
-
-/** Up to this much per 3D file: the browser keeps every project and model, and a plan should still open quickly. */
-const MAX_FILE_MB = 40;
 
 interface Props {
   /** The model being edited; absent for a new one. */
@@ -14,7 +10,7 @@ interface Props {
   onClose(): void;
 }
 
-/** The form for a model of the user's own: name, size, colour, tags and an optional 3D file, with a save and delete. */
+/** The form for a model of the user's own: name, size, colour and tags, with a save and delete. */
 export function ModelForm({ model, onClose }: Props) {
   const models = useLibrary((s) => s.models);
   const [name, setName] = useState(model?.name ?? '');
@@ -23,12 +19,8 @@ export function ModelForm({ model, onClose }: Props) {
   const [shape, setShape] = useState<CustomModel['shape']>(model?.shape ?? 'box');
   const [tags, setTags] = useState((model?.tags ?? []).join(', '));
   const [note, setNote] = useState(model?.note ?? '');
-  /** undefined: keep the file it has; null: drop it; a File: the new one. */
-  const [file, setFile] = useState<File | null | undefined>(undefined);
-  const [measuring, setMeasuring] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
   const known = allTags(models).filter((t) => !parseTags(tags).some((x) => x.toLowerCase() === t.toLowerCase()));
 
   useEffect(() => {
@@ -42,23 +34,6 @@ export function ModelForm({ model, onClose }: Props) {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
 
-  const pickFile = async (f: File | undefined) => {
-    setError(null);
-    if (!f) return;
-    if (f.size > MAX_FILE_MB * 1024 * 1024) return setError(`ไฟล์ใหญ่เกิน ${MAX_FILE_MB} MB`);
-    setFile(f);
-    if (!name.trim()) setName(f.name.replace(/\.[^.]+$/, ''));
-    // The file's own extent fills the size in, which keeps its proportions; the numbers can still be changed.
-    setMeasuring(true);
-    const { measureFile } = await import('../view3d/customModel');
-    const measured = await measureFile(f, color);
-    setMeasuring(false);
-    if (measured) setSize(measured);
-    else setError('อ่านไฟล์นี้ไม่ได้ (รองรับ GLB, glTF ที่ฝังข้อมูลครบ, OBJ, STL)');
-  };
-
-  const fileName = file === undefined ? model?.modelFile : file?.name;
-
   const save = async () => {
     const n = name.trim();
     if (!n) return setError('ตั้งชื่อก่อน');
@@ -67,10 +42,10 @@ export function ModelForm({ model, onClose }: Props) {
     try {
       const draft = { name: n, size, color, shape, tags: parseTags(tags), note: note.trim() || undefined };
       if (model) {
-        await useLibrary.getState().update(model.id, draft, file);
+        await useLibrary.getState().update(model.id, draft);
         // Its picture in the library is taken again with the new look.
         void import('../view3d/thumbs').then(({ forgetThumbnail }) => forgetThumbnail(model.id));
-      } else await useLibrary.getState().add(draft, file ?? null);
+      } else await useLibrary.getState().add(draft);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -104,7 +79,8 @@ export function ModelForm({ model, onClose }: Props) {
           void save();
         }}
       >
-        <h2>{model ? 'แก้ไขโมเดล' : 'เพิ่มโมเดลในคลังของฉัน'}</h2>
+        <h2>{model ? 'แก้ไขโมเดล' : 'เพิ่มเครื่อง / อุปกรณ์ของฉัน'}</h2>
+        <p className="muted small">เครื่องที่ลูกค้ามีอยู่แล้ว หรือของที่ไม่อยู่ในคลัง: ใส่ชื่อกับขนาดจริง จะได้กล่องขนาดนั้นไว้วางบนผัง</p>
         <label className="mf-field">
           <span>ชื่อ</span>
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="เช่น เครื่องตัดแผ่น รุ่น A" data-testid="mf-name" />
@@ -125,7 +101,7 @@ export function ModelForm({ model, onClose }: Props) {
         </div>
         <div className="mf-row">
           <label className="mf-field">
-            <span>รูปทรง (เมื่อไม่มีไฟล์ 3D)</span>
+            <span>รูปทรง</span>
             <select value={shape} onChange={(e) => setShape(e.target.value as CustomModel['shape'])}>
               <option value="box">กล่อง</option>
               <option value="cylinder">ทรงกระบอก</option>
@@ -149,26 +125,6 @@ export function ModelForm({ model, onClose }: Props) {
             ))}
           </div>
         )}
-        <div className="mf-field">
-          <span>ไฟล์ 3D (ไม่บังคับ)</span>
-          <div className="mf-file">
-            <button type="button" className="btn btn-sm" onClick={() => fileRef.current?.click()} disabled={measuring}>
-              <Icon name="upload" /> {fileName ? 'เปลี่ยนไฟล์' : 'เลือกไฟล์ GLB / glTF / OBJ / STL'}
-            </button>
-            {fileName && (
-              <>
-                <span className="mf-filename" title={fileName}>
-                  {measuring ? 'กำลังอ่านขนาด…' : fileName}
-                </span>
-                <button type="button" className="ib sm" title="เอาไฟล์ออก" onClick={() => setFile(null)}>
-                  <Icon name="close" />
-                </button>
-              </>
-            )}
-            <input ref={fileRef} type="file" accept={MODEL_FILE_ACCEPT} hidden onChange={(e) => (void pickFile(e.target.files?.[0]), (e.target.value = ''))} />
-          </div>
-          <small className="muted">โมเดลจะถูกย่อ/ขยายให้พอดีขนาดที่ตั้ง ด้านหน้าคือแกน +Z ของไฟล์ ไฟล์ glTF ต้องฝัง buffer และ texture ไว้ในไฟล์เดียว</small>
-        </div>
         <label className="mf-field">
           <span>หมายเหตุ</span>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ผู้ผลิต รุ่น หรือข้อสังเกต" />
@@ -184,7 +140,7 @@ export function ModelForm({ model, onClose }: Props) {
           <button type="button" className="btn" onClick={onClose}>
             ยกเลิก
           </button>
-          <button type="submit" className="btn btn-primary" disabled={saving || measuring} data-testid="mf-save">
+          <button type="submit" className="btn btn-primary" disabled={saving} data-testid="mf-save">
             {model ? 'บันทึก' : 'เพิ่มในคลัง'}
           </button>
         </div>

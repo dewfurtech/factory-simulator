@@ -27,7 +27,6 @@ export const ENTRY_FIELDS = {
     { label: 'มุม', unit: '°', signed: true },
   ],
   drawRoomRect: SIZE,
-  placePreset: SIZE,
 } satisfies Record<string, EntryField[]>;
 
 const put = (entry: Entry, v: string): Entry => ({ ...entry, values: entry.values.map((x, i) => (i === entry.field ? v : x)) });

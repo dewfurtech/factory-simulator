@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLibrary } from '../store/library';
 import { useProject } from '../store/project';
-import { DRAWING_TOOLS, rememberRealistic, useUi } from '../store/ui';
+import { useUi } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
 import { FactoryScene } from './scene';
 import { locate } from '../model/locate';
@@ -14,12 +14,6 @@ export default function View3D() {
   const project = useProject((s) => s.project!);
   const selection = useUi((s) => s.selection);
   const cutaway = useUi((s) => s.cutaway);
-  const shadows = useUi((s) => s.shadows);
-  const realistic = useUi((s) => s.realistic);
-  const islandOn = useUi((s) => s.island);
-  // While walls, rooms or areas are being drawn the whole ground is back, so there is somewhere to draw beyond the island.
-  const drawing = useUi((s) => DRAWING_TOOLS.has(s.tool.kind));
-  const island = islandOn && !drawing;
   const areas = useUi((s) => !s.areasHidden);
   const [top, setTop] = useState(false);
   const goto = useUi((s) => s.goto);
@@ -42,7 +36,7 @@ export default function View3D() {
   }, []);
 
   useEffect(() => sceneRef.current?.setProject(project), [project]);
-  // Placed copies of the user's own models follow edits to the library (colour, size, file) and removals.
+  // Placed copies of the user's own models follow edits to the library (colour, size, shape) and removals.
   const models = useLibrary((s) => s.models);
   const prevModels = useRef(models);
   useEffect(() => {
@@ -55,9 +49,7 @@ export default function View3D() {
     if (changed.size) sceneRef.current?.refreshAssets(changed);
   }, [models]);
   useEffect(() => sceneRef.current?.select(selection?.kind === 'object' ? selection.id : null), [selection]);
-  useEffect(() => sceneRef.current?.setOptions({ cutaway, shadows, realistic, island, areas }), [cutaway, shadows, realistic, island, areas]);
-
-  useEffect(() => rememberRealistic(realistic), [realistic]);
+  useEffect(() => sceneRef.current?.setOptions({ cutaway, areas }), [cutaway, areas]);
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
 
   const down = useRef<{ x: number; y: number } | null>(null);
@@ -77,39 +69,17 @@ export default function View3D() {
     if (p) sceneRef.current!.focus(p.x, p.y, 16);
   };
 
-  const toggle = (k: 'cutaway' | 'shadows' | 'realistic' | 'island') => useUi.getState().set({ [k]: !useUi.getState()[k] });
-
   return (
     <div className="view3d">
       <div ref={host} className="view3d-canvas" onPointerDown={onPointerDown} onPointerUp={onPointerUp} onDoubleClick={onDouble} data-testid="view3d" />
       <div className="view-tools glass">
         <button
           className={`ib sm${cutaway ? ' on' : ''}`}
-          onClick={() => toggle('cutaway')}
+          onClick={() => useUi.getState().set({ cutaway: !cutaway })}
           title="ผนังเตี้ย (เปิด/ปิด): ลดผนังลงเกือบติดพื้น เห็นห้องและประตูชัด"
           aria-pressed={cutaway}
         >
           <Icon name="cut" />
-        </button>
-        <button
-          className={`ib sm${realistic ? ' on' : ''}`}
-          onClick={() => toggle('realistic')}
-          title="โหมดสมจริง: แสงเงาและวัสดุเหมือนจริง (ใช้เครื่องแรงขึ้น)"
-          aria-pressed={realistic}
-        >
-          <Icon name="realistic" />
-        </button>
-        <button className={`ib sm${shadows ? ' on' : ''}`} onClick={() => toggle('shadows')} title="เงา (ใช้เครื่องแรงขึ้น)" aria-pressed={shadows}>
-          <Icon name="shadow" />
-        </button>
-        <button
-          className={`ib sm${islandOn ? ' on' : ''}`}
-          onClick={() => toggle('island')}
-          title="พื้นแบบเกาะ: ตัดพื้นรอบนอกให้เหลือแค่รอบอาคาร (กลับมาเต็มเองตอนวาดผนัง/พื้นที่)"
-          aria-pressed={islandOn}
-          data-testid="island"
-        >
-          <Icon name="island" />
         </button>
         <button className={`ib sm${top ? ' on' : ''}`} onClick={() => setTop(!top)} title="มุมมองจากด้านบน (Top view)" aria-pressed={top} data-testid="top-view">
           <Icon name="topView" />
@@ -127,7 +97,7 @@ export default function View3D() {
         </button>
       </div>
       <div className="view-hint">
-        {top ? 'มุมมองด้านบน · ลากเพื่อเลื่อน' : 'ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน'} · เลื่อนลูกกลิ้งเพื่อซูม · คลิกวัตถุเพื่อดูรายละเอียด · ดับเบิลคลิกเพื่อซูมไปจุดนั้น
+        {top ? 'มุมมองด้านบน · ลากเพื่อเลื่อน' : 'ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน'} · เลื่อนลูกกลิ้งเพื่อซูม · คลิกเครื่องเพื่อดูรูปและขนาด · ดับเบิลคลิกเพื่อซูมไปจุดนั้น
       </div>
     </div>
   );

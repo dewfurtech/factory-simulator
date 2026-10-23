@@ -1,15 +1,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Id, PlacedObject, Project } from '../model/types';
-import { catalogItem } from '../model/catalog';
+import { catalogItem, isMachine } from '../model/catalog';
 import { roomPolygon } from '../model/plan';
 import { bounds, pointInPolygon } from '../model/vec';
 import { buildAreas, buildBuilding, buildIsland, buildZoneLabels } from './building3d';
-import { builtinGeometry } from './furniture3d';
-import { disposeTree, FLAT, LABEL_LAYER } from './lowpoly';
-import { customInstance, customPlaceholder, customTemplate } from './customModel';
-import { hasModel, machineFootprint, machineObject } from './machines3d';
-import { applyLook, environment, RealPipeline } from './realistic';
+import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
+import { machineObject } from './machines3d';
+import { machineFootprint } from '../model/catalog';
+import { disposeTree, FLAT, LABEL_LAYER, textSprite } from './lowpoly';
 
 FLAT.userData.shared = true;
 
@@ -19,11 +18,6 @@ const LOW_WALL = 300;
 
 export interface SceneOptions {
   cutaway: boolean;
-  shadows: boolean;
-  /** Smooth PBR materials, soft shadows and ambient occlusion instead of the low-poly look. */
-  realistic: boolean;
-  /** Ground as an island around the building (sky all round) instead of the endless plane. */
-  island: boolean;
   /** Areas (the translucent boxes) shown at all. */
   areas: boolean;
 }
@@ -32,7 +26,10 @@ export interface Picked {
   object?: Id;
 }
 
-/** The low-poly 3D view: the building and its objects. Imperative, so redraws skip React. */
+/**
+ * The 3D view: the building and what stands in it, in one plain look. Machines are blocks of their true size with
+ * their name over them; a customer reads the layout, not the machine's looks. Imperative, so redraws skip React.
+ */
 export class FactoryScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -47,11 +44,10 @@ export class FactoryScene {
   private island: THREE.Mesh | null = null;
   private hemi = new THREE.HemisphereLight('#ffffff', '#b7c0c8', 1.7);
   private ground: THREE.Mesh;
-  private pipeline: RealPipeline | null = null;
   private objectMeshes = new Map<Id, THREE.Object3D>();
   private selBox: THREE.LineSegments | null = null;
   private project: Project | null = null;
-  private opts: SceneOptions = { cutaway: false, shadows: false, realistic: false, island: false, areas: true };
+  private opts: SceneOptions = { cutaway: false, areas: true };
   private selectedObject: Id | null = null;
   private dirty = true;
   private raf = 0;
@@ -61,18 +57,14 @@ export class FactoryScene {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     host.appendChild(this.renderer.domElement);
     this.scene.background = new THREE.Color('#e9edf1');
     this.scene.fog = new THREE.Fog('#e9edf1', 160, 420);
     this.scene.add(this.hemi);
     this.sun.position.set(30, 60, 20);
-    this.sun.shadow.mapSize.set(2048, 2048);
-    this.sun.shadow.bias = -0.0005;
     this.scene.add(this.sun, this.sun.target);
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#d5dbd2' }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: GROUND }));
     ground.position.y = -0.03;
-    ground.receiveShadow = true;
     ground.name = 'ground';
     this.ground = ground;
     this.scene.add(ground, this.building, this.labels, this.areas, this.objects, this.overlay);
@@ -101,7 +93,6 @@ export class FactoryScene {
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    this.pipeline?.setSize(w, h, this.renderer.getPixelRatio());
     this.dirty = true;
   }
 
@@ -112,49 +103,8 @@ export class FactoryScene {
       this.rebuildBuilding(this.project);
       for (const [id, node] of this.objectMeshes) node.visible = this.shows(this.objectKeys.get(id)!);
     }
-    if (before.realistic !== this.opts.realistic) this.setLook(this.opts.realistic);
-    if (before.island !== this.opts.island && this.project) this.rebuildGround(this.project);
     this.areas.visible = this.opts.areas;
-    const shadows = this.opts.shadows || this.opts.realistic;
-    this.renderer.shadowMap.enabled = shadows;
-    this.sun.castShadow = shadows;
-    if (before.shadows !== this.opts.shadows || before.realistic !== this.opts.realistic)
-      this.scene.traverse((x) => ((x as THREE.Mesh).material ? (((x as THREE.Mesh).material as THREE.Material).needsUpdate = true) : 0));
     this.dirty = true;
-  }
-
-  /** Switches between the low-poly look and the realistic one; the scene's content stays as it is. */
-  private setLook(on: boolean) {
-    const r = this.renderer;
-    r.toneMapping = on ? THREE.NeutralToneMapping : THREE.NoToneMapping;
-    r.toneMappingExposure = 1;
-    r.shadowMap.type = on ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
-    this.scene.environment = on ? environment(r) : null;
-    this.scene.environmentIntensity = on ? 0.4 : 1;
-    const sky = on ? '#d6dde3' : '#e9edf1';
-    (this.scene.background as THREE.Color).set(sky);
-    (this.scene.fog as THREE.Fog).color.set(sky);
-    this.hemi.intensity = on ? 0.45 : 1.7;
-    this.hemi.color.set(on ? '#eef3f8' : '#ffffff');
-    this.hemi.groundColor.set(on ? '#8a8578' : '#b7c0c8');
-    this.sun.intensity = on ? 2.2 : 1.6;
-    this.sun.color.set(on ? '#fff3e2' : '#ffffff');
-    // Finer, softer shadows for the realistic look; the map is rebuilt at the new size.
-    this.sun.shadow.mapSize.setScalar(on ? 4096 : 2048);
-    this.sun.shadow.radius = on ? 3 : 1;
-    this.sun.shadow.normalBias = on ? 0.03 : 0;
-    this.sun.shadow.map?.dispose();
-    this.sun.shadow.map = null;
-    (this.ground.material as THREE.MeshLambertMaterial).color.set(this.groundColor(on));
-    if (this.project) this.rebuildGround(this.project);
-    applyLook(this.scene, on);
-    if (on && !this.pipeline) {
-      this.pipeline = new RealPipeline(r, this.scene, this.camera);
-      this.pipeline.setSize(this.host.clientWidth || 1, this.host.clientHeight || 1, r.getPixelRatio());
-    } else if (!on && this.pipeline) {
-      this.pipeline.dispose();
-      this.pipeline = null;
-    }
   }
 
   setProject(p: Project) {
@@ -170,22 +120,15 @@ export class FactoryScene {
     this.dirty = true;
   }
 
-  private groundColor(realistic: boolean) {
-    return realistic ? '#7d8275' : '#d5dbd2';
-  }
-
-  /** The endless plane, or the island slab under everything there is; the plane is what an empty plan stands on. */
+  /** The island slab under everything there is; the endless plane is what an empty plan stands on. */
   private rebuildGround(p: Project) {
     if (this.island) {
       this.scene.remove(this.island);
       disposeTree(this.island);
       this.island = null;
     }
-    this.island = this.opts.island ? buildIsland(p, this.groundColor(this.opts.realistic)) : null;
-    if (this.island) {
-      if (this.opts.realistic) applyLook(this.island, true);
-      this.scene.add(this.island);
-    }
+    this.island = buildIsland(p, GROUND);
+    if (this.island) this.scene.add(this.island);
     this.ground.visible = !this.island;
     this.dirty = true;
   }
@@ -221,19 +164,6 @@ export class FactoryScene {
       this.building.add(up);
       this.labels.add(upLabels);
     }
-    if (this.opts.realistic) applyLook(this.building, true);
-    // The sun's shadow box follows the building.
-    const pts = Object.values(p.plan.corners);
-    if (pts.length) {
-      const b = bounds(pts);
-      const cx = ((b.min.x + b.max.x) / 2) * M;
-      const cz = ((b.min.y + b.max.y) / 2) * M;
-      const r = (Math.max(b.max.x - b.min.x, b.max.y - b.min.y) / 2) * M + 10;
-      this.sun.position.set(cx + r * 0.6, r * 1.6, cz + r * 0.4);
-      this.sun.target.position.set(cx, 0, cz);
-      Object.assign(this.sun.shadow.camera, { left: -r * 1.3, right: r * 1.3, top: r * 1.3, bottom: -r * 1.3, near: 1, far: r * 5 });
-      this.sun.shadow.camera.updateProjectionMatrix();
-    }
   }
 
   private objectKeys = new Map<Id, PlacedObject>();
@@ -249,6 +179,7 @@ export class FactoryScene {
         prev &&
         old &&
         prev.assetId === o.assetId &&
+        prev.name === o.name &&
         prev.size.w === o.size.w &&
         prev.size.d === o.size.d &&
         prev.size.h === o.size.h &&
@@ -298,35 +229,29 @@ export class FactoryScene {
     return !o.hidden && !(this.opts.cutaway && o.z >= 2500);
   }
 
+  /**
+   * A machine is its blocky model (the real model's parts as boxes, scaled to the placed size), with its name floating
+   * over it; a plain grey block when there is no model. The user's own models are their box or cylinder in their
+   * colour; built-in equipment keeps its simple shape.
+   */
   private makeObject(o: PlacedObject): THREE.Object3D {
     const holder = new THREE.Group();
     holder.userData.objectId = o.id;
     const custom = catalogItem(o.assetId)?.custom;
-    if (hasModel(o.assetId)) {
-      const m = machineObject(o.assetId, o.options)!;
-      const base = machineFootprint(o.assetId, o.options)!.size;
-      m.scale.set(o.size.w / base.w, o.size.h / base.h, o.size.d / base.d);
-      holder.add(m);
+    if (isMachine(o)) {
+      const blocky = machineObject(o.assetId, o.options);
+      const base = machineFootprint(o.assetId, o.options);
+      if (blocky && base) blocky.scale.set(o.size.w / base.w, o.size.h / base.h, o.size.d / base.d);
+      holder.add(blocky ?? new THREE.Mesh(machineBlock(o.size), FLAT));
+      const s = textSprite(o.name, { height: 0.6, color: '#1f2937', bg: 'rgba(255,255,255,0.92)', border: '#64748b' });
+      // Over the block's top, centred; a sprite always faces the camera, so the name reads from any side.
+      s.position.set(0, o.size.h * M + 0.4, 0);
+      s.userData.baseScale = s.scale.clone();
+      holder.add(s);
     } else if (custom) {
-      holder.add(customPlaceholder(custom, o.size));
-      if (custom.modelAssetId)
-        void customTemplate(custom).then((t) => {
-          // The thing may have been replaced or removed while its file loaded.
-          if (!t || this.objectMeshes.get(o.id) !== holder) return;
-          holder.clear();
-          const inst = customInstance(t, o.size);
-          inst.traverse((x) => (x.userData.objectId = o.id));
-          if (this.opts.realistic) applyLook(inst, true);
-          holder.add(inst);
-          this.dirty = true;
-        });
-    } else {
-      const mesh = new THREE.Mesh(builtinGeometry(o.assetId, o.size), FLAT);
-      mesh.castShadow = mesh.receiveShadow = true;
-      holder.add(mesh);
-    }
+      holder.add(new THREE.Mesh(plainGeometry(custom.shape, o.size), new THREE.MeshLambertMaterial({ color: custom.color })));
+    } else holder.add(new THREE.Mesh(builtinGeometry(o.assetId, o.size), FLAT));
     holder.traverse((x) => (x.userData.objectId = o.id));
-    if (this.opts.realistic) applyLook(holder, true);
     return holder;
   }
 
@@ -437,11 +362,10 @@ export class FactoryScene {
     if (!this.dirty) return;
     this.dirty = false;
     this.fitLabels();
-    if (this.pipeline) this.pipeline.render();
-    else this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.scene, this.camera);
   };
 
-  /** Shrinks zone names that would overlap on screen so each stays readable; they grow back when zoomed in. */
+  /** Shrinks names that would overlap on screen so each stays readable; they grow back when zoomed in. */
   private fitLabels() {
     const el = this.renderer.domElement;
     const H = el.clientHeight;
@@ -461,6 +385,7 @@ export class FactoryScene {
     };
     this.labels.traverseVisible(collect);
     this.areas.traverseVisible(collect);
+    this.objects.traverseVisible(collect);
     for (let i = 0; i < items.length; i++)
       for (let j = i + 1; j < items.length; j++) {
         const a = items[i];
@@ -499,15 +424,13 @@ export class FactoryScene {
 
   /** The view as it shows now, as a PNG. Drawn afresh: the canvas keeps no frame once it is on screen. */
   snapshot(): Promise<Blob | null> {
-    if (this.pipeline) this.pipeline.render();
-    else this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.scene, this.camera);
     return new Promise((ok) => this.renderer.domElement.toBlob((b) => ok(b), 'image/png'));
   }
 
   dispose() {
     cancelAnimationFrame(this.raf);
     for (const d of this.disposers) d();
-    this.pipeline?.dispose();
     this.controls.dispose();
     disposeTree(this.scene);
     this.renderer.dispose();
@@ -515,5 +438,6 @@ export class FactoryScene {
   }
 }
 
+const GROUND = '#d5dbd2';
 const SEL_LINE = new THREE.LineBasicMaterial({ color: '#2563eb' });
 SEL_LINE.userData.shared = true;

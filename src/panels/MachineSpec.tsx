@@ -1,13 +1,10 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icon } from '../editor2d/Toolbar';
-import { MACHINE_CATEGORIES, machineInfo, machineOptions, optionsPrice } from '../model/catalog';
+import { MACHINE_CATEGORIES, machineInfo, machineOptions } from '../model/catalog';
 import { machinePhoto } from '../model/photos';
 import type { Size3 } from '../model/types';
 
-const baht = (n: number) => `${n.toLocaleString('th-TH')} บาท`;
 const mm = (n: number) => n.toLocaleString('th-TH');
-
-const ModelViewer = lazy(() => import('../view3d/ModelViewer'));
 
 /** The machine's footprint seen from above and its height from the side, with dimension lines in mm. */
 function SizeDiagram({ size }: { size: [number, number, number] }) {
@@ -57,13 +54,9 @@ function SizeDiagram({ size }: { size: [number, number, number] }) {
   );
 }
 
-/**
- * The machine as the customer will see it: its photo first, when there is one, with a switch to the 3D model
- * (which is the only view for a machine without a photo). The photo opens full-screen on a click or the expand button.
- */
-function MachinePreview({ assetId, name, options }: { assetId: string; name: string; options: readonly string[] }) {
+/** The real machine's photo; a click or the expand button opens it full-screen. */
+function MachinePhoto({ assetId, name }: { assetId: string; name: string }) {
   const photo = machinePhoto(assetId);
-  const [mode, setMode] = useState<'photo' | '3d'>(photo ? 'photo' : '3d');
   const [big, setBig] = useState(false);
   useEffect(() => {
     if (!big) return;
@@ -75,83 +68,45 @@ function MachinePreview({ assetId, name, options }: { assetId: string; name: str
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [big]);
-  const viewer = (
-    <Suspense
-      fallback={
-        <div className="model-viewer loading">
-          <span className="thumb-wait" />
-        </div>
-      }
-    >
-      <ModelViewer assetId={assetId} name={name} options={options} />
-    </Suspense>
-  );
-  if (!photo) return viewer;
+  if (!photo) return null;
   return (
-    <div className="ms-preview">
-      <div className="seg sm ms-preview-modes" role="tablist" aria-label="ภาพเครื่อง">
-        {(
-          [
-            ['photo', 'รูปจริง'],
-            ['3d', 'โมเดล 3D'],
-          ] as ['photo' | '3d', string][]
-        ).map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={mode === id} className={mode === id ? 'on' : ''} onClick={() => setMode(id)} data-testid={`preview-${id}`}>
-            {label}
-          </button>
-        ))}
-      </div>
-      {mode === '3d' ? (
-        viewer
-      ) : (
-        <figure className={`ms-photo${big ? ' big' : ''}`} data-testid="machine-photo">
-          <img src={photo.url} alt={`ภาพจริง ${name}`} onClick={() => setBig(!big)} />
-          {big && <div className="mv-title">{name}</div>}
-          {photo.standIn && (
-            <figcaption>
-              ยังไม่มีรูป {name} · ใช้รูป {machineInfo(photo.standIn)?.name ?? photo.standIn} (รุ่นใกล้เคียง)
-            </figcaption>
-          )}
-          <div className="mv-tools">
-            <button className="ib sm" onClick={() => setBig(!big)} title={big ? 'ย่อ (Esc)' : 'ขยายเต็มจอ'}>
-              <Icon name={big ? 'close' : 'expand'} />
-            </button>
-          </div>
-        </figure>
+    <figure className={`ms-photo${big ? ' big' : ''}`} data-testid="machine-photo">
+      <img src={photo.url} alt={`ภาพจริง ${name}`} onClick={() => setBig(!big)} />
+      {big && <div className="mv-title">{name}</div>}
+      {photo.standIn && (
+        <figcaption>
+          ยังไม่มีรูป {name} · ใช้รูป {machineInfo(photo.standIn)?.name ?? photo.standIn} (รุ่นใกล้เคียง)
+        </figcaption>
       )}
-    </div>
+      <div className="mv-tools">
+        <button className="ib sm" onClick={() => setBig(!big)} title={big ? 'ย่อ (Esc)' : 'ขยายเต็มจอ'}>
+          <Icon name={big ? 'close' : 'expand'} />
+        </button>
+      </div>
+    </figure>
   );
 }
 
-/** A Mastrox machine's details: its photo or 3D model, size, price and brochure specs. Nothing for other objects. */
+/** A Mastrox machine's details: its photo, what it is, its size, and the add-ons that make it longer. Nothing for other objects. */
 export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: string; placed?: Size3; options?: readonly string[]; onOptions?: (next: string[]) => void }) {
   const m = machineInfo(assetId);
   if (!m) return null;
   const addons = machineOptions(assetId);
   const chosen = options ?? [];
-  const extra = optionsPrice(assetId, chosen);
   const cat = MACHINE_CATEGORIES.find((c) => c.id === m.cat);
-  // With add-ons ticked the brochure size no longer applies: the placed size is the model measured with them.
+  // With add-ons ticked the brochure size no longer applies: the placed size is the machine measured with them.
   const withAddons = chosen.length > 0 && !!placed;
   const size: [number, number, number] | null = withAddons ? [placed.w, placed.d, placed.h] : (m.size ?? (placed ? [placed.w, placed.d, placed.h] : null));
-  const rows: [string, string][] = [
-    ...(cat ? [['ประเภท', m.kind ?? cat.name] as [string, string]] : []),
-    ...(m.tier ? [['ระดับ', m.tier] as [string, string]] : []),
-    [extra ? 'ราคาเครื่อง' : 'ราคา', m.price != null ? baht(m.price) : '—'],
-    ...(extra
-      ? ([
-          ['อุปกรณ์เสริม', `+ ${baht(extra)}`],
-          ['รวม', m.price != null ? baht(m.price + extra) : baht(extra)],
-        ] as [string, string][])
-      : []),
-    ...(m.weight ? [['น้ำหนัก', `${mm(m.weight)} กก.`] as [string, string]] : []),
-  ];
-  const specs = Object.entries(m.specs ?? {});
   return (
     <div className="machine-spec" data-testid="machine-spec">
-      {/* Keyed by machine: picking another machine starts at its photo again. */}
-      <MachinePreview key={m.id} assetId={m.id} name={m.name} options={chosen} />
-      {m.summary && <p className="ms-summary">{m.summary}</p>}
+      <MachinePhoto key={m.id} assetId={m.id} name={m.name} />
+      {(cat || m.summary) && (
+        <p className="ms-summary">
+          {cat && <b>{m.kind ?? cat.name}</b>}
+          {cat && m.summary && ' · '}
+          {m.summary}
+        </p>
+      )}
       {addons.length > 0 && onOptions && (
         <section className="ms-addons" data-testid="machine-addons">
           <h5>อุปกรณ์เสริม</h5>
@@ -169,11 +124,10 @@ export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: 
                   <b>{a.name}</b>
                   {a.note && <small>{a.note}</small>}
                 </span>
-                <span className="addon-price">+{baht(a.price)}</span>
               </label>
             );
           })}
-          <p className="muted small">ติ๊กแล้วโมเดล 3D และพื้นที่บนผังจะขยายตาม ราคาเป็นค่าประมาณ แก้ได้ที่รายการราคา</p>
+          <p className="muted small">ติ๊กแล้วพื้นที่ที่เครื่องใช้บนผังจะยาวขึ้นตาม</p>
         </section>
       )}
       {size && (
@@ -195,42 +149,10 @@ export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: 
           </div>
           <SizeDiagram size={size} />
           <p className="muted small">
-            หน่วย มม. {withAddons ? 'จากโมเดล 3D รวมอุปกรณ์เสริม' : m.size ? 'ตามโบรชัวร์' : 'จากโมเดล 3D'}
-            {!withAddons && m.size && placed && ` · พื้นที่ที่วางบนผัง ${mm(placed.w)} × ${mm(placed.d)} (รวมส่วนยื่นของโมเดล)`}
+            หน่วย มม. {withAddons ? 'รวมอุปกรณ์เสริม' : m.size ? 'ตามโบรชัวร์' : 'วัดจากแบบเครื่อง'}
+            {!withAddons && m.size && placed && ` · พื้นที่ที่กันไว้บนผัง ${mm(placed.w)} × ${mm(placed.d)}`}
           </p>
         </section>
-      )}
-      <dl className="kv">
-        {rows.map(([k, v]) => (
-          <div key={k}>
-            <dt>{k}</dt>
-            <dd>{v}</dd>
-          </div>
-        ))}
-      </dl>
-      {m.priceNote && <p className="muted small">หมายเหตุราคา: {m.priceNote}</p>}
-      {specs.length > 0 && (
-        <>
-          <h5>สเปก</h5>
-          <dl className="kv">
-            {specs.map(([k, v]) => (
-              <div key={k}>
-                <dt>{k}</dt>
-                <dd>{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </>
-      )}
-      {m.stations && m.stations.length > 0 && (
-        <>
-          <h5>สถานีงาน ({m.stations.length})</h5>
-          <ol className="ms-stations">
-            {m.stations.map((s) => (
-              <li key={s}>{s}</li>
-            ))}
-          </ol>
-        </>
       )}
     </div>
   );

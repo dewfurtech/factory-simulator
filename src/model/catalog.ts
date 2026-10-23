@@ -44,8 +44,6 @@ export interface CatalogItem {
   group: CatalogGroup;
   size: Size3;
   use?: UseKind;
-  /** Mastrox machines: the model's plan-centre offset from its origin, in mm, so it sits centred in its box. */
-  modelCenter?: [Mm, Mm];
   summary?: string;
   /** People that can use it at once (seats, stalls); 1 when absent. */
   seats?: number;
@@ -59,14 +57,14 @@ export interface CatalogItem {
   custom?: CustomModel;
 }
 
-const sizes = SIZES as unknown as Record<string, { size: [Mm, Mm, Mm]; center: [Mm, Mm] }>;
+/** Each machine's footprint as measured from its 3D model by `npm run sizes`, with every combination of its add-ons. */
+const sizes = SIZES as unknown as Record<string, { size: [Mm, Mm, Mm]; options?: Record<string, { size: [Mm, Mm, Mm] }> }>;
 
 const machineItems: CatalogItem[] = MACHINES.filter((m) => sizes[m.id]).map((m) => ({
   id: m.id,
   label: m.name,
   group: m.cat as CatalogGroup,
   size: { w: sizes[m.id].size[0], d: sizes[m.id].size[1], h: sizes[m.id].size[2] },
-  modelCenter: sizes[m.id].center,
   use: 'machine' as const,
   summary: m.summary,
   ...(m.id.startsWith('vair') && { unattended: true }),
@@ -123,53 +121,40 @@ export const isMachine = (o: Pick<PlacedObject, 'assetId'>) => BY_ID.get(o.asset
 export const needsOperator = (o: Pick<PlacedObject, 'assetId'>) => isMachine(o) && !BY_ID.get(o.assetId)?.unattended;
 export const useOf = (o: Pick<PlacedObject, 'assetId'>): UseKind | undefined => catalogItem(o.assetId)?.use;
 
-/** A Mastrox machine's brochure data (price, specs, weight), from machines/data.js. */
+/** A Mastrox machine's brochure data, from machines/data.js: what the panel shows beside its photo. */
 export interface MachineInfo {
   id: string;
   name: string;
   cat: string;
-  tier?: string;
   kind?: string;
-  price: number | null;
-  priceNote?: string;
+  /** L × W × H in mm as the brochure prints it; null when the brochure gives none. */
   size: [Mm, Mm, Mm] | null;
-  weight: number | null;
   summary?: string;
-  look?: string;
-  modelNote?: string;
-  stations?: string[];
-  specs: Record<string, string>;
   options?: MachineOption[];
 }
 
-/** An add-on a customer can tick for a placed machine: what it costs, and the model flags it switches on. */
+/** An add-on a customer can tick for a placed machine; the footprint grows to take it in. */
 export interface MachineOption {
   id: string;
   name: string;
   note?: string;
-  price: number;
-  flags: Record<string, boolean>;
 }
 
 export const machineOptions = (assetId: string): MachineOption[] => INFO.get(assetId)?.options ?? [];
-/** The chosen options in a fixed order, as the key a built model is cached under. */
+/** The chosen options in a fixed order, the key their measured footprint is filed under. */
 export const optionKey = (assetId: string, chosen: readonly string[] | undefined): string =>
   machineOptions(assetId)
     .filter((o) => chosen?.includes(o.id))
     .map((o) => o.id)
     .join('+');
-/** What the chosen options switch on in the model. */
-export const optionFlags = (assetId: string, chosen: readonly string[] | undefined): Record<string, boolean> =>
-  Object.assign(
-    {},
-    ...machineOptions(assetId)
-      .filter((o) => chosen?.includes(o.id))
-      .map((o) => o.flags),
-  );
-export const optionsPrice = (assetId: string, chosen: readonly string[] | undefined): number =>
-  machineOptions(assetId)
-    .filter((o) => chosen?.includes(o.id))
-    .reduce((sum, o) => sum + o.price, 0);
+/** The floor a machine takes with the given add-ons ticked (a Rakete 3500A with its line is a 10 m machine). */
+export function machineFootprint(assetId: string, chosen: readonly string[] | undefined): Size3 | null {
+  const s = sizes[assetId];
+  if (!s) return null;
+  const key = optionKey(assetId, chosen);
+  const size = (key && s.options?.[key]?.size) || s.size;
+  return { w: size[0], d: size[1], h: size[2] };
+}
 const INFO = new Map((MACHINES as unknown as MachineInfo[]).map((m) => [m.id, m]));
 export const machineInfo = (assetId: string): MachineInfo | undefined => INFO.get(assetId);
 

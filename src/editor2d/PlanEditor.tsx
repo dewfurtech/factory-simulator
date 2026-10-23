@@ -15,11 +15,10 @@ import { CalibrateInput, CalibrateOverlay, UnderlayImage } from './Underlay';
 import { underlayRect } from '../model/underlay';
 import { locate } from '../model/locate';
 import { areaCenter, areaStats, boxOutline, extendOutline, planAreas } from '../model/areas';
-import { AISLE_KIND_IDS, AISLE_KINDS, aisleLabel, aisleOutline, aisleTexts, defaultWidth, LINE_COLOR, LINE_WIDTH, offsetLine, planAisles, tooNarrow } from '../model/aisles';
+import { AISLE_KIND_IDS, AISLE_KINDS, aisleLabel, aisleOutline, arrowHead, defaultWidth, isArrow, LINE_COLOR, LINE_WIDTH, offsetLine, planAisles } from '../model/aisles';
 import type { Aisle } from '../model/types';
-import { aisleMarkings, aisleNet, paintedAisle, setApart, zebraStripes, type Joint, type Mirror } from '../model/aisleJoins';
 import { columnOutline, hitTest, isCrossing, isOutdoor, SNAP_PX } from './hit';
-import { addDoorAt, columnGridPoints, dispatchPointer, finishArea, finishAisle, objectAt, placeObjectAt, presetOutline, roomOutline } from './tools';
+import { addDoorAt, columnGridPoints, dispatchPointer, finishArea, finishAisle, objectAt, placeObjectAt, roomOutline } from './tools';
 import { ensureGuides, guideLines, useGuides } from './planGuides';
 import { checkClearance, type Issue } from '../model/clearance';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
@@ -518,10 +517,20 @@ const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim }: 
   );
 });
 
-/** An aisle as it is painted: a tinted strip between two yellow edge lines, a dashed centre line where trucks pass. */
+/** An aisle as it is painted: a tinted strip between two yellow edge lines. A flow arrow is a line with an arrowhead. */
 export function AisleShape({ a, px, sel }: { a: Pick<Aisle, 'points' | 'width' | 'kind'> & Partial<Aisle>; px: number; sel?: boolean }) {
   if (a.points.length < 2) return null;
   const info = AISLE_KINDS[a.kind];
+  if (isArrow(a.kind)) {
+    const w = Math.max(a.width, 2.5 * px);
+    return (
+      <g>
+        <polyline points={pts(a.points)} fill="none" stroke={info.fill} strokeWidth={w} strokeLinejoin="round" strokeLinecap="round" opacity={sel ? 1 : 0.85} />
+        <polygon points={pts(arrowHead({ points: a.points, width: w }))} fill={info.fill} stroke={info.fill} strokeWidth={px} strokeLinejoin="round" />
+        {sel && <polygon points={pts(aisleOutline({ points: a.points, width: w + 8 * px }))} fill="none" stroke="var(--select)" strokeWidth={1.5 * px} strokeLinejoin="round" />}
+      </g>
+    );
+  }
   const line = Math.max(LINE_WIDTH, 1.5 * px);
   const edge = a.width / 2 - LINE_WIDTH / 2;
   return (
@@ -537,120 +546,36 @@ export function AisleShape({ a, px, sel }: { a: Pick<Aisle, 'points' | 'width' |
       {[edge, -edge].map((d) => (
         <polyline key={d} points={pts(offsetLine(a.points, d))} fill="none" stroke={LINE_COLOR} strokeWidth={line} strokeLinejoin="miter" />
       ))}
-      {a.kind === 'forklift2' && <polyline points={pts(a.points)} fill="none" stroke={LINE_COLOR} strokeWidth={line} strokeDasharray={`${1000} ${600}`} />}
     </g>
   );
 }
 
-/** A convex mirror on its post, seen from above, with a dashed line to the spot it shows. */
-function MirrorMark({ m, px }: { m: Mirror; px: number }) {
-  const r = 8 * px;
-  return (
-    <g pointerEvents="none">
-      <title>กระจกนูน · กฎกระทรวงฯ เครื่องจักร ปั้นจั่น และหม้อน้ำ พ.ศ. 2564 ข้อ 38</title>
-      <line x1={m.at.x} y1={m.at.y} x2={m.watches.x} y2={m.watches.y} stroke="#0f766e" strokeWidth={1.2 * px} strokeDasharray={`${4 * px} ${3 * px}`} />
-      <circle cx={m.at.x} cy={m.at.y} r={r} fill="#ccfbf1" stroke="#0f766e" strokeWidth={2 * px} />
-      <circle cx={m.at.x} cy={m.at.y} r={r * 0.45} fill="#ffffff" stroke="#0f766e" strokeWidth={1 * px} />
-      <circle cx={m.at.x - r * 0.15} cy={m.at.y - r * 0.15} r={r * 0.12} fill="#0f766e" />
-    </g>
-  );
-}
-
-const LINK = 'M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7 M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7';
-const UNLINK = 'M18.8 13.3l1.7-1.8a5 5 0 0 0-7-7L11.8 6.2 M5.2 10.7l-1.7 1.8a5 5 0 0 0 7 7l1.7-1.7 M8 2v3 M2 8h3 M16 22v-3 M22 16h-3';
-
-/**
- * Where two aisles meet: a button on the joint. Joined, it offers to keep them apart; kept apart, to join them
- * again. Shown for the joints of the selected aisle.
- */
-function JointMark({ j, px, names }: { j: Joint; px: number; names: string }) {
-  const r = 9 * px;
-  const toggle = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    useProject.getState().apply((d) => setApart(d.plan, j.a, j.b, !j.apart));
-  };
-  return (
-    <g transform={`translate(${j.at.x} ${j.at.y})`} style={{ cursor: 'pointer' }} onPointerDown={toggle} data-testid={j.apart ? 'aisle-joint-apart' : 'aisle-joint'}>
-      <title>{j.apart ? `แยกกันอยู่: ${names} · คลิกเพื่อเชื่อม` : `เชื่อมกัน: ${names} · คลิกเพื่อแยกไม่ให้เชื่อม`}</title>
-      <circle r={r} fill="#fff" stroke={j.apart ? '#dc2626' : '#16a34a'} strokeWidth={2 * px} strokeDasharray={j.apart ? `${3 * px} ${2 * px}` : undefined} />
-      <path
-        d={j.apart ? UNLINK : LINK}
-        transform={`scale(${(r * 1.3) / 24}) translate(-12 -12)`}
-        fill="none"
-        stroke={j.apart ? '#dc2626' : '#16a34a'}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </g>
-  );
-}
-
-/**
- * Aisles painted on the floor, under everything standing on it. Aisles that meet are painted as one: the tints
- * laid once over each other, the edge lines open where one runs into another. Each is named along its longest run.
- */
+/** Aisles painted on the floor, under everything standing on it; each is named along its longest run. */
 const AisleLayer = memo(function AisleLayer({ plan, selection, marked, px }: LayerProps) {
   const selAisle = selId(selection, 'aisle');
-  const customer = useUi((s) => !!s.customer);
-  const net = useMemo(() => aisleNet(plan), [plan]);
   const aisles = planAisles(plan);
   if (!aisles.length) return null;
-  const line = Math.max(LINE_WIDTH, 1.5 * px);
-  const shown = aisles.filter((a) => !a.hidden);
-  const name = (id: string) => plan.aisles?.[id as Aisle['id']]?.name ?? '';
   return (
     <>
-      {/* Tints in one see-through layer, so where aisles overlap the floor is not painted twice as dark. */}
-      <g opacity={0.2}>
-        {/* Wider on top: where a walkway runs into a main aisle, the junction is the main aisle's. */}
-        {[...shown]
-          .sort((p, q) => p.width - q.width)
-          .map((a) => (
-            <polygon key={a.id} points={pts(aisleOutline(paintedAisle(net, a)))} fill={AISLE_KINDS[a.kind].fill} />
-          ))}
-      </g>
       {aisles.map((a) => {
         const sel = selAisle === a.id || marked.has(a.id);
-        const painted = paintedAisle(net, a);
-        const marks = aisleMarkings(net, plan, a);
         const label = aisleLabel(a);
-        const narrow = tooNarrow(a);
-        const fs = Math.min(11 * px, a.width * 0.45);
-        // The longest wording that fits along the run: name, type and width; type and width; the type alone.
-        const text = aisleTexts(a, fmtLen)
-          .map((t) => (narrow ? `⚠ ${t} แคบกว่ามาตรฐาน` : t))
-          .find((t) => label.length > t.length * fs * 0.62);
+        const fs = isArrow(a.kind) ? 11 * px : Math.min(11 * px, a.width * 0.45);
+        const text = isArrow(a.kind) ? a.name : `${a.name} · ${fmtLen(a.width)}`;
+        const fits = label.length > text.length * fs * 0.62;
         return (
           <g key={a.id} opacity={a.hidden ? 0.15 : undefined} data-testid={`aisle-${a.id}`}>
-            {a.hidden && <polygon points={pts(aisleOutline(painted))} fill={AISLE_KINDS[a.kind].fill} fillOpacity={0.2} />}
-            {sel && (
-              <polygon
-                points={pts(aisleOutline(painted))}
-                fill={AISLE_KINDS[a.kind].fill}
-                fillOpacity={0.18}
-                stroke="var(--select)"
-                strokeWidth={2.5 * px}
-                strokeLinejoin="miter"
-              />
-            )}
-            {marks.edges.map((l, i) => (
-              <polyline key={i} points={pts(l)} fill="none" stroke={LINE_COLOR} strokeWidth={line} strokeLinejoin="miter" />
-            ))}
-            {marks.centre.map((l, i) => (
-              <polyline key={`c${i}`} points={pts(l)} fill="none" stroke={LINE_COLOR} strokeWidth={line} strokeDasharray="1000 600" />
-            ))}
-            {text && a.width > 9 * px && (
+            <AisleShape a={a} px={px} sel={sel} />
+            {fits && (
               <text
                 x={label.at.x}
-                y={label.at.y}
+                y={label.at.y - (isArrow(a.kind) ? 7 * px : 0)}
                 fontSize={fs}
                 fontWeight={700}
                 textAnchor="middle"
                 dominantBaseline="middle"
                 transform={`rotate(${label.angle} ${label.at.x} ${label.at.y})`}
-                fill={narrow ? '#dc2626' : AISLE_KINDS[a.kind].fill}
+                fill={AISLE_KINDS[a.kind].fill}
                 stroke="var(--canvas)"
                 strokeWidth={3 * px}
                 paintOrder="stroke"
@@ -662,27 +587,6 @@ const AisleLayer = memo(function AisleLayer({ plan, selection, marked, px }: Lay
           </g>
         );
       })}
-      {/* Zebra crossings where walkways meet truck lanes, over the lane's paint. */}
-      <g data-testid="aisle-crossings">
-        {net.crossings.flatMap((c) =>
-          zebraStripes(c).map((s, i) => <polygon key={`${c.lane}|${c.walk}|${i}`} points={pts(s)} fill="#ffffff" stroke="#94a3b8" strokeWidth={0.5 * px} />),
-        )}
-      </g>
-      {/* Convex mirrors at truck junctions and blind bends (Thai Ministerial Regulation B.E. 2564, clause 38). */}
-      <g data-testid="aisle-mirrors">
-        {net.mirrors.map((m, i) => (
-          <MirrorMark key={i} m={m} px={px} />
-        ))}
-      </g>
-      {selAisle && !customer && (
-        <g data-export="skip">
-          {net.joints
-            .filter((j) => j.a === selAisle || j.b === selAisle)
-            .map((j) => (
-              <JointMark key={`${j.a}|${j.b}`} j={j} px={px} names={`${name(j.a)} กับ ${name(j.b)}`} />
-            ))}
-        </g>
-      )}
     </>
   );
 });
@@ -920,7 +824,7 @@ function CursorOverlay({ px }: { px: number }) {
   );
 }
 
-const DRAWING_TOOLS = new Set<Tool['kind']>(['drawRoomRect', 'drawWall', 'drawArea', 'drawAisle', 'placePreset', 'placeColumn', 'columnGrid']);
+const DRAWING_TOOLS = new Set<Tool['kind']>(['drawRoomRect', 'drawWall', 'drawArea', 'drawAisle', 'placeColumn', 'columnGrid']);
 
 /** Most guide lines drawn: a CAD drawing has tens of thousands, which would paint over the image it came from; the image itself shows them. */
 const SHOWN_GUIDES = 600;
@@ -984,7 +888,6 @@ function ToolOverlay({ px }: { px: number }) {
     const b = rectCorner(a, p, tool.entry);
     return <polygon points={pts(roomOutline([a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }], placing))} {...ghost} />;
   }
-  if (tool.kind === 'placePreset') return <polygon points={pts(roomOutline(presetOutline(tool, p), placing))} {...ghost} />;
   if (tool.kind === 'drawArea') {
     const area = { fill: '#2563eb', fillOpacity: 0.14, stroke: '#2563eb', strokeWidth: 1.5 * px, pointerEvents: 'none' as const };
     if (tool.mode === 'box') return tool.start ? <polygon points={pts(boxOutline(tool.start, rectCorner(tool.start, p, tool.entry)))} {...area} /> : null;
@@ -1080,7 +983,6 @@ function entryState(tool: Tool, p: Vec2): { fields: EntryField[]; entry: Entry; 
     const b = rectCorner(tool.start, p, tool.entry);
     return { fields: ENTRY_FIELDS.drawRoomRect, entry: tool.entry, live: [Math.abs(b.x - tool.start.x) / 10, Math.abs(b.y - tool.start.y) / 10], at: b };
   }
-  if (tool.kind === 'placePreset') return { fields: ENTRY_FIELDS.placePreset, entry: tool.entry, live: [tool.w / 10, tool.d / 10], at: p };
   if (tool.kind === 'drawArea' && tool.mode === 'box' && tool.start) {
     const b = rectCorner(tool.start, p, tool.entry);
     return { fields: ENTRY_FIELDS.drawRoomRect, entry: tool.entry, live: [Math.abs(b.x - tool.start.x) / 10, Math.abs(b.y - tool.start.y) / 10], at: b };
@@ -1154,9 +1056,8 @@ const HINTS: Record<string, string> = {
   select: 'คลิกเพื่อเลือก • ดับเบิลคลิกผนัง = ใส่ประตู • ลากมุม/ผนัง/วัตถุ/เสาเพื่อย้าย • R หมุน 90° • Ctrl+D ทำสำเนา • คลิกขวาลากเพื่อเลื่อน • Alt = ไม่ Snap',
   drawWall: 'คลิกเพื่อวางจุด • พิมพ์ความยาว (ซม.) • Tab แล้วพิมพ์มุม (°) • Enter วางผนัง • Esc จบ',
   drawRoomRect: 'คลิกมุมแรก แล้วคลิกมุมตรงข้าม หรือพิมพ์กว้าง • Tab • ลึก (ซม.) แล้ว Enter • มีภาพแปลน: มุมดูดเข้าหาเส้นในรูป • กดค้าง \\ ดูแปลน',
-  placePreset: 'พิมพ์กว้าง • Tab • ลึก (ซม.) แล้วคลิกเพื่อวางโซน',
   drawArea: 'กล่อง: คลิก 2 มุม • ทีละจุด: คลิกวางจุด กลับมาจุดแรกหรือลากตัดเส้นเดิมเพื่อปิดรอบ • Enter / ดับเบิลคลิก ปิดรอบตรงนี้ • Esc จบ',
-  drawAisle: 'คลิกวางจุดตามแนวกลางทางเดิน • พิมพ์ความยาว (ซม.) • Tab มุม • Enter / ดับเบิลคลิก / คลิกจุดเดิม จบเส้น • ปรับกว้างที่แผงขวา • Esc จบ',
+  drawAisle: 'คลิกวางจุดตามแนวกลางทาง (ลูกศรชี้ไปทางจุดสุดท้าย) • พิมพ์ความยาว (ซม.) • Tab มุม • Enter / ดับเบิลคลิก / คลิกจุดเดิม จบเส้น • ปรับกว้างที่แผงขวา • Esc จบ',
   placeObject: 'คลิกเพื่อวาง (ติดผนังให้เอง) • วางต่อได้หลายตัว • Alt = ไม่ติดผนัง • Esc จบ',
   addOpening: 'คลิกบนผนังเพื่อวาง • ขยับเมาส์ไปฝั่งที่ต้องการให้ประตูเปิด • กด F สลับด้านบานพับ',
   placeColumn: 'คลิกเพื่อวางเสา (ติดตาราง) • วางต่อได้หลายต้น • Esc จบ',
@@ -1224,29 +1125,16 @@ function AisleLegend({ plan }: { plan: Plan }) {
       .filter((a) => !a.hidden)
       .map((a) => a.kind),
   );
-  const net = aisleNet(plan);
   if (!shown.size) return null;
   return (
     <div className="aisle-legend glass" data-testid="aisle-legend">
-      <div className="aisle-legend-title">ทางเดิน / ทางรถ</div>
+      <div className="aisle-legend-title">เส้นบนพื้น</div>
       {AISLE_KIND_IDS.filter((k) => shown.has(k)).map((k) => (
         <div key={k} className="aisle-legend-row">
-          <span className={`aisle-swatch${k === 'forklift2' ? ' two-way' : ''}`} style={{ '--kind': AISLE_KINDS[k].fill } as React.CSSProperties} />
-          <span>{AISLE_KINDS[k].label}</span>
+          <span className={`aisle-swatch${isArrow(k) ? ' arrow' : ''}`} style={{ '--kind': AISLE_KINDS[k].fill } as React.CSSProperties} />
+          <span>{isArrow(k) ? 'ทิศทางงาน' : AISLE_KINDS[k].label}</span>
         </div>
       ))}
-      {net.crossings.length > 0 && (
-        <div className="aisle-legend-row">
-          <span className="aisle-swatch zebra" />
-          <span>ทางม้าลาย คนข้ามทางรถ ({net.crossings.length})</span>
-        </div>
-      )}
-      {net.mirrors.length > 0 && (
-        <div className="aisle-legend-row">
-          <span className="aisle-mirror-dot" />
-          <span>กระจกนูน ทางแยก/โค้งรถยก ({net.mirrors.length})</span>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { newId } from './id';
 import { emptyPlan } from './plan';
-import type { Project } from './types';
-import { catalogItem, isMachine } from './catalog';
+import type { Id, Project } from './types';
+import { catalogItem, isMachine, machineFootprint } from './catalog';
+import { migrateAisle } from './aisles';
 
 export function newProject(name: string): Project {
   return {
@@ -18,12 +19,13 @@ export function newProject(name: string): Project {
 export function migrate(p: Project): Project {
   const plan = p.plan ?? emptyPlan();
   for (const r of Object.values(plan.rooms)) if (!r.zone) Object.assign(r, { zone: 'other' });
+  for (const [id, a] of Object.entries(plan.aisles ?? {})) plan.aisles![id as Id] = migrateAisle(a);
   return {
     ...p,
     plan,
     columns: p.columns ?? {},
-    // A machine's footprint is its 3D model's: when a model is re-imported, placed copies take its new size.
-    objects: (p.objects ?? []).map((o) => (isMachine(o) && !o.options?.length ? { ...o, size: { ...catalogItem(o.assetId)!.size } } : o)),
+    // A machine's footprint is measured from its model: when the models are re-measured, placed copies take the new size.
+    objects: (p.objects ?? []).map((o) => (isMachine(o) ? { ...o, size: machineFootprint(o.assetId, o.options) ?? catalogItem(o.assetId)!.size } : o)),
   };
 }
 

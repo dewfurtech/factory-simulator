@@ -2,8 +2,7 @@ import { catalogItem, needsOperator, spotsOf } from './catalog';
 import { levelZ, onLevel, planOf } from './levels';
 import { findCollisions, objectObb, obbOverlap, wallObb, type Obb } from './objects';
 import { roomOf, roomTop } from './plan';
-import { aisleBoxes, planAisles } from './aisles';
-import { aisleNet, paintedAisle } from './aisleJoins';
+import { aisleBoxes, isArrow, planAisles } from './aisles';
 import type { Id, Mm, PlacedObject, Project } from './types';
 import { fromAngle, perp } from './vec';
 
@@ -70,11 +69,10 @@ export function checkClearance(project: Project): Map<Id, Issue[]> {
       const blocked = operatorBox(o).some((box) => walls.some((w) => obbOverlap(box, w, TOUCH)) || obbs.some((b, i) => objects[i].id !== o.id && obbOverlap(box, b, TOUCH)));
       if (blocked) add(o.id, { kind: 'spot' });
     }
-    // Nothing may stand in a marked aisle.
-    const net = aisleNet(plan);
+    // Nothing may stand in a marked aisle; a flow arrow only shows the way and blocks nothing.
     for (const a of planAisles(plan)) {
-      if (a.hidden) continue;
-      const boxes = aisleBoxes(paintedAisle(net, a), floor);
+      if (a.hidden || isArrow(a.kind)) continue;
+      const boxes = aisleBoxes(a, floor);
       for (let i = 0; i < objects.length; i++) if (boxes.some((b) => obbOverlap(b, obbs[i], TOUCH))) add(objects[i].id, { kind: 'aisle', aisleId: a.id, aisleName: a.name });
     }
   }

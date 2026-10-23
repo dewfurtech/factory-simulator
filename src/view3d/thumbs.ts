@@ -1,13 +1,13 @@
 import * as THREE from 'three';
-import { catalogItem } from '../model/catalog';
-import { builtinGeometry } from './furniture3d';
+import { catalogItem, isMachine } from '../model/catalog';
+import { machinePhoto } from '../model/photos';
+import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
 import { FLAT } from './lowpoly';
-import { customInstance, customPlaceholder, customTemplate } from './customModel';
-import { hasModel, machineObject } from './machines3d';
 
 /**
- * Small pictures of catalog items for the library, rendered one at a time on a shared offscreen
- * renderer and kept as data URLs. Queued so the first open of the library doesn't stall a frame.
+ * Small pictures of catalog items for the library. A Mastrox machine shows its real photo; everything else is
+ * rendered one at a time on a shared offscreen renderer and kept as a data URL. Queued so the first open of the
+ * library doesn't stall a frame.
  */
 
 const urls = new Map<string, string>();
@@ -31,16 +31,13 @@ function setup() {
   camera = new THREE.PerspectiveCamera(30, 160 / 112, 0.05, 200);
 }
 
-async function render(id: string): Promise<string> {
+function render(id: string): string {
   if (!renderer) setup();
   const item = catalogItem(id);
   const dims = item?.size ?? { w: 1000, d: 1000, h: 1000 };
-  let obj: THREE.Object3D;
-  if (hasModel(id)) obj = machineObject(id)!;
-  else if (item?.custom) {
-    const t = await customTemplate(item.custom);
-    obj = t ? customInstance(t, dims) : customPlaceholder(item.custom, dims);
-  } else obj = new THREE.Mesh(builtinGeometry(id, dims), FLAT);
+  const obj: THREE.Object3D = item?.custom
+    ? new THREE.Mesh(plainGeometry(item.custom.shape, dims), new THREE.MeshLambertMaterial({ color: item.custom.color }))
+    : new THREE.Mesh(isMachine({ assetId: id }) ? machineBlock(dims) : builtinGeometry(id, dims), FLAT);
   scene.add(obj);
   const box = new THREE.Box3().setFromObject(obj);
   const size = box.getSize(new THREE.Vector3());
@@ -60,10 +57,10 @@ function pump() {
   const id = queue.shift();
   if (!id) return;
   busy = true;
-  requestAnimationFrame(async () => {
+  requestAnimationFrame(() => {
     let url = '';
     try {
-      url = await render(id);
+      url = render(id);
     } catch {
       url = '';
     }
@@ -75,12 +72,14 @@ function pump() {
   });
 }
 
-/** A model's picture is taken again after it is edited (new colour, size or file). */
+/** A model's picture is taken again after it is edited (new colour, size or shape). */
 export function forgetThumbnail(id: string): void {
   urls.delete(id);
 }
 
 export function thumbnail(id: string, cb: (url: string) => void): void {
+  const photo = isMachine({ assetId: id }) ? machinePhoto(id) : null;
+  if (photo) return cb(photo.url);
   const done = urls.get(id);
   if (done !== undefined) return cb(done);
   if (!waiting.has(id)) {
