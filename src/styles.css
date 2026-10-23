@@ -960,6 +960,161 @@ input[type='color'] {
   width: 70px;
   height: 28px;
 }
+/* Measuring the plan's scale: a bold strip with the steps, and a frame round the plan. */
+.calibrate-frame {
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--accent);
+  box-shadow: inset 0 0 0 1px #fff, inset 0 0 40px rgba(234, 88, 12, 0.18);
+  pointer-events: none;
+  z-index: 9;
+}
+.calibrate-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: 'title steps cancel' 'tip tip tip';
+  align-items: center;
+  gap: 6px 16px;
+  padding: 10px 12px 10px 16px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(234, 88, 12, 0.35);
+  max-width: calc(100% - 200px);
+}
+.cal-title {
+  grid-area: title;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cal-title svg {
+  animation: cal-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cal-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+.cal-steps {
+  grid-area: steps;
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cal-steps li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+.cal-steps li span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 11px;
+  font-weight: 700;
+}
+.cal-steps li.now {
+  background: #fff;
+  color: var(--accent);
+  font-weight: 700;
+  opacity: 1;
+}
+.cal-steps li.now span {
+  background: var(--accent);
+  color: #fff;
+}
+.cal-steps li.done {
+  opacity: 0.9;
+}
+.cal-tip {
+  grid-area: tip;
+  font-size: 12px;
+  opacity: 0.9;
+}
+.cal-cancel {
+  grid-area: cancel;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: transparent;
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.cal-cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.calibrate-start {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px 7px 8px;
+  border: 1px solid #fdba74;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #9a3412;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+.calibrate-start:hover {
+  background: #ffedd5;
+}
+.cal-dot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .calibrate-banner {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: 'title cancel' 'steps steps' 'tip tip';
+    max-width: calc(100% - 120px);
+  }
+}
+@media (max-width: 640px) {
+  .calibrate-banner {
+    left: 8px;
+    right: 8px;
+    transform: none;
+    max-width: none;
+  }
+  .cal-steps li {
+    font-size: 12px;
+  }
+}
 
 /* tool rail */
 .toolbar.rail {
@@ -3112,91 +3267,6 @@ body:has(.home) {
   color: var(--ink-2);
 }
 
-/* Three steps over a new plan: draw, place, share. */
-.start-guide {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 12;
-  display: flex;
-  gap: 6px;
-  padding: 8px 40px 8px 8px;
-  border-radius: 14px;
-  max-width: calc(100% - 200px);
-}
-.start-guide-close {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-}
-.guide-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.guide-step:hover {
-  background: var(--accent-soft);
-  border-color: #fdba74;
-}
-.guide-num {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  font-weight: 700;
-  font-size: 13px;
-}
-.guide-step.done .guide-num {
-  background: var(--ok);
-}
-.guide-step.done b {
-  color: var(--ink-3);
-  text-decoration: line-through;
-}
-.guide-text {
-  display: grid;
-  gap: 2px;
-}
-.guide-text b {
-  font-size: 14px;
-}
-.guide-text span {
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--ink-3);
-}
-@media (max-width: 900px) {
-  .start-guide {
-    flex-direction: column;
-    max-width: calc(100% - 120px);
-  }
-}
-@media (max-width: 640px) {
-  .start-guide {
-    left: 72px;
-    right: 8px;
-    transform: none;
-    max-width: none;
-  }
-  .guide-text span {
-    display: none;
-  }
-}
 
 /* The tool rail's group headings and the one tool that matters most for a sale. */
 .rail-head {

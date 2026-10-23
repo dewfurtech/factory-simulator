@@ -12,7 +12,7 @@ import { zoneColor } from '../model/zones';
 import { fmtArea, fmtLen, fmtSize } from '../format';
 import { editProject, useEditProject, useProject } from '../store/project';
 import { useUi, type Selection, type Tool } from '../store/ui';
-import { CalibrateInput, CalibrateOverlay, UnderlayImage } from './Underlay';
+import { CalibrateBanner, CalibrateInput, CalibrateOverlay, UnderlayImage } from './Underlay';
 import { underlayRect } from '../model/underlay';
 import { locate } from '../model/locate';
 import { areaCenter, areaStats, boxOutline, extendOutline, planAreas } from '../model/areas';
@@ -353,6 +353,7 @@ export function PlanEditor() {
         </g>
       </svg>
       <CalibrateInput toScreen={toScreen} />
+      <CalibrateBanner />
       <DrawEntry toScreen={toScreen} size={size} />
       {editing && (
         <input

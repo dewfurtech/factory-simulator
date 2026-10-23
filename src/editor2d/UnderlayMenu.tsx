@@ -244,7 +244,8 @@ export function UnderlayMenu() {
   const guides = useGuides((s) => (s.key?.startsWith(u?.imageId ?? '—') ? s.lines.length : 0));
 
   const [more, setMore] = useState(false);
-  const note = statusNote(status);
+  // While the span is being measured, the banner over the plan says what to do; the note would repeat it.
+  const note = status.kind === 'needScale' && tool.kind === 'calibrate' ? null : statusNote(status);
 
   const bar = (
     <div className="ul-dock">
