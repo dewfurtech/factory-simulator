@@ -1,5 +1,9 @@
 # ก้อนเหลี่ยม (blocky) ของเครื่อง Mastrox ใน Factory Simulator
 
+> อัปเดต 23 ต.ค. 2026 (บ่าย): ฝั่ง Model ทำ `machines/blocky.js` (ระดับ box / chunky / blocky พร้อมโลโก้) และ `compare.html` เสร็จแล้ว
+> แอปคัดลอกมาที่ `src/machines/blocky.js` เลือกระดับได้ที่ `LEVEL` ใน `src/view3d/machines3d.ts` (ใช้ chunky ก้อนใหญ่)
+> ข้อ 1–2 ใน "ที่ขอให้ฝั่ง Model ทำต่อ" ด้านล่างจึงเสร็จแล้ว ส่วนที่เหลือคือบันทึกวิธีคิดตอนแรก
+
 สรุปสิ่งที่ทำล่าสุด (23 ต.ค. 2026) ฝั่ง Factory Simulator และสิ่งที่ฝั่งโปรเจกต์ Model (`D:\Job Dew\Model\mastrox-models`) จะรับไปทำต่อ
 
 ## ที่มา

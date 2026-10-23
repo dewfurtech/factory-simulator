@@ -16,7 +16,7 @@ import { machineOptions, optionKey } from '../model/catalog';
  * How blocky: 'blocky' = every part over 12 cm as a box, 'chunky' = a few big blocks (base, table, beam, cabinet,
  * hood), 'box' = one grey box of the true size.
  */
-export const LEVEL: 'blocky' | 'chunky' | 'box' = 'blocky';
+export const LEVEL: 'blocky' | 'chunky' | 'box' = 'chunky';
 
 type Options = readonly string[] | undefined;
 type Made = { object: THREE.Object3D; workpiece?: THREE.Object3D | null };
