@@ -869,7 +869,7 @@ const SHOWN_GUIDES = 600;
 
 /** The plan image's lines the drawing snaps to, shown faintly while a drawing tool is out so it is clear where a corner will land. */
 function GuideLayer({ underlay, px }: { underlay: Underlay | undefined; px: number }) {
-  const drawing = useUi((s) => DRAWING_TOOLS.has(s.tool.kind));
+  const drawing = useUi((s) => DRAWING_TOOLS.has(s.tool.kind) || s.tool.kind === 'calibrate');
   const peek = useUi((s) => s.peek);
   const ready = useGuides((s) => s.key);
   const lines = useMemo(() => (drawing && !peek ? guideLines(underlay) : []), [drawing, peek, ready, underlay]);
@@ -1107,7 +1107,7 @@ const HINTS: Record<string, { name: string; tips: string[] }> = {
   addOpening: { name: 'ประตู / หน้าต่าง', tips: ['คลิกบนผนังเพื่อวาง', 'ขยับเมาส์ไปฝั่งที่ต้องการให้ประตูเปิด', 'F สลับด้านบานพับ'] },
   placeColumn: { name: 'เสา', tips: ['คลิกเพื่อวางเสา (ติดตาราง)', 'วางต่อได้หลายต้น', 'Esc จบ'] },
   columnGrid: { name: 'ตารางเสา', tips: ['คลิกมุมแรก แล้วคลิกมุมตรงข้าม', 'ปรับระยะห่างที่แผงขวา', 'Esc จบ'] },
-  calibrate: { name: 'วัดสเกลแปลน', tips: ['คลิก 2 จุดบนแปลนที่รู้ระยะจริง', 'พิมพ์ระยะจริง', 'Shift = แนวตรง • Esc ยกเลิก'] },
+  calibrate: { name: 'วัดสเกลแปลน', tips: ['คลิก 2 จุดบนแปลนที่รู้ระยะจริง', 'จุดจะดูดเข้าเส้นและมุมในรูปแปลน (วงส้ม)', 'พิมพ์ระยะจริง', 'Shift = แนวตรง • Alt = ไม่ดูด • Esc ยกเลิก'] },
   measure: { name: 'วัดระยะ', tips: ['คลิกจุดแรก แล้วคลิกจุดที่สอง', 'วัดต่อได้หลายเส้น', 'ดูดเข้าหามุม ผนัง และขอบเครื่อง', 'Shift = แนวตรง • Backspace ลบเส้นล่าสุด'] },
   moveUnderlay: { name: 'ย้ายภาพแปลน', tips: ['ลากเพื่อย้ายแปลนพื้นหลัง', 'Esc จบ'] },
 };

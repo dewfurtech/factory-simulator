@@ -89,9 +89,15 @@ function linesOfDrawing(drawing: VectorPlan): GuideLine[] {
 async function linesOfPicture(u: Underlay): Promise<GuideLine[]> {
   const t = await traceUnderlay(u, WALL_STYLES);
   if (!t) return [];
-  // Traced in a canvas turned like the image on the plan: back through the plan to the image's own pixels.
+  // Traced in a canvas turned like the image on the plan: back through the plan to the image's own pixels. A picture
+  // not yet to scale was traced at the scale its doors suggest, not the one it lies at, so that is undone first.
   const toImg = imageFrom(u);
-  return t.traced.walls.map((w) => ({ a: toImg(t.toPlan(w.a)), b: toImg(t.toPlan(w.b)) }));
+  const r = u.mmPerPx / t.underlayMmPerPx;
+  const back = (p: Vec2) => {
+    const q = t.toPlan(p);
+    return toImg({ x: u.x + (q.x - u.x) * r, y: u.y + (q.y - u.y) * r });
+  };
+  return t.traced.walls.map((w) => ({ a: back(w.a), b: back(w.b) }));
 }
 
 async function inkOf(imageId: Id): Promise<Ink | null> {

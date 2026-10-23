@@ -105,7 +105,7 @@ const CAL_STEPS = ['คลิกจุดแรก', 'คลิกจุดท�
 
 /**
  * A plan without a scale puts machines at the wrong size, so measuring it is made plain: while measuring, a bold strip
- * over the plan with the three steps and a frame round it; a plan still unmeasured gets a button to start.
+ * over the plan with the three steps; a plan still unmeasured gets a button to start.
  */
 export function CalibrateBanner() {
   const tool = useUi((s) => s.tool);
@@ -125,29 +125,26 @@ export function CalibrateBanner() {
   }
   const step = !tool.a ? 0 : !tool.b ? 1 : 2;
   return (
-    <>
-      <div className="calibrate-frame" />
-      <div className="calibrate-banner" role="status" data-testid="calibrate-banner">
-        <div className="cal-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M3 17 17 3l4 4L7 21z" />
-            <path d="m7 13 2 2M10 10l2 2M13 7l2 2" />
-          </svg>
-          กำลังวัดสเกล
-        </div>
-        <ol className="cal-steps">
-          {CAL_STEPS.map((t, i) => (
-            <li key={t} className={i < step ? 'done' : i === step ? 'now' : undefined}>
-              <span>{i < step ? '✓' : i + 1}</span>
-              {t}
-            </li>
-          ))}
-        </ol>
-        <div className="cal-tip">เลือกเส้นที่รู้ระยะจริง เช่น เส้นบอกระยะ หรือประตู 0.90 ม. · Shift = แนวตรง</div>
-        <button className="cal-cancel" onClick={() => useUi.getState().setTool(SELECT)} data-testid="calibrate-cancel">
-          ยกเลิก
-        </button>
+    <div className="calibrate-banner" role="status" data-testid="calibrate-banner">
+      <div className="cal-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M3 17 17 3l4 4L7 21z" />
+          <path d="m7 13 2 2M10 10l2 2M13 7l2 2" />
+        </svg>
+        กำลังวัดสเกล
       </div>
-    </>
+      <ol className="cal-steps">
+        {CAL_STEPS.map((t, i) => (
+          <li key={t} className={i < step ? 'done' : i === step ? 'now' : undefined}>
+            <span>{i < step ? '✓' : i + 1}</span>
+            {t}
+          </li>
+        ))}
+      </ol>
+      <div className="cal-tip">เลือกเส้นที่รู้ระยะจริง เช่น เส้นบอกระยะ หรือประตู 0.90 ม. · จุดดูดเข้าเส้นในรูป · Shift = แนวตรง · Alt = ไม่ดูด</div>
+      <button className="cal-cancel" onClick={() => useUi.getState().setTool(SELECT)} data-testid="calibrate-cancel">
+        ยกเลิก
+      </button>
+    </div>
   );
 }

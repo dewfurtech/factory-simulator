@@ -17,7 +17,7 @@ import {
   wallAt,
   wallDir,
 } from '../model/plan';
-import { snapPoint, type SnapResult } from '../model/snap';
+import { snapPoint, snapToLines, type SnapResult } from '../model/snap';
 import { clearSpan, onSideB, OPENING_PRESETS } from '../model/openings';
 import type { Column, Id, Mm, PlacedObject, Project, Vec2 } from '../model/types';
 import { dist, dot, perp, projectOnSegment, sub } from '../model/vec';
@@ -510,12 +510,11 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
 
   calibrate: {
     down(tool, input) {
-      const p = tool.a && !tool.b && input.shift ? squared(input.p, tool.a) : input.p;
+      const p = calibrateSnap(tool, input).point;
       setTool(tool.a && !tool.b ? { ...tool, b: p } : { kind: 'calibrate', a: p, b: null });
     },
     move(tool, input) {
-      const p = tool.a && input.shift ? squared(input.p, tool.a) : input.p;
-      ui().set({ cursor: { point: p, kind: 'free', guides: [] } });
+      ui().set({ cursor: calibrateSnap(tool, input) });
     },
   },
 
@@ -590,6 +589,21 @@ function measureSnap(tool: Of<'measure'>, input: PointerInput): SnapResult {
   const point = best ? best.point : s.point;
   if (from && input.shift) return { point: squared(point, from), kind: 'free', guides: [] };
   return best ? { point, kind: 'wall', guides: [] } : s;
+}
+
+/**
+ * Where an end of the span measured for the scale lands: on the plan image itself, where its lines cross or end (a
+ * dimension line's tick, a wall corner) or on a line, else on its nearest ink. Alt or snap off leaves it free; Shift
+ * holds it level or plumb from the first point.
+ */
+function calibrateSnap(tool: Of<'calibrate'>, input: PointerInput): SnapResult {
+  const from = tool.a && !tool.b ? tool.a : null;
+  const p = from && input.shift ? squared(input.p, from) : input.p;
+  if (!snapping(input)) return { point: p, kind: 'free', guides: [] };
+  const u = project().underlay;
+  const s = snapToLines(guideLines(u), p, input.radius) ?? snapToInk(u, p, input.radius);
+  if (!s) return { point: p, kind: 'free', guides: [] };
+  return from && input.shift ? { ...s, point: squared(s.point, from) } : s;
 }
 
 const measurePoint = (tool: Of<'measure'>, input: PointerInput): Vec2 => measureSnap(tool, input).point;
