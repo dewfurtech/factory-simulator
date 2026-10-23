@@ -131,6 +131,8 @@ three.js และโมเดลเครื่อง Mastrox แยกเป�
 
 เว็บอยู่บน **Cloudflare Workers** (ชื่อโปรเจกต์ `factory-plan-design`) ต่อกับ GitHub repo นี้ build จาก `main` ทุก push หน้าเว็บคือไฟล์ใน `dist/` ส่วน `/api/*` (ลิงก์แชร์) คือ `worker/index.ts` ตั้งไว้ใน `wrangler.jsonc` workflow GitHub Pages มีไว้รันด้วยมือเท่านั้น
 
+**สาขา:** งานประจำวันทำและ push ที่ `dev` ซึ่งไม่ขึ้นเว็บจริง พอพร้อมปล่อยค่อย merge `dev` เข้า `main` หนึ่งครั้ง เว็บจริงจะ build ตอนนั้น
+
 ตั้งค่าใน Cloudflare (Workers & Pages → Create → Import a repository):
 
 - Project name `factory-plan-design` (ต้องตรงกับ `name` ใน `wrangler.jsonc`)
