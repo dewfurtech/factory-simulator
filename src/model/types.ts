@@ -187,6 +187,14 @@ export interface Project {
   underlay?: Underlay;
   /** A second floor over part of the building, with its own walls, rooms and doors. */
   upper?: UpperFloor;
+  /** Tape measurements laid on the plan: saved, shared by link, and undone like any other change. */
+  tapes?: Tape[];
+}
+
+/** One tape measurement: the distance between two points on the plan. */
+export interface Tape {
+  a: Vec2;
+  b: Vec2;
 }
 
 export interface UpperFloor {

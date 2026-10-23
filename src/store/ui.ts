@@ -42,7 +42,7 @@ export type Tool =
   /** Drags out a rectangle and fills it with a grid of columns at the given spacing. */
   | { kind: 'columnGrid'; spec: ColumnSpec; start: Vec2 | null; spacing: Mm }
   | { kind: 'calibrate'; a: Vec2 | null; b: Vec2 | null }
-  /** A tape measure: the first point of the tape being laid; finished tapes are kept in `tapes`. */
+  /** A tape measure: the first point of the tape being laid; finished tapes are kept on the project. */
   | { kind: 'measure'; a: Vec2 | null; b: Vec2 | null }
   | { kind: 'moveUnderlay'; grab: Vec2 | null };
 
@@ -82,8 +82,6 @@ interface UiState {
   floorCentre: (() => Vec2 | null) | null;
   /** Every area out of sight in both views, without touching the areas' own flags. */
   areasHidden: boolean;
-  /** Tape measurements laid on the plan: they stay, several at once, until cleared. Not saved with the project. */
-  tapes: { a: Vec2; b: Vec2 }[];
   /** The share link's banner, closed by the viewer for this visit. */
   bannerClosed: boolean;
   /** A request from the layers panel to bring the views to this thing; n makes each request distinct. */
@@ -115,7 +113,6 @@ export const useUi = create<UiState>((set) => ({
   move3d: false,
   floorCentre: null,
   areasHidden: false,
-  tapes: [],
   bannerClosed: false,
   goto: null,
   peek: false,

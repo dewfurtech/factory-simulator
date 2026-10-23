@@ -48,6 +48,10 @@ test('the tape measure reads a distance between two points', async ({ page }) =>
   await expect(page.getByTestId('tapes-chip')).toContainText('2');
   await page.keyboard.press('Backspace');
   await expect(page.getByTestId('measure-line')).toHaveCount(1);
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('measure-line')).toHaveCount(2);
+  await page.keyboard.press('Control+y');
+  await expect(page.getByTestId('measure-line')).toHaveCount(1);
   await page.getByTestId('tapes-clear').click();
   await expect(page.getByTestId('measure-line')).toHaveCount(0);
 });
@@ -204,8 +208,15 @@ test('a machine is dragged across the floor in the 3D view', async ({ page }) =>
   expect(Math.round(c.ox)).toBe(Math.round(a.ox));
 });
 
-test('a link carries the sender, is listed on the start page, and stops working once deleted', async ({ page, browser }) => {
+test('a link carries the sender and the tapes, is listed on the start page, and stops working once deleted', async ({ page, browser }) => {
   await openSample(page);
+  // A tape laid before sharing goes with the link.
+  await page.getByTestId('tool-measure').click();
+  const c = await planCentre(page);
+  await page.mouse.click(c.x - 100, c.y + 60);
+  await page.mouse.click(c.x + 100, c.y + 60);
+  await expect(page.getByTestId('measure-line')).toHaveCount(1);
+  await page.keyboard.press('Escape');
   await page.getByTestId('share-link').click();
   await page.getByTestId('share-sender').fill('บริษัท ทดสอบ');
   await page.getByTestId('share-make').click();
@@ -215,6 +226,7 @@ test('a link carries the sender, is listed on the start page, and stops working 
   const customer = await (await browser.newContext()).newPage();
   await customer.goto(url);
   await expect(customer.getByTestId('share-banner')).toContainText('จาก บริษัท ทดสอบ');
+  await expect(customer.getByTestId('measure-line')).toHaveCount(1);
 
   await page.goto('/#/');
   await expect(page.getByTestId(`sent-${id}`)).toContainText('บริษัท ทดสอบ');

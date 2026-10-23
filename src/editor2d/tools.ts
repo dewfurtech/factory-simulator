@@ -524,7 +524,8 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
       const p = measurePoint(tool, input);
       if (!tool.a) return setTool({ kind: 'measure', a: p, b: null });
       // The second point files the tape with the others; the next click starts a new one.
-      if (dist(tool.a, p) > 1) ui().set({ tapes: [...ui().tapes, { a: tool.a, b: p }] });
+      const a = tool.a;
+      if (dist(a, p) > 1) edit((d) => void (d.tapes ??= []).push({ a, b: p }));
       setTool({ kind: 'measure', a: null, b: null });
     },
     move(tool, input) {
@@ -532,8 +533,8 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
     },
     key(tool, e) {
       // Backspace or Delete takes the last tape away.
-      if ((e.key === 'Backspace' || e.key === 'Delete') && !tool.a && ui().tapes.length) {
-        ui().set({ tapes: ui().tapes.slice(0, -1) });
+      if ((e.key === 'Backspace' || e.key === 'Delete') && !tool.a && project().tapes?.length) {
+        edit((d) => void d.tapes?.pop());
         return true;
       }
       if (e.key !== 'Escape') return false;

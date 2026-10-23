@@ -1102,11 +1102,13 @@ const HINTS: Record<string, string> = {
 
 const SNAP_LABEL: Record<string, string> = { corner: 'มุม', midpoint: 'กึ่งกลางผนัง', wall: 'ผนัง', plan: 'เส้นในแปลน', angle: 'มุมองศา', align: 'แนวเดียวกัน', grid: 'ตาราง' };
 
+const NO_TAPES: readonly { a: Vec2; b: Vec2 }[] = [];
+
 /** The tapes laid so far, and the one being laid from its first point to the pointer. */
 function MeasureOverlay({ px }: { px: number }) {
   const tool = useUi((s) => s.tool);
   const cursor = useUi((s) => s.cursor);
-  const tapes = useUi((s) => s.tapes);
+  const tapes = useProject((s) => s.project?.tapes) ?? NO_TAPES;
   const live = tool.kind === 'measure' && tool.a && cursor ? { a: tool.a, b: cursor.point } : null;
   return (
     <>
@@ -1163,12 +1165,12 @@ function Tape({ a, b, px, live }: { a: Vec2; b: Vec2; px: number; live?: boolean
 
 /** How many tapes are on the plan, with a button that takes them all away. */
 function TapesChip() {
-  const n = useUi((s) => s.tapes.length);
+  const n = useProject((s) => s.project?.tapes?.length ?? 0);
   if (!n) return null;
   return (
     <div className="tapes-chip glass" data-testid="tapes-chip">
       <span>วัดไว้ {n} เส้น</span>
-      <button className="btn btn-sm" onClick={() => useUi.getState().set({ tapes: [] })} data-testid="tapes-clear">
+      <button className="btn btn-sm" onClick={() => useProject.getState().apply((d) => void delete d.tapes)} data-testid="tapes-clear">
         ล้างทั้งหมด
       </button>
     </div>
