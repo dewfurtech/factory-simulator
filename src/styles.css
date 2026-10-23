@@ -2964,42 +2964,20 @@ button.start:hover:not(:disabled) {
   cursor: grabbing;
 }
 
-/* The 3D move switch: its own pill at the top left of the pane, orange while a drag moves machines. */
-.view-move {
-  position: absolute;
-  left: 12px;
-  top: 12px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  z-index: 6;
-  border-radius: 12px;
+/* The 3D move switch sits with the view buttons but never shares their look: blue, filled when on. */
+.view-tools .move-3d {
+  background: #eff6ff;
+  color: #1d4ed8;
 }
-.view-move-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 14px 0 10px;
-  border: 1px solid var(--line-2);
-  border-radius: 9px;
-  background: #fff;
-  color: var(--ink-2);
-  font-size: 13.5px;
-  font-weight: 600;
-  cursor: pointer;
+.view-tools .move-3d:hover {
+  background: #dbeafe;
 }
-.view-move-btn svg {
-  width: 18px;
-  height: 18px;
-}
-.view-move-btn:hover {
-  border-color: var(--ink-3);
-  color: var(--ink);
-}
-.view-move-btn.on {
-  background: var(--accent);
-  border-color: var(--accent);
+.view-tools .move-3d.on {
+  background: #2563eb;
   color: #fff;
+}
+.view-tools-sep {
+  height: 1px;
+  margin: 3px 4px;
+  background: var(--line-2);
 }

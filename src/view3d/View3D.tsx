@@ -137,25 +137,23 @@ export default function View3D() {
         onDoubleClick={onDouble}
         data-testid="view3d"
       />
-      {/* The move switch stands on its own, apart from the view buttons: it changes what a drag does. */}
-      <div className="view-move glass">
+      <div className="view-tools glass">
+        {/* The move switch sits with the view buttons but in its own colour: it changes what a drag does. */}
         <button
-          className={`view-move-btn${moving ? ' on' : ''}`}
+          className={`ib sm move-3d${moving ? ' on' : ''}`}
           onClick={() => setMoving(!moving)}
           title={moving ? 'กำลังย้ายเครื่อง: ลากเครื่องเพื่อย้าย กด R หมุน · คลิกเพื่อกลับไปหมุนมุมมอง' : 'ย้ายเครื่องใน 3D: ลากเครื่องบนพื้นได้เลย'}
           aria-pressed={moving}
           data-testid="move-3d"
         >
           <Icon name="move" />
-          <span>{moving ? 'กำลังย้ายเครื่อง' : 'ย้ายเครื่อง'}</span>
         </button>
         {moving && selection?.kind === 'object' && (
           <button className="ib sm" onClick={() => rotateObject(selection.id, Math.PI / 2)} title="หมุน 90° (R)" data-testid="rotate-3d">
             <Icon name="rotate" />
           </button>
         )}
-      </div>
-      <div className="view-tools glass">
+        <span className="view-tools-sep" />
         <button
           className={`ib sm${cutaway ? ' on' : ''}`}
           onClick={() => useUi.getState().set({ cutaway: !cutaway })}
