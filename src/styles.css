@@ -3202,14 +3202,13 @@ body:has(.home) {
 
 /* The tool rail's group headings and the one tool that matters most for a sale. */
 .rail-head {
-  margin: 6px 0 1px;
-  padding-top: 6px;
+  margin: 6px 0 2px;
+  padding-top: 7px;
   border-top: 1px solid var(--line);
   text-align: center;
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--ink-3);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
 }
 .rail-btn.accent {
   color: var(--accent);
@@ -3220,11 +3219,4 @@ body:has(.home) {
 .rail-btn.accent.on {
   background: var(--accent);
   color: #fff;
-}
-@media (max-height: 760px) {
-  .rail-head {
-    font-size: 0;
-    margin: 3px 0 0;
-    padding-top: 3px;
-  }
 }
