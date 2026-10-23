@@ -9,7 +9,53 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Shown only when the app's script never arrives (some networks drop the connection to *.workers.dev now and
+           then); the app replaces this as soon as it starts. Tries once more by itself, then offers a button. -->
+      <div
+        id="boot-fail"
+        hidden
+        style="
+          font:
+            15px/1.6 system-ui,
+            sans-serif;
+          max-width: 420px;
+          margin: 18vh auto;
+          padding: 0 16px;
+          text-align: center;
+          color: #3f3f46;
+        "
+      >
+        <p style="font-size: 17px; font-weight: 600; color: #18181b">โหลดหน้าไม่สำเร็จ</p>
+        <p>การเชื่อมต่อหลุดระหว่างโหลด ลองใหม่อีกครั้งได้เลย</p>
+        <button onclick="location.reload()" style="font: inherit; padding: 8px 20px; border: 0; border-radius: 8px; background: #ea580c; color: #fff; cursor: pointer">
+          ลองใหม่
+        </button>
+      </div>
+    </div>
+    <script>
+      // A module script that fails to load fires no error the page can catch, so the clock decides: if the app has
+      // not started after 12 s, reload once by itself; if it fails again, show the message and the retry button.
+      (function () {
+        var store;
+        try {
+          store = sessionStorage;
+        } catch (e) {
+          store = null;
+        }
+        var tried = store && store.getItem('boot-retry');
+        setTimeout(function () {
+          if (window.__booted) return store && store.removeItem('boot-retry');
+          if (!tried && store) {
+            store.setItem('boot-retry', '1');
+            return location.reload();
+          }
+          if (store) store.removeItem('boot-retry');
+          var el = document.getElementById('boot-fail');
+          if (el) el.hidden = false;
+        }, 12000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
