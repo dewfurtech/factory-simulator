@@ -1,0 +1,14 @@
+// Cloudflare Workers: `npm run build` makes dist/, `npx wrangler deploy` uploads it with worker/index.ts.
+// The name must match the project's name in the Cloudflare dashboard.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "factory-plan-design",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-10-01",
+  // The app itself: files in dist/ are served as they are; anything else (the /api/* routes) goes to the worker.
+  "assets": { "directory": "./dist", "not_found_handling": "none" },
+  // Shared plans. Create the namespace once in the dashboard (Storage & Databases → KV) or with
+  //   npx wrangler kv namespace create SHARES
+  // and put its id here; until then the site runs and sharing says the store is not set up.
+  "kv_namespaces": []
+}

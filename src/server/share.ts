@@ -1,5 +1,5 @@
 /**
- * The share API, as plain Request → Response so it runs as a Cloudflare Pages Function (functions/api/[[path]].ts)
+ * The share API, as plain Request → Response so it runs in the Cloudflare Worker (worker/index.ts)
  * and in tests alike. Shared plans travel as gzip pieces:
  *   POST /api/share-part        stores one piece, answers { id }
  *   GET  /api/share-part/:id    gives the piece back (application/octet-stream)

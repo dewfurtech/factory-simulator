@@ -1,5 +1,5 @@
 # Lint, typecheck, test and build on every push and pull request, so a change that breaks one of them shows on GitHub
-# before Cloudflare Pages builds it from main.
+# before Cloudflare builds it from main.
 name: Check
 
 on:

@@ -5,3 +5,6 @@ dist
 playwright-report/
 test-results/
 .share-dev/
+
+# Cloudflare wrangler local state
+.wrangler/
