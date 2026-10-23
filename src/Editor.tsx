@@ -74,9 +74,33 @@ const VIEWS: { id: ViewMode; label: string; icon: string }[] = [
   { id: '3d', label: '3D', icon: 'view3d' },
 ];
 
-function BarButton({ icon, label, on, disabled, onClick, testId }: { icon: string; label: string; on?: boolean; disabled?: boolean; onClick: () => void; testId?: string }) {
+function BarButton({
+  icon,
+  label,
+  on,
+  disabled,
+  onClick,
+  testId,
+  className,
+}: {
+  icon: string;
+  label: string;
+  on?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  testId?: string;
+  className?: string;
+}) {
   return (
-    <button className={`ib${on ? ' on' : ''}`} onClick={onClick} disabled={disabled} aria-label={label} aria-pressed={on} title={label} data-testid={testId}>
+    <button
+      className={`ib${on ? ' on' : ''}${className ? ` ${className}` : ''}`}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-pressed={on}
+      title={label}
+      data-testid={testId}
+    >
       <Icon name={icon} />
     </button>
   );
@@ -232,19 +256,19 @@ export function Editor() {
       <header className="topbar">
         <div className="tb-group tb-left">
           <MainMenu />
-          <div className="brand">
+          <div className="brand tb-desk">
             <Icon name="factory" />
           </div>
-          <span className="title" title={name}>
+          <span className="title tb-desk" title={name}>
             {name}
           </span>
-          <span className="tb-sep" />
+          <span className="tb-sep tb-desk" />
           <BarButton icon="undo" label="เลิกทำ (Ctrl+Z)" disabled={!canUndo} onClick={() => useProject.getState().undo()} />
-          <BarButton icon="redo" label="ทำซ้ำ (Ctrl+Y)" disabled={!canRedo} onClick={() => useProject.getState().redo()} />
-          <BarButton icon="trash" label="ลบที่เลือก (Delete)" disabled={!hasSelection} onClick={deleteSelection} />
-          <span className="tb-sep" />
+          <BarButton icon="redo" label="ทำซ้ำ (Ctrl+Y)" disabled={!canRedo} onClick={() => useProject.getState().redo()} className="tb-desk" />
+          <BarButton icon="trash" label="ลบที่เลือก (Delete)" disabled={!hasSelection} onClick={deleteSelection} className="tb-desk" />
+          <span className="tb-sep tb-desk" />
           <button
-            className={`tb-chip${snapOn ? ' on' : ''}`}
+            className={`tb-chip tb-desk${snapOn ? ' on' : ''}`}
             onClick={() => set({ snapOn: !snapOn })}
             aria-pressed={snapOn}
             title={`Snap ${snapOn ? 'เปิด' : 'ปิด'}: ดูดเข้าหากริด มุม และผนัง`}
@@ -260,7 +284,7 @@ export function Editor() {
                 key={v.id}
                 role="tab"
                 aria-selected={view === v.id}
-                className={view === v.id ? 'on' : ''}
+                className={`${view === v.id ? 'on' : ''}${v.id === 'split' ? ' tb-desk' : ''}`}
                 onClick={() => set({ view: v.id })}
                 title={v.label}
                 data-testid={`view-${v.id}`}

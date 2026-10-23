@@ -4,7 +4,6 @@ import { confirmDialog, promptDialog } from '../ui/Dialog';
 import { storeUnderlayFile, UNDERLAY_ACCEPT } from '../editor2d/underlayFile';
 import { useImport } from '../store/importProgress';
 import { newProject } from '../model/project';
-import { mastroxLayout, sampleFactory } from '../model/sample';
 import type { Id, Project } from '../model/types';
 import { placeUnderlay } from '../model/underlay';
 import { deleteProject, duplicateProject, exportAll, exportProject, importFile, listProjects, loadProject, saveProject, type ProjectSummary } from '../store/persist';
@@ -220,7 +219,7 @@ export function ProjectList() {
               </span>
               <b>เริ่มจากเทมเพลต</b>
             </div>
-            <button className="template" onClick={() => void create(sampleFactory())} data-testid="new-sample">
+            <button className="template" onClick={() => void import('../model/sample').then((m) => create(m.sampleFactory()))} data-testid="new-sample">
               <span className="template-swatch sw-sample" aria-hidden />
               <span className="template-text">
                 <b>โรงงานตัวอย่าง</b>
@@ -228,7 +227,7 @@ export function ProjectList() {
               </span>
               <Icon name="forward" />
             </button>
-            <button className="template" onClick={() => void create(mastroxLayout())} data-testid="new-mastrox">
+            <button className="template" onClick={() => void import('../model/sample').then((m) => create(m.mastroxLayout()))} data-testid="new-mastrox">
               <span className="template-swatch sw-mastrox" aria-hidden />
               <span className="template-text">
                 <b>Layout Mastrox</b>
@@ -280,7 +279,7 @@ export function ProjectList() {
             </span>
             <b>ยังไม่มีโรงงานในเครื่องนี้</b>
             <p>เริ่มจากผังเปล่า แบบแปลนของคุณ หรือลองเปิดโรงงานตัวอย่างดูก่อนก็ได้</p>
-            <button className="btn btn-primary" onClick={() => void create(sampleFactory())}>
+            <button className="btn btn-primary" onClick={() => void import('../model/sample').then((m) => create(m.sampleFactory()))}>
               <Icon name="factory" /> เปิดโรงงานตัวอย่าง
             </button>
           </div>

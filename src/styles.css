@@ -3004,3 +3004,77 @@ button.start:hover:not(:disabled) {
   color: #0f766e;
   font-weight: 600;
 }
+
+/* Phones: what a customer opening a share link from LINE gets. The bar keeps menu, undo, views, send-back and the
+   two panels; the share note shrinks to a strip; the library and details come up as sheets over the view. */
+@media (max-width: 640px) {
+  .tb-desk {
+    display: none !important;
+  }
+  .topbar {
+    gap: 6px;
+    padding: 0 6px;
+  }
+  .tb-left,
+  .tb-right {
+    flex: none;
+  }
+  .tb-center {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-width: 0;
+  }
+  .tb-group {
+    gap: 2px;
+  }
+  .seg-icons button {
+    padding: 0 8px;
+  }
+  .share-banner {
+    top: 8px;
+    max-width: calc(100% - 96px);
+    left: calc(50% + 30px);
+    padding: 6px 8px 6px 10px;
+    font-size: 12px;
+  }
+  .share-banner > svg,
+  .share-text > span {
+    display: none;
+  }
+  .share-text q {
+    padding: 2px 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .hud,
+  .view-hint {
+    display: none;
+  }
+  .editor.with-dock {
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+  .dock-col {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    bottom: 0;
+    width: min(100%, 360px);
+    z-index: 30;
+    box-shadow: 8px 0 24px rgba(15, 23, 42, 0.18);
+  }
+  .side-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: none;
+    height: 58vh;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.16);
+    animation: none;
+  }
+}

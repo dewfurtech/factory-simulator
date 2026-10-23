@@ -203,3 +203,29 @@ test('a machine is dragged across the floor in the 3D view', async ({ page }) =>
   const c = await spot();
   expect(Math.round(c.ox)).toBe(Math.round(a.ox));
 });
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('the top bar fits without buttons on top of each other, and the library comes up as a sheet', async ({ page }) => {
+    await openSample(page);
+    const boxes = await page.locator('header.topbar button:visible, header.topbar a:visible').evaluateAll((els) =>
+      els.map((e) => {
+        const r = e.getBoundingClientRect();
+        return { l: r.left, r: r.right, t: r.top, b: r.bottom };
+      }),
+    );
+    for (let i = 0; i < boxes.length; i++)
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i];
+        const b = boxes[j];
+        const overlap = Math.min(a.r, b.r) - Math.max(a.l, b.l) > 2 && Math.min(a.b, b.b) - Math.max(a.t, b.t) > 2;
+        // Buttons inside one segmented group sit edge to edge; real overlap is what this catches.
+        expect(overlap, `top bar buttons ${i} and ${j} overlap`).toBe(false);
+      }
+    for (const b of boxes) expect(b.r).toBeLessThanOrEqual(391);
+    await page.getByTestId('dock-catalog').click();
+    const sheet = await page.locator('.dock-col').boundingBox();
+    expect(sheet!.width).toBeGreaterThan(300);
+  });
+});

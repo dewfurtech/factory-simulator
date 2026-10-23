@@ -6,7 +6,7 @@ import { WALL_STYLES } from '../model/trace/scale';
 import type { Id, Mm, Underlay, Vec2 } from '../model/types';
 import { add, dist, rotate, scale, sub } from '../model/vec';
 import { loadAsset } from '../store/persist';
-import { vectorPlanFor } from './pdfVector';
+import { vectorPlanFor } from './vectorPlan';
 import { traceUnderlay } from './traceUnderlay';
 import { pdfPxPerPt } from './underlayFile';
 

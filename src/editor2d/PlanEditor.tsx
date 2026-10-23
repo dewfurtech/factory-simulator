@@ -493,7 +493,7 @@ const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim }: 
             paintOrder="stroke"
             style={{ cursor: 'text' }}
             onPointerDown={(e) => {
-              if (w.locked) return;
+              if (w.locked || useUi.getState().customer) return;
               e.stopPropagation();
               onEditDim(w, at);
             }}

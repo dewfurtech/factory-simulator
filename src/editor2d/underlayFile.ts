@@ -1,5 +1,4 @@
 import { newId } from '../model/id';
-import { extractVectorPlan } from '../model/pdfplan/extract';
 import type { VectorPlan } from '../model/pdfplan/types';
 import type { Id } from '../model/types';
 import type { ImportStage } from '../store/importProgress';
@@ -70,6 +69,8 @@ async function renderPdf(file: File, onStage: (s: ImportStage) => Promise<void>)
     const blob = await new Promise<Blob>((ok, fail) => canvas.toBlob((b) => (b ? ok(b) : fail(new Error('แปลง PDF ไม่สำเร็จ'))), 'image/png'));
     // A CAD plot keeps its lines; reading them beats tracing the picture. A scan in a PDF has none worth reading.
     await onStage('read');
+    // The line reader is heavy and only for PDFs: it loads with the first one.
+    const { extractVectorPlan } = await import('../model/pdfplan/extract');
     const vector = await extractVectorPlan(doc, page).catch(() => undefined);
     return { blob, w: canvas.width, h: canvas.height, ...(vector && vector.paths.length >= MIN_VECTOR_PATHS && { vector }) };
   } finally {

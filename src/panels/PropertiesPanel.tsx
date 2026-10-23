@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { deg, fmtArea, fmtLen, fmtSize, rad } from '../format';
 import { CATALOG, catalogItem, GROUP_LABEL, GROUP_ORDER, machineFootprint } from '../model/catalog';
 import { DOOR_STYLE_LABEL, isHanded, isSliding } from '../model/openings';
@@ -77,8 +78,15 @@ export function PropertiesPanel() {
   const selection = useUi((s) => s.selection);
   const boxed = useUi((s) => s.boxed);
   const project = useEditProject()!;
+  // On a phone the panel slides up under the finger that just picked something; the tap's click would land on
+  // whatever is now there (the photo, the delete button). It takes no taps for a moment after it opens.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setArmed(true), 400);
+    return () => clearTimeout(t);
+  }, []);
   return (
-    <aside className="side-panel" data-testid="properties">
+    <aside className="side-panel" data-testid="properties" style={armed ? undefined : { pointerEvents: 'none' }}>
       {boxed.length > 0 ? <Multi count={boxed.length} /> : selection ? <SelectionProps sel={selection} project={project} /> : <ProjectProps project={project} />}
     </aside>
   );

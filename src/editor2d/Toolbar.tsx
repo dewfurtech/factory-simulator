@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { OPENING_PRESET_IDS, OPENING_PRESETS, type OpeningPresetId } from '../model/openings';
 import { useUi, type Tool } from '../store/ui';
-import { UnderlayMenu } from './UnderlayMenu';
 import { EMPTY_ENTRY } from './entry';
 import { AISLE_KIND_IDS, AISLE_KINDS, defaultWidth, isArrow } from '../model/aisles';
 import type { AisleKind } from '../model/types';
@@ -225,6 +224,9 @@ const COLUMN_ITEMS: Item[] = [
   },
 ];
 
+// Importing, tracing and building walls from a plan is the seller's: a share link never loads it.
+const UnderlayMenu = lazy(() => import('./UnderlayMenu').then((m) => ({ default: m.UnderlayMenu })));
+
 export const setTool = (t: Tool) => useUi.getState().set({ tool: t, cursor: null, objectGuides: [] });
 
 /** text: the short name printed under the icon; label: the full description in the tooltip. */
@@ -388,7 +390,11 @@ export function Toolbar() {
         onClick={() => useUi.getState().set({ dock: dock === 'catalog' ? null : 'catalog' })}
         testId="tool-catalog"
       />
-      {!customer && <UnderlayMenu />}
+      {!customer && (
+        <Suspense fallback={null}>
+          <UnderlayMenu />
+        </Suspense>
+      )}
     </nav>
   );
 }
