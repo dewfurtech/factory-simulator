@@ -1,0 +1,7 @@
+# Keep every text file LF in the working tree as well as in the repository: no CRLF warnings on Windows.
+* text=auto eol=lf
+*.png binary
+*.webp binary
+*.jpg binary
+*.pdf binary
+*.glb binary
