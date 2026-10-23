@@ -3538,3 +3538,53 @@ body:has(.home) {
     width: min(280px, calc(100vw - 80px));
   }
 }
+
+/* Over the 3D pane while it downloads and builds. */
+.loading3d {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #e9edf1;
+  color: var(--ink-2);
+  transition: opacity 0.3s ease;
+}
+.loading3d.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+.loading3d b {
+  font-size: 15px;
+  margin-top: 8px;
+}
+.loading3d span {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.loading3d-cube svg {
+  animation: loading3d-float 1.8s ease-in-out infinite;
+}
+.loading3d-trace {
+  stroke-dasharray: 30 100;
+  animation: loading3d-trace 1.4s linear infinite;
+}
+@keyframes loading3d-trace {
+  to {
+    stroke-dashoffset: -130;
+  }
+}
+@keyframes loading3d-float {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading3d-cube svg,
+  .loading3d-trace {
+    animation: none;
+  }
+}

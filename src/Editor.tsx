@@ -13,6 +13,7 @@ import { createShare, lastSender, shareUrl } from './store/share';
 import { SELECT, useUi, type ViewMode } from './store/ui';
 import { shareDialog } from './ui/Dialog';
 
+import { Loading3D } from './ui/Loading3D';
 const View3D = lazy(() => import('./view3d/View3D'));
 
 function isTyping(e: KeyboardEvent) {
@@ -385,7 +386,7 @@ export function Editor() {
           )}
           {view !== '2d' && (
             <div className="pane">
-              <Suspense fallback={<div className="empty">กำลังโหลด 3D…</div>}>
+              <Suspense fallback={<Loading3D />}>
                 <View3D />
               </Suspense>
             </div>

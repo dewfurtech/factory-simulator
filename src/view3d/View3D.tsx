@@ -12,6 +12,7 @@ import { locate } from '../model/locate';
 import { download } from '../editor2d/exportImage';
 import { IssuesChip, useTroubled } from '../panels/IssuesChip';
 import { HelpButton } from '../ui/HelpButton';
+import { Loading3D } from '../ui/Loading3D';
 
 /** The 3D pane: the factory, with the picked object highlighted. */
 export default function View3D() {
@@ -26,6 +27,10 @@ export default function View3D() {
   const moving = useUi((s) => s.move3d);
   const setMoving = (on: boolean) => useUi.getState().set({ move3d: on });
   const goto = useUi((s) => s.goto);
+  // The factory is built a moment after the pane appears, so the loading screen paints first; it fades once a frame is drawn.
+  const [started, setStarted] = useState(false);
+  const [shown, setShown] = useState(false);
+  const [gone, setGone] = useState(false);
 
   // A go-to from the layers panel: fly in over the thing, closer the smaller it is.
   useEffect(() => {
@@ -46,14 +51,29 @@ export default function View3D() {
         return s.floorPoint(r.left + r.width / 2, r.top + r.height / 2);
       },
     });
+    const start = setTimeout(() => setStarted(true), 40);
     return () => {
+      clearTimeout(start);
       useUi.getState().set({ floorCentre: null });
       s.dispose();
       sceneRef.current = null;
     };
   }, []);
 
-  useEffect(() => sceneRef.current?.setProject(project), [project]);
+  useEffect(() => {
+    if (started) sceneRef.current?.setProject(project);
+  }, [project, started]);
+  useEffect(() => {
+    if (!started) return;
+    let b = 0;
+    const a = requestAnimationFrame(() => (b = requestAnimationFrame(() => setShown(true))));
+    return () => (cancelAnimationFrame(a), cancelAnimationFrame(b));
+  }, [started]);
+  useEffect(() => {
+    if (!shown) return;
+    const t = setTimeout(() => setGone(true), 300);
+    return () => clearTimeout(t);
+  }, [shown]);
   // Placed copies of the user's own models follow edits to the library (colour, size, shape) and removals.
   const models = useLibrary((s) => s.models);
   const prevModels = useRef(models);
@@ -66,10 +86,10 @@ export default function View3D() {
     for (const m of before) if (!models.includes(m)) changed.add(m.id);
     if (changed.size) sceneRef.current?.refreshAssets(changed);
   }, [models]);
-  useEffect(() => sceneRef.current?.select(selection?.kind === 'object' ? selection.id : null), [selection]);
+  useEffect(() => sceneRef.current?.select(selection?.kind === 'object' ? selection.id : null), [selection, started]);
   // Things that cannot stand where they are get a red frame in 3D, as they get a red outline on the plan.
   const troubled = useTroubled();
-  useEffect(() => sceneRef.current?.markTroubled(troubled.map((t) => t.id)), [troubled]);
+  useEffect(() => sceneRef.current?.markTroubled(troubled.map((t) => t.id)), [troubled, started]);
   useEffect(() => sceneRef.current?.setOptions({ cutaway, areas }), [cutaway, areas]);
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
 
@@ -159,6 +179,7 @@ export default function View3D() {
 
   return (
     <div className="view3d">
+      {!gone && <Loading3D leaving={shown} />}
       <div
         ref={host}
         className={`view3d-canvas${moving ? ' moving' : ''}`}
