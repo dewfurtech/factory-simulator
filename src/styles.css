@@ -3220,3 +3220,10 @@ body:has(.home) {
   background: var(--accent);
   color: #fff;
 }
+
+/* Short screens (a laptop at 768 px): slightly shorter tool buttons so the rail and its headings still fit. */
+@media (max-height: 760px) {
+  .rail-btn {
+    height: 44px;
+  }
+}
