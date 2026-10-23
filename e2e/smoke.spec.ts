@@ -175,6 +175,8 @@ test('a machine is dragged across the floor in the 3D view', async ({ page }) =>
       const r = s.renderer.domElement.getBoundingClientRect();
       return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height, ox: o.x, oy: o.y };
     });
+  const camera = () => page.evaluate(() => JSON.stringify((window as unknown as { __scene: { camera: { position: unknown } } }).__scene.camera.position));
+  const cam0 = await camera();
   const a = await spot();
   await page.mouse.move(a.x, a.y);
   await page.mouse.down();
@@ -182,6 +184,9 @@ test('a machine is dragged across the floor in the 3D view', async ({ page }) =>
   await page.mouse.up();
   const b = await spot();
   expect(Math.hypot(b.ox - a.ox, b.oy - a.oy)).toBeGreaterThan(500);
+  // The camera stays put while a machine is dragged, and does not keep turning afterwards.
+  await page.mouse.move(a.x + 300, a.y + 200, { steps: 6 });
+  expect(await camera()).toBe(cam0);
   // One undo step for the whole drag.
   await page.keyboard.press('Control+z');
   const c = await spot();

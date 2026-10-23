@@ -3,7 +3,8 @@ import { useLibrary } from '../store/library';
 import { useProject } from '../store/project';
 import { useUi } from '../store/ui';
 import { moveWithStack, snapObject } from '../model/objects';
-import { rotateObject } from '../editor2d/tools';
+import { placeObjectAt, rotateObject } from '../editor2d/tools';
+import { ASSET_MIME } from '../editor2d/PlanEditor';
 import type { Id, Vec2 } from '../model/types';
 import { Icon } from '../editor2d/Toolbar';
 import { FactoryScene } from './scene';
@@ -70,6 +71,11 @@ export default function View3D() {
   const down = useRef<{ x: number; y: number } | null>(null);
   /** A machine being dragged over the floor: which, and where under it the pointer took hold. */
   const drag = useRef<{ id: Id; grab: Vec2; moved: boolean } | null>(null);
+  /**
+   * Runs in the capture phase, before the orbit controls' own listener on the canvas: taking hold of a machine stops
+   * the event there, so the camera never starts turning with it (and never gets stuck turning after the pointer
+   * is captured away from the canvas).
+   */
   const onPointerDown = (e: React.PointerEvent) => {
     down.current = { x: e.clientX, y: e.clientY };
     if (!moving || e.button !== 0) return;
@@ -78,11 +84,23 @@ export default function View3D() {
     const o = hit.object && project.objects.find((x) => x.id === hit.object);
     const floor = s.floorPoint(e.clientX, e.clientY);
     if (!o || o.locked || !floor) return;
+    e.stopPropagation();
     drag.current = { id: o.id, grab: { x: floor.x - o.x, y: floor.y - o.y }, moved: false };
-    s.controls.enabled = false;
     e.currentTarget.setPointerCapture(e.pointerId);
     useUi.getState().set({ selection: { kind: 'object', id: o.id } });
     useProject.getState().beginGesture();
+  };
+  // A library card dragged in lands where it is dropped on the floor, selected and ready to move.
+  const onDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes(ASSET_MIME)) e.preventDefault();
+  };
+  const onDrop = (e: React.DragEvent) => {
+    const assetId = e.dataTransfer.getData(ASSET_MIME);
+    const at = assetId && sceneRef.current?.floorPoint(e.clientX, e.clientY);
+    if (!at) return;
+    e.preventDefault();
+    const id = placeObjectAt(assetId, at, 300, e.altKey);
+    useUi.getState().set({ selection: { kind: 'object', id }, move3d: true });
   };
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current;
@@ -102,7 +120,6 @@ export default function View3D() {
   const endDrag = () => {
     if (!drag.current) return;
     drag.current = null;
-    sceneRef.current!.controls.enabled = true;
     useProject.getState().endGesture();
   };
   const onPointerUp = (e: React.PointerEvent) => {
@@ -130,11 +147,13 @@ export default function View3D() {
       <div
         ref={host}
         className={`view3d-canvas${moving ? ' moving' : ''}`}
-        onPointerDown={onPointerDown}
+        onPointerDownCapture={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={endDrag}
         onDoubleClick={onDouble}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
         data-testid="view3d"
       />
       <div className="view-tools glass">
