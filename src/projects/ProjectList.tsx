@@ -181,62 +181,31 @@ export function ProjectList() {
 
       <section className="hero">
         <div className="hero-text">
-          <span className="eyebrow">โปรแกรมวางผังโรงงาน</span>
-          <h1>
-            ออกแบบผังโรงงาน
-            <br />
-            วางเครื่องจักรให้เห็นภาพจริง
-          </h1>
-          <p>วาดผนังและโซนบนแบบแปลน วางเครื่องจักร Mastrox ลงไปตามขนาดจริง แล้วเดินดูใน 3D พร้อมรายละเอียดและขนาดของแต่ละเครื่อง</p>
+          <h1>วางเครื่อง Mastrox ลงแปลนของลูกค้า</h1>
+          <p>อัปโหลดแปลน วาดห้องทับ วางเครื่องตามขนาดจริง แล้วส่งลิงก์ให้ลูกค้าลองขยับเองและส่งกลับ</p>
         </div>
 
-        <div className="start-grid">
-          <button className="start start-blank" onClick={() => void create(newProject('โรงงานใหม่'))} data-testid="new-blank">
-            <span className="start-icon">
-              <Icon name="plus" />
-            </span>
-            <b>ผังเปล่า</b>
-            <span>เริ่มจากกระดาษเปล่า วาดผนัง โซน และเสาเอง</span>
-            <i className="start-go" aria-hidden>
-              <Icon name="forward" />
-            </i>
-          </button>
+        <button className={`upload-card${reading ? ' busy' : ''}`} onClick={() => planRef.current?.click()} disabled={!!reading} data-testid="new-from-plan">
+          <span className="upload-icon">
+            <Icon name={reading ? 'clock' : 'upload'} />
+          </span>
+          <b>{reading ? `กำลังอ่านแปลน… (${reading})` : 'อัปโหลดแปลนของลูกค้า'}</b>
+          <span>ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือก · PDF จาก CAD อ่านสเกลให้เอง · PNG / JPG ก็ได้</span>
+        </button>
 
-          <button className={`start start-plan${reading ? ' busy' : ''}`} onClick={() => planRef.current?.click()} disabled={!!reading} data-testid="new-from-plan">
-            <span className="start-icon">
-              <Icon name="underlay" />
-            </span>
-            <b>เริ่มจากแบบแปลน</b>
-            <span>{reading ? `กำลังอ่านไฟล์แปลน… (${reading})` : 'อัปโหลดรูปหรือ PDF ของ layout แล้ววาดห้องทับ PDF จาก CAD สร้างผนังให้เอง'}</span>
-            <small>
-              <Icon name="upload" /> ลากไฟล์ PNG · JPG · PDF มาวางที่นี่ หรือคลิกเพื่อเลือก
-            </small>
+        <div className="start-row">
+          <button className="btn start-blank-btn" onClick={() => void create(newProject('โรงงานใหม่'))} data-testid="new-blank">
+            <Icon name="plus" /> ผังเปล่า
           </button>
-
-          <div className="start start-templates">
-            <div className="start-head">
-              <span className="start-icon">
-                <Icon name="library" />
-              </span>
-              <b>เริ่มจากเทมเพลต</b>
-            </div>
-            <button className="template" onClick={() => void import('../model/sample').then((m) => create(m.sampleFactory()))} data-testid="new-sample">
-              <span className="template-swatch sw-sample" aria-hidden />
-              <span className="template-text">
-                <b>โรงงานตัวอย่าง</b>
-                <span>48 × 30 ม. · ผังพร้อมเครื่องจักร 10 เครื่อง</span>
-              </span>
-              <Icon name="forward" />
+          <span className="start-templates">
+            <span className="muted">หรือลองจากเทมเพลต</span>
+            <button className="chip" onClick={() => void import('../model/sample').then((m) => create(m.sampleFactory()))} data-testid="new-sample">
+              โรงงานตัวอย่าง
             </button>
-            <button className="template" onClick={() => void import('../model/sample').then((m) => create(m.mastroxLayout()))} data-testid="new-mastrox">
-              <span className="template-swatch sw-mastrox" aria-hidden />
-              <span className="template-text">
-                <b>Layout Mastrox</b>
-                <span>42 × 48 ม. · ตามแบบที่ส่งมา พร้อมเครื่องจักร</span>
-              </span>
-              <Icon name="forward" />
+            <button className="chip" onClick={() => void import('../model/sample').then((m) => create(m.mastroxLayout()))} data-testid="new-mastrox">
+              Layout Mastrox
             </button>
-          </div>
+          </span>
         </div>
 
         <input ref={planRef} type="file" accept={UNDERLAY_ACCEPT} hidden onChange={(e) => (e.target.files?.[0] && void fromPlan(e.target.files[0]), (e.target.value = ''))} />
@@ -274,16 +243,9 @@ export function ProjectList() {
         </div>
 
         {list && !list.length && (
-          <div className="empty-state" data-testid="empty-state">
-            <span className="empty-art" aria-hidden>
-              <Icon name="factory" />
-            </span>
-            <b>ยังไม่มีโรงงานในเครื่องนี้</b>
-            <p>เริ่มจากผังเปล่า แบบแปลนของคุณ หรือลองเปิดโรงงานตัวอย่างดูก่อนก็ได้</p>
-            <button className="btn btn-primary" onClick={() => void import('../model/sample').then((m) => create(m.sampleFactory()))}>
-              <Icon name="factory" /> เปิดโรงงานตัวอย่าง
-            </button>
-          </div>
+          <p className="empty-line" data-testid="empty-state">
+            ยังไม่มีโรงงานในเครื่องนี้ · อัปโหลดแปลนด้านบน หรือลองเปิดโรงงานตัวอย่างดูก่อนก็ได้
+          </p>
         )}
         {shown && list?.length ? (
           shown.length ? (
@@ -348,17 +310,14 @@ export function ProjectList() {
             <p className="muted">ไม่พบโรงงานชื่อ “{query}”</p>
           )
         ) : null}
-
-        <p className="store-note" data-testid="storage-notice">
-          <Icon name="info" />
-          <span>
-            โปรเจกต์ทั้งหมดเก็บอยู่ในเบราว์เซอร์เครื่องนี้เท่านั้น ถ้าล้างข้อมูลเว็บไซต์ เปลี่ยนเครื่อง หรือเปลี่ยนเบราว์เซอร์จะหาย ควรกด “สำรองทั้งหมด” เก็บเป็นไฟล์ไว้เป็นระยะ
-            แล้วนำเข้ากลับได้จากปุ่ม “นำเข้าไฟล์”
-          </span>
-        </p>
       </section>
 
       <SentLinks />
+
+      <p className="store-note" data-testid="storage-notice">
+        <Icon name="info" />
+        <span>โปรเจกต์เก็บอยู่ในเบราว์เซอร์เครื่องนี้เท่านั้น ล้างข้อมูลเว็บหรือเปลี่ยนเครื่องแล้วหาย กด “สำรองทั้งหมด” เก็บเป็นไฟล์ไว้เป็นระยะ</span>
+      </p>
 
       {dragging && (
         <div className="drop-veil" aria-hidden>
