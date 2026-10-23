@@ -3,7 +3,7 @@
 // Sizes are L × W × H in mm, as printed in each brochure.
 // `flow` is where the work goes in and comes out, in the model's frame: front = +z (where the operator stands), back = -z,
 // right = +x, left = -x. Edge banders and the Rakete lines feed through end to end; a nesting CNC, drill, press or saw
-// is loaded and unloaded at the operator's side. An add-on's `flow` overrides one end when it is ticked.
+// is loaded and unloaded at the operator's side. The Rakete 3500A feeds right to left like its line versions (Dew, 23 Oct 2026).
 
 export const CATEGORIES = [
   { id: 'nesting', name: 'CNC Nesting', series: 'Rakete' },
@@ -18,7 +18,7 @@ export const MACHINES = [
   {
     id: 'rakete-3500a', model3d: 'index.html?m=rakete-3500a', cat: 'nesting', name: 'Rakete 3500A', tier: 'Built-in Startup', price: 780000,
     size: [3350, 1960, 2210], weight: 2700,
-    flow: { in: 'front', out: 'front' },
+    flow: { in: 'right', out: 'left' },
     summary: 'เครื่องเดี่ยว เปลี่ยนทูลอัตโนมัติ 12 ตัว',
     // Add-ons a customer can tick per placed machine; `flags` are what they switch on in the model (rakete-real.js
     // RAKETE_VARIANTS), and scripts/bbox.mjs measures the footprint with each combination. No prices: the price list
