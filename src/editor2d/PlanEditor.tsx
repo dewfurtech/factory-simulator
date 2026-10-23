@@ -28,6 +28,8 @@ export const ASSET_MIME = 'application/x-factory-asset';
 
 /** The catalog item being dragged right now: a drag's data can't be read until the drop. */
 let draggedAsset: string | null = null;
+/** The library item being dragged, for views that cannot read the drag's data until it is dropped. */
+export const draggedAssetId = () => draggedAsset;
 export const setDraggedAsset = (id: string | null) => {
   draggedAsset = id;
 };

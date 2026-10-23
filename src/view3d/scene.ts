@@ -265,6 +265,40 @@ export class FactoryScene {
     return holder;
   }
 
+  private ghost: THREE.Object3D | null = null;
+
+  /**
+   * A see-through copy of a machine following the pointer while it is dragged in from the library, where it would
+   * land; null takes it away. The name tag and logos are left off: it is a shape, not a thing yet.
+   */
+  showGhost(o: PlacedObject | null) {
+    if (this.ghost) {
+      this.overlay.remove(this.ghost);
+      disposeTree(this.ghost);
+      this.ghost = null;
+    }
+    if (o) {
+      const g = this.makeObject(o);
+      g.traverse((x) => {
+        const mesh = x as THREE.Mesh;
+        if ((x as THREE.Sprite).isSprite) x.visible = false;
+        else if (mesh.isMesh) {
+          const m = mesh.material as THREE.Material;
+          const copy = (m as THREE.MeshLambertMaterial).isMeshLambertMaterial ? (m as THREE.MeshLambertMaterial).clone() : new THREE.MeshLambertMaterial({ color: '#9aa0a8' });
+          copy.transparent = true;
+          copy.opacity = 0.55;
+          copy.depthWrite = false;
+          mesh.material = copy;
+        }
+      });
+      g.position.set(o.x * M, o.z * M, o.y * M);
+      g.rotation.y = -o.rotation;
+      this.ghost = g;
+      this.overlay.add(g);
+    }
+    this.dirty = true;
+  }
+
   private top = false;
 
   /** Top view: looks straight down at the plan, rotation off, left-drag pans. Off returns to the usual angled view. */

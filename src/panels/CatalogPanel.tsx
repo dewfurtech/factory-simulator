@@ -21,6 +21,12 @@ function Thumb({ id }: { id: string }) {
   return url ? <img src={url} alt="" draggable={false} /> : <span className="thumb-wait" />;
 }
 
+/** A transparent drag image: the 3D view shows the dragged machine's shape in its place. */
+const BLANK =
+  typeof Image !== 'undefined'
+    ? Object.assign(new Image(), { src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' })
+    : (undefined as unknown as HTMLImageElement);
+
 const fmtSize = (c: CatalogItem) => `${(c.size.w / 1000).toFixed(1)}×${(c.size.d / 1000).toFixed(1)} ม.`;
 
 /** The two shelves of the library: the Mastrox lineup comes first, as it is what the app sells. */
@@ -190,9 +196,10 @@ export function CatalogPanel() {
                       e.dataTransfer.setData(ASSET_MIME, c.id);
                       e.dataTransfer.effectAllowed = 'copy';
                       setDraggedAsset(c.id);
-                      // Only the small picture follows the cursor, so the object drawn on the plan stays in view.
+                      // On the plan the small picture follows the cursor; with 3D open the views draw the shape itself, so nothing does.
                       const img = e.currentTarget.querySelector('img');
-                      if (img) e.dataTransfer.setDragImage(img, 0, 0);
+                      if (useUi.getState().view !== '2d') e.dataTransfer.setDragImage(BLANK, 0, 0);
+                      else if (img) e.dataTransfer.setDragImage(img, 0, 0);
                     }}
                     onDragEnd={() => setDraggedAsset(null)}
                     onClick={() => pick(c.id, on)}

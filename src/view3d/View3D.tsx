@@ -3,8 +3,8 @@ import { useLibrary } from '../store/library';
 import { useProject } from '../store/project';
 import { useUi } from '../store/ui';
 import { moveWithStack, snapObject } from '../model/objects';
-import { placeObjectAt, rotateObject } from '../editor2d/tools';
-import { ASSET_MIME } from '../editor2d/PlanEditor';
+import { objectAt, placeObjectAt, rotateObject } from '../editor2d/tools';
+import { ASSET_MIME, draggedAssetId } from '../editor2d/PlanEditor';
 import type { Id, Vec2 } from '../model/types';
 import { Icon } from '../editor2d/Toolbar';
 import { FactoryScene } from './scene';
@@ -90,11 +90,21 @@ export default function View3D() {
     useUi.getState().set({ selection: { kind: 'object', id: o.id } });
     useProject.getState().beginGesture();
   };
-  // A library card dragged in lands where it is dropped on the floor, selected and ready to move.
+  // A library card dragged in: its shape follows the pointer over the floor (snapped as it would be placed), and it
+  // lands where it is dropped, selected and ready to move.
   const onDragOver = (e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes(ASSET_MIME)) e.preventDefault();
+    if (!e.dataTransfer.types.includes(ASSET_MIME)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    const assetId = draggedAssetId();
+    const at = assetId && sceneRef.current?.floorPoint(e.clientX, e.clientY);
+    sceneRef.current?.showGhost(assetId && at ? objectAt(assetId, at, 300, e.altKey) : null);
+  };
+  const onDragLeave = (e: React.DragEvent) => {
+    if (!host.current?.contains(e.relatedTarget as Node | null)) sceneRef.current?.showGhost(null);
   };
   const onDrop = (e: React.DragEvent) => {
+    sceneRef.current?.showGhost(null);
     const assetId = e.dataTransfer.getData(ASSET_MIME);
     const at = assetId && sceneRef.current?.floorPoint(e.clientX, e.clientY);
     if (!at) return;
@@ -153,6 +163,7 @@ export default function View3D() {
         onPointerCancel={endDrag}
         onDoubleClick={onDouble}
         onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
         onDrop={onDrop}
         data-testid="view3d"
       />
