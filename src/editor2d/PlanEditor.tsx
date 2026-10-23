@@ -1091,7 +1091,7 @@ const HINTS: Record<string, string> = {
   select: 'คลิกเลือก • ลากเพื่อย้าย • R หมุน • ดับเบิลคลิกผนังใส่ประตู • คลิกขวาลากเลื่อนแปลน',
   drawWall: 'คลิกเพื่อวางจุด • พิมพ์ความยาว (ซม.) • Tab แล้วพิมพ์มุม (°) • Enter วางผนัง • Esc จบ',
   drawRoomRect: 'คลิกมุมแรก แล้วคลิกมุมตรงข้าม หรือพิมพ์กว้าง • Tab • ลึก (ซม.) แล้ว Enter • มีภาพแปลน: มุมดูดเข้าหาเส้นในรูป • กดค้าง \\ ดูแปลน',
-  drawArea: 'กล่อง: คลิก 2 มุม • ทีละจุด: คลิกวางจุด กลับมาจุดแรกหรือลากตัดเส้นเดิมเพื่อปิดรอบ • Enter / ดับเบิลคลิก ปิดรอบตรงนี้ • Esc จบ',
+  drawArea: 'ลากกรอบทับห้องทีละห้อง (คลิก 2 มุม) • มุมดูดเข้าหาเส้นในแปลน • กดค้าง \ ดูแปลน • Esc จบ',
   drawAisle: 'คลิกวางจุดตามแนวกลางทาง (ลูกศรชี้ไปทางจุดสุดท้าย) • พิมพ์ความยาว (ซม.) • Tab มุม • Enter / ดับเบิลคลิก / คลิกจุดเดิม จบเส้น • ปรับกว้างที่แผงขวา • Esc จบ',
   placeObject: 'คลิกเพื่อวาง (ติดผนังให้เอง) • วางต่อได้หลายตัว • Alt = ไม่ติดผนัง • Esc จบ',
   addOpening: 'คลิกบนผนังเพื่อวาง • ขยับเมาส์ไปฝั่งที่ต้องการให้ประตูเปิด • กด F สลับด้านบานพับ',
@@ -1204,9 +1204,9 @@ function Hud() {
   const tool = useUi((s) => s.tool);
   const cursor = useUi((s) => s.cursor);
   const peek = useUi((s) => s.peek);
-  if (peek) return <div className="hud glass">กำลังดูแปลน • ปล่อยปุ่มเพื่อกลับ</div>;
+  if (peek) return <div className="hud">กำลังดูแปลน • ปล่อยปุ่มเพื่อกลับ</div>;
   return (
-    <div className="hud glass">
+    <div className="hud">
       {HINTS[tool.kind]}
       {cursor && cursor.kind !== 'free' ? ` • Snap: ${SNAP_LABEL[cursor.kind] ?? cursor.kind}` : ''}
     </div>

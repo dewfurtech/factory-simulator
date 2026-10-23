@@ -486,11 +486,8 @@ function statusNote(status: Status): { text: string; tip?: string; error?: boole
         testId: 'underlay-built',
       };
     case 'ready':
-      return {
-        text: 'ลากกรอบทับห้องในแปลนทีละห้อง · มุมจะดูดเข้าหาเส้นในรูปเอง · กดค้าง \\ เพื่อดูแปลน',
-        tip: 'ผนังที่วาดแก้ขนาดได้ที่แผงขวา · ปุ่มสร้างผนังอัตโนมัติอยู่ถัดไป',
-        testId: 'underlay-ready',
-      };
+      // The hint along the bottom already says how to draw over the plan.
+      return null;
     case 'needScale':
       return {
         text:

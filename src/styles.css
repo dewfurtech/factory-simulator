@@ -875,20 +875,23 @@ input[type='color'] {
 .zoom-ctl button:hover {
   background: rgba(15, 23, 42, 0.06);
 }
+/* The hint for the tool in hand: quiet text along the bottom, not another panel. */
 .hud {
   position: absolute;
-  bottom: 12px;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 6px 12px;
-  font-size: 12.5px;
-  color: var(--ink-2);
+  font-size: 12px;
+  color: var(--ink-3);
+  text-shadow:
+    0 0 3px var(--canvas),
+    0 0 6px var(--canvas);
   z-index: 5;
   white-space: nowrap;
   max-width: calc(100% - 140px);
   overflow: hidden;
   text-overflow: ellipsis;
-  border-radius: 999px;
+  pointer-events: none;
 }
 .dim-input {
   position: absolute;
@@ -1079,7 +1082,7 @@ input[type='color'] {
   position: absolute;
   left: 90px;
   right: 60px;
-  bottom: 54px;
+  bottom: 38px;
   z-index: 7;
   display: flex;
   flex-direction: column;
