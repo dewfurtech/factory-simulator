@@ -1129,9 +1129,10 @@ export function createRealRakete(id = 'rakete-3500a', overrides = {}) {
 
   // ---------- control cabinet ----------
   const cabinet = new THREE.Group(); cabinet.name = 'ControlCabinet'; machine.add(cabinet);
-  // Off to the back side, clear of the base (BD / 2 = 0.83) so it doesn't block the chute end (user, 2026-10-21).
-  cabinet.position.set(-2.62, 0, -1.3);
-  cabinet.rotation.y = 0.08;
+  // Along the back side of the base, parallel to it with a 30 cm gap (Dew, 2026-10-23: "ขยับตู้ไปขนานกับเครื่อง" then "เอาออกห่างมานิด"),
+  // at the chute end but behind the base, so it still doesn't block that end (user, 2026-10-21). Depth CD = 0.56.
+  cabinet.position.set(-BL / 2 + 0.55, 0, -(BD / 2 + 0.28 + 0.3));
+  cabinet.rotation.y = 0;
   {
     const CW = 0.82, CD = 0.56, CH = 1.80, C0 = 0.09;
     const s = new THREE.Shape(), r = 0.075;
