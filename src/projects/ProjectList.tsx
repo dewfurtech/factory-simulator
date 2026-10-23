@@ -163,39 +163,27 @@ export function ProjectList() {
           </span>
           <b>Factory Simulator</b>
         </div>
-        <div className="home-nav-actions">
-          <button className="btn btn-ghost" onClick={() => importRef.current?.click()} data-testid="import-file">
-            <Icon name="upload" /> นำเข้าไฟล์
-          </button>
-          <button
-            className="btn"
-            disabled={!list?.length}
-            title="ดาวน์โหลดโปรเจกต์ทั้งหมดเป็นไฟล์เดียว"
-            onClick={() => void exportAll().then((b) => save(b, `factory-backup-${new Date().toISOString().slice(0, 10)}.json`))}
-            data-testid="backup-all"
-          >
-            <Icon name="download" /> สำรองทั้งหมด
-          </button>
-        </div>
       </nav>
 
       <section className="hero">
-        <div className="hero-text">
-          <h1>วางเครื่อง Mastrox ลงแปลนของลูกค้า</h1>
-          <p>อัปโหลดแปลน วาดห้องทับ วางเครื่องตามขนาดจริง แล้วส่งลิงก์ให้ลูกค้าลองขยับเองและส่งกลับ</p>
-        </div>
-
         <button className={`upload-card${reading ? ' busy' : ''}`} onClick={() => planRef.current?.click()} disabled={!!reading} data-testid="new-from-plan">
           <span className="upload-icon">
             <Icon name={reading ? 'clock' : 'upload'} />
           </span>
           <b>{reading ? `กำลังอ่านแปลน… (${reading})` : 'อัปโหลดแปลนของลูกค้า'}</b>
-          <span>ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือก · PDF จาก CAD อ่านสเกลให้เอง · PNG / JPG ก็ได้</span>
+          <span className="upload-what">วาดห้องทับ วางเครื่อง Mastrox ตามขนาดจริง แล้วส่งลิงก์ให้ลูกค้าลองขยับเองและส่งกลับ</span>
+          <span className="upload-how">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือก · PDF จาก CAD อ่านสเกลให้เอง · PNG / JPG ก็ได้</span>
         </button>
 
         <div className="start-row">
-          <button className="btn start-blank-btn" onClick={() => void create(newProject('โรงงานใหม่'))} data-testid="new-blank">
-            <Icon name="plus" /> ผังเปล่า
+          <button className="start-blank-btn" onClick={() => void create(newProject('โรงงานใหม่'))} data-testid="new-blank">
+            <span className="start-blank-icon">
+              <Icon name="plus" />
+            </span>
+            <span className="start-blank-text">
+              <b>ผังเปล่า</b>
+              <span>วาดผนังและโซนเอง</span>
+            </span>
           </button>
           <span className="start-templates">
             <span className="muted">หรือลองจากเทมเพลต</span>
@@ -234,6 +222,20 @@ export function ProjectList() {
             โรงงานของฉัน
             {list && list.length > 0 && <span className="count">{list.length}</span>}
           </h2>
+          <div className="list-actions">
+            <button className="btn btn-sm" onClick={() => importRef.current?.click()} data-testid="import-file">
+              <Icon name="upload" /> นำเข้าไฟล์
+            </button>
+            <button
+              className="btn btn-sm"
+              disabled={!list?.length}
+              title="ดาวน์โหลดโปรเจกต์ทั้งหมดเป็นไฟล์เดียว"
+              onClick={() => void exportAll().then((b) => save(b, `factory-backup-${new Date().toISOString().slice(0, 10)}.json`))}
+              data-testid="backup-all"
+            >
+              <Icon name="download" /> สำรองทั้งหมด
+            </button>
+          </div>
           {list && list.length > 3 && (
             <label className="search list-search">
               <Icon name="search" />
