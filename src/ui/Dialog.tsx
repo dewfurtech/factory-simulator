@@ -141,7 +141,7 @@ function Share({ d }: { d: Extract<Open, { kind: 'share' }> }) {
       <h2>{d.title}</h2>
       {step.at === 'done' ? (
         <>
-          <p>ส่งลิงก์นี้ทาง LINE หรืออีเมล ผู้รับเปิดในเบราว์เซอร์ได้เลย ไม่ต้องติดตั้งอะไร</p>
+          <p>ส่งลิงก์นี้ให้ผู้รับได้ทุกช่องทาง ผู้รับเปิดในเบราว์เซอร์ได้เลย ไม่ต้องติดตั้งอะไร</p>
           <input ref={urlRef} readOnly value={step.url} onFocus={(e) => e.target.select()} data-testid="share-url" />
           <div className="dialog-actions">
             {typeof navigator.share === 'function' && (

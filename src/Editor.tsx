@@ -175,7 +175,7 @@ function StartGuide() {
       go: () => useUi.getState().set({ dock: 'catalog' }),
       testId: 'guide-place',
     },
-    { done: false, title: 'แชร์ให้ลูกค้า', text: 'ได้ลิงก์ไปส่งทาง LINE ลูกค้าขยับเครื่องเองแล้วส่งกลับ', go: () => void shareProject(), testId: 'guide-share' },
+    { done: false, title: 'แชร์ให้ลูกค้า', text: 'ได้ลิงก์ส่งให้ลูกค้า ลูกค้าขยับเครื่องเองแล้วส่งกลับ', go: () => void shareProject(), testId: 'guide-share' },
   ];
   return (
     <div className="start-guide glass" data-testid="start-guide">
