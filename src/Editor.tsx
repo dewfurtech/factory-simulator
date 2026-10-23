@@ -123,7 +123,8 @@ function shareProject() {
 /** The strip over the plan when it came from a share link: whose it is, their note, and the way to send it back. */
 function ShareBanner() {
   const customer = useUi((s) => s.customer);
-  if (!customer) return null;
+  const closed = useUi((s) => s.bannerClosed);
+  if (!customer || closed) return null;
   const reply = customer.from === 'customer';
   return (
     <div className="share-banner glass" data-testid="share-banner">
@@ -133,6 +134,9 @@ function ShareBanner() {
         <span>{reply ? 'เปิดในโหมดแก้ไขเต็มได้จากเมนูมุมซ้ายบน' : 'ลากเครื่องเพื่อย้าย กด R หมุน แล้วกด "ส่งกลับ" เพื่อส่งการจัดวางของคุณ'}</span>
         {customer.note && <q data-testid="share-note-shown">{customer.note}</q>}
       </div>
+      <button className="ib sm share-close" onClick={() => useUi.getState().set({ bannerClosed: true })} title="ปิด" aria-label="ปิด" data-testid="share-banner-close">
+        <Icon name="close" />
+      </button>
     </div>
   );
 }

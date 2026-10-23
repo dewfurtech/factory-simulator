@@ -41,6 +41,15 @@ test('the tape measure reads a distance between two points', async ({ page }) =>
   const line = page.getByTestId('measure-line');
   await expect(line).toBeVisible();
   await expect(line).toContainText('ม.');
+  // A second tape joins the first; Backspace takes the last away, and the chip clears the rest.
+  await page.mouse.click(c.x - 100, c.y + 140);
+  await page.mouse.click(c.x + 60, c.y + 140);
+  await expect(page.getByTestId('measure-line')).toHaveCount(2);
+  await expect(page.getByTestId('tapes-chip')).toContainText('2');
+  await page.keyboard.press('Backspace');
+  await expect(page.getByTestId('measure-line')).toHaveCount(1);
+  await page.getByTestId('tapes-clear').click();
+  await expect(page.getByTestId('measure-line')).toHaveCount(0);
 });
 
 test('the plan is saved as a PNG from the main menu', async ({ page }) => {
@@ -118,6 +127,8 @@ test('a plan is shared by link, moved by the customer and sent back', async ({ p
   await page.goto(back);
   await expect(page.getByTestId('share-banner')).toContainText('ลูกค้าส่งกลับ');
   await expect(page.getByTestId('share-note-shown')).toContainText('ย้ายแล้วครับ');
+  await page.getByTestId('share-banner-close').click();
+  await expect(page.getByTestId('share-banner')).toHaveCount(0);
   await page.getByTestId('main-menu').click();
   await page.getByTestId('open-full-editor').click();
   await expect(page.getByTestId('group-wall')).toBeVisible();

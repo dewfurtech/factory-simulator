@@ -64,6 +64,8 @@ export function App() {
           customer: route.kind === 'share' && r.copy ? { shareId: route.id, from: r.copy.meta.from, note: r.copy.meta.note } : null,
           // The 3D move mode starts off for everyone; the button on the 3D pane turns it on.
           move3d: false,
+          tapes: [],
+          bannerClosed: false,
         });
         // A project started from a plan is built by the plan editor's underlay menu, which the 3D-only view leaves out;
         // and a plan with nothing drawn on it yet has nothing to show in 3D, so it opens on the plan.

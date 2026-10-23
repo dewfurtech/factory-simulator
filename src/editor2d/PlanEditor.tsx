@@ -378,6 +378,7 @@ export function PlanEditor() {
         </button>
       </div>
       <AisleLegend plan={plan} />
+      <TapesChip />
       <Hud />
     </div>
   );
@@ -1093,20 +1094,30 @@ const HINTS: Record<string, string> = {
   placeColumn: 'คลิกเพื่อวางเสา (ติดตาราง) • วางต่อได้หลายต้น • Esc จบ',
   columnGrid: 'คลิกมุมแรก แล้วคลิกมุมตรงข้าม เพื่อวางเสาเป็นตาราง • ปรับระยะห่างที่แผงขวา • Esc จบ',
   calibrate: 'คลิก 2 จุดบนแปลนที่รู้ระยะจริง แล้วพิมพ์ระยะ • Shift = แนวตรง • Esc ยกเลิก',
-  measure: 'คลิกจุดแรก แล้วคลิกจุดที่สอง • ดูดเข้าหามุม ผนัง และขอบเครื่อง • Shift = แนวตรง • Alt = ไม่ Snap • Esc เริ่มใหม่ / จบ',
+  measure: 'คลิกจุดแรก แล้วคลิกจุดที่สอง วัดต่อได้หลายเส้น • ดูดเข้าหามุม ผนัง และขอบเครื่อง • Shift = แนวตรง • Backspace ลบเส้นล่าสุด • Esc ยกเลิก / จบ',
   moveUnderlay: 'ลากเพื่อย้ายแปลนพื้นหลัง • Esc จบ',
 };
 
 const SNAP_LABEL: Record<string, string> = { corner: 'มุม', midpoint: 'กึ่งกลางผนัง', wall: 'ผนัง', plan: 'เส้นในแปลน', angle: 'มุมองศา', align: 'แนวเดียวกัน', grid: 'ตาราง' };
 
-/** The tape: a line between the two points with its length, and the run and rise when it is not level or plumb. */
+/** The tapes laid so far, and the one being laid from its first point to the pointer. */
 function MeasureOverlay({ px }: { px: number }) {
   const tool = useUi((s) => s.tool);
   const cursor = useUi((s) => s.cursor);
-  if (tool.kind !== 'measure' || !tool.a) return null;
-  const a = tool.a;
-  const b = tool.b ?? cursor?.point;
-  if (!b) return null;
+  const tapes = useUi((s) => s.tapes);
+  const live = tool.kind === 'measure' && tool.a && cursor ? { a: tool.a, b: cursor.point } : null;
+  return (
+    <>
+      {tapes.map((t, i) => (
+        <Tape key={i} a={t.a} b={t.b} px={px} />
+      ))}
+      {live && <Tape a={live.a} b={live.b} px={px} live />}
+    </>
+  );
+}
+
+/** One tape: a line between the two points with its length, and the run and rise when it is not level or plumb. */
+function Tape({ a, b, px, live }: { a: Vec2; b: Vec2; px: number; live?: boolean }) {
   const dx = Math.abs(b.x - a.x);
   const dy = Math.abs(b.y - a.y);
   const d = Math.hypot(dx, dy);
@@ -1119,7 +1130,7 @@ function MeasureOverlay({ px }: { px: number }) {
   const dot = (p: Vec2) => <circle cx={p.x} cy={p.y} r={4 * px} fill="#fff" stroke="#0f766e" strokeWidth={2 * px} />;
   const tick = (p: Vec2) => <line x1={p.x - n.x * 8 * px} y1={p.y - n.y * 8 * px} x2={p.x + n.x * 8 * px} y2={p.y + n.y * 8 * px} stroke="#0f766e" strokeWidth={2 * px} />;
   return (
-    <g pointerEvents="none" data-testid="measure-line">
+    <g pointerEvents="none" data-testid={live ? 'measure-live' : 'measure-line'} opacity={live ? 0.85 : 1}>
       {diagonal && <polyline points={`${a.x},${a.y} ${b.x},${a.y} ${b.x},${b.y}`} fill="none" stroke="#0f766e" strokeWidth={px} strokeDasharray={`${5 * px} ${4 * px}`} />}
       <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#0f766e" strokeWidth={2 * px} />
       {tick(a)}
@@ -1145,6 +1156,20 @@ function MeasureOverlay({ px }: { px: number }) {
         </text>
       )}
     </g>
+  );
+}
+
+/** How many tapes are on the plan, with a button that takes them all away. */
+function TapesChip() {
+  const n = useUi((s) => s.tapes.length);
+  if (!n) return null;
+  return (
+    <div className="tapes-chip glass" data-testid="tapes-chip">
+      <span>วัดไว้ {n} เส้น</span>
+      <button className="btn btn-sm" onClick={() => useUi.getState().set({ tapes: [] })} data-testid="tapes-clear">
+        ล้างทั้งหมด
+      </button>
+    </div>
   );
 }
 

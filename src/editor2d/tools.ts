@@ -522,12 +522,20 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
   measure: {
     down(tool, input) {
       const p = measurePoint(tool, input);
-      setTool(tool.a && !tool.b ? { ...tool, b: p } : { kind: 'measure', a: p, b: null });
+      if (!tool.a) return setTool({ kind: 'measure', a: p, b: null });
+      // The second point files the tape with the others; the next click starts a new one.
+      if (dist(tool.a, p) > 1) ui().set({ tapes: [...ui().tapes, { a: tool.a, b: p }] });
+      setTool({ kind: 'measure', a: null, b: null });
     },
     move(tool, input) {
       ui().set({ cursor: measureSnap(tool, input) });
     },
     key(tool, e) {
+      // Backspace or Delete takes the last tape away.
+      if ((e.key === 'Backspace' || e.key === 'Delete') && !tool.a && ui().tapes.length) {
+        ui().set({ tapes: ui().tapes.slice(0, -1) });
+        return true;
+      }
       if (e.key !== 'Escape') return false;
       setTool(tool.a ? { kind: 'measure', a: null, b: null } : SELECT);
       return true;
