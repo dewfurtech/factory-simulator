@@ -72,6 +72,27 @@ export interface Bundle {
   library?: CustomModel[];
 }
 
+/** The picture as WebP when that is smaller; the original when it is not, or when the browser cannot. */
+async function smaller(blob: Blob): Promise<Blob> {
+  if (!blob.type.startsWith('image/') || blob.type === 'image/webp' || typeof createImageBitmap === 'undefined') return blob;
+  try {
+    const img = await createImageBitmap(blob);
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext('2d')!;
+    // A white ground under any transparency, as the plan shows it.
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0);
+    img.close();
+    const webp = await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/webp', 0.85));
+    return webp && webp.type === 'image/webp' && webp.size < blob.size ? webp : blob;
+  } catch {
+    return blob;
+  }
+}
+
 async function blobToBase64(blob: Blob): Promise<string> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   let s = '';
@@ -93,10 +114,14 @@ export async function exportProject(id: Id): Promise<Blob> {
 }
 
 /** The project with its plan images and the user's own models it places: everything another browser needs to show it. */
-export async function bundleProject(project: Project): Promise<Bundle> {
+export async function bundleProject(project: Project, { light = false } = {}): Promise<Bundle> {
   const assets: Bundle['assets'] = {};
   for (const blobId of underlayImageIds(project)) {
-    const blob = await loadAsset(blobId);
+    // A light bundle (a share link) leaves out the PDF's vector drawing, which is only for drawing walls over the
+    // plan (megabytes for a CAD plan), and sends the plan picture as a smaller WebP.
+    if (light && blobId === vectorAssetId(project.underlay!.imageId)) continue;
+    const stored = await loadAsset(blobId);
+    const blob = stored && light ? await smaller(stored) : stored;
     if (blob) assets[blobId] = { type: blob.type, base64: await blobToBase64(blob) };
   }
   const used = useLibrary.getState().models.filter((m) => project.objects.some((o) => o.assetId === m.id));

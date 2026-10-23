@@ -10,7 +10,7 @@
   </head>
   <body>
     <div id="root">
-      <!-- Shown only when the app's script never arrives (some networks drop the connection to *.workers.dev now and
+      <!-- Shown only when the app's script fails to arrive (some networks drop the connection to *.workers.dev now and
            then); the app replaces this as soon as it starts. Tries once more by itself, then offers a button. -->
       <div
         id="boot-fail"
@@ -34,8 +34,8 @@
       </div>
     </div>
     <script>
-      // A module script that fails to load fires no error the page can catch, so the clock decides: if the app has
-      // not started after 12 s, reload once by itself; if it fails again, show the message and the retry button.
+      // When the app's script or stylesheet fails to arrive (the connection was reset), reload once by itself; if it
+      // fails again, show the message and the retry button. A slow load is left alone: only a failed one counts.
       (function () {
         var store;
         try {
@@ -43,17 +43,21 @@
         } catch (e) {
           store = null;
         }
-        var tried = store && store.getItem('boot-retry');
-        setTimeout(function () {
-          if (window.__booted) return store && store.removeItem('boot-retry');
-          if (!tried && store) {
-            store.setItem('boot-retry', '1');
-            return location.reload();
-          }
-          if (store) store.removeItem('boot-retry');
-          var el = document.getElementById('boot-fail');
-          if (el) el.hidden = false;
-        }, 12000);
+        window.addEventListener(
+          'error',
+          function (e) {
+            var t = e.target;
+            if (!t || (t.tagName !== 'SCRIPT' && t.tagName !== 'LINK') || window.__booted) return;
+            if (store && !store.getItem('boot-retry')) {
+              store.setItem('boot-retry', '1');
+              return location.reload();
+            }
+            if (store) store.removeItem('boot-retry');
+            var el = document.getElementById('boot-fail');
+            if (el) el.hidden = false;
+          },
+          true,
+        );
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>

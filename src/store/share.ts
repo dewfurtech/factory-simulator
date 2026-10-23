@@ -96,7 +96,8 @@ async function inBatches<T>(tasks: (() => Promise<T>)[], size = 3): Promise<T[]>
 
 /** Stores the project on the server (gzipped, in pieces) and gives back the new share's id. */
 export async function createShare(project: Project, meta: Omit<ShareMeta, 'name'>): Promise<string> {
-  const packed = await gzip(JSON.stringify(await bundleProject(project)));
+  // Light: what the customer needs to see and move things, not the CAD drawing behind the plan picture.
+  const packed = await gzip(JSON.stringify(await bundleProject(project, { light: true })));
   const count = Math.max(1, Math.ceil(packed.length / PART_BYTES));
   if (count > MAX_PARTS) throw new Error('แปลนใหญ่เกินกว่าจะส่งเป็นลิงก์ ส่งออกเป็นไฟล์ .json แทน');
   const parts = await inBatches(Array.from({ length: count }, (_, i) => () => uploadPart(packed.subarray(i * PART_BYTES, (i + 1) * PART_BYTES))));

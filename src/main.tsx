@@ -7,6 +7,11 @@ import './styles.css';
 
 // The app's script arrived: the loading watchdog in index.html stands down.
 (window as unknown as { __booted?: boolean }).__booted = true;
+try {
+  sessionStorage.removeItem('boot-retry');
+} catch {
+  /* storage blocked: nothing to clear */
+}
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
