@@ -11,6 +11,7 @@ import { FactoryScene } from './scene';
 import { locate } from '../model/locate';
 import { download } from '../editor2d/exportImage';
 import { IssuesChip, useTroubled } from '../panels/IssuesChip';
+import { HelpButton } from '../ui/HelpButton';
 
 /** The 3D pane: the factory, with the picked object highlighted. */
 export default function View3D() {
@@ -212,10 +213,17 @@ export default function View3D() {
         </button>
       </div>
       <IssuesChip />
-      <div className="view-hint">
-        {moving ? 'โหมดย้าย: ลากเครื่องเพื่อย้าย · R หมุน · ลากพื้นเพื่อหมุนมุมมอง' : top ? 'มุมมองด้านบน · ลากเพื่อเลื่อน' : 'ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน'} ·
-        เลื่อนลูกกลิ้งเพื่อซูม · คลิกเครื่องเพื่อดูรูปและขนาด · ดับเบิลคลิกเพื่อซูมไปจุดนั้น
-      </div>
+      <HelpButton
+        className="view-help"
+        sections={[
+          moving
+            ? { title: 'โหมดย้ายเครื่อง', items: ['ลากเครื่องเพื่อย้าย', 'R หรือปุ่มหมุน หมุน 90°', 'ลากพื้นว่างเพื่อหมุนมุมมอง', 'ลากการ์ดจากคลังมาวางบนพื้นได้'] }
+            : top
+              ? { title: 'มุมมองด้านบน', items: ['ลากเพื่อเลื่อน'] }
+              : { title: 'มุมมอง 3D', items: ['ลากเพื่อหมุน', 'คลิกขวาลากเพื่อเลื่อน'] },
+          { title: 'ทั่วไป', items: ['ลูกกลิ้งซูม', 'คลิกเครื่องเพื่อดูรูปและขนาด', 'ดับเบิลคลิกเพื่อซูมไปจุดนั้น', 'ปุ่มน้ำเงินด้านขวาบน = โหมดย้ายเครื่อง'] },
+        ]}
+      />
     </div>
   );
 }

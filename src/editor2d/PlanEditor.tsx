@@ -22,6 +22,7 @@ import { columnOutline, hitTest, isCrossing, isOutdoor, SNAP_PX } from './hit';
 import { addDoorAt, columnGridPoints, dispatchPointer, finishArea, finishAisle, objectAt, placeObjectAt, roomOutline } from './tools';
 import { ensureGuides, guideLines, useGuides } from './planGuides';
 import { checkClearance, type Issue } from '../model/clearance';
+import { HelpButton } from '../ui/HelpButton';
 import { IssuesChip } from '../panels/IssuesChip';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
 
@@ -370,6 +371,7 @@ export function PlanEditor() {
         />
       )}
       <div className="zoom-ctl glass">
+        <PlanHelp />
         <button onClick={() => zoom(1.25)} aria-label="ซูมเข้า">
           +
         </button>
@@ -1087,22 +1089,30 @@ function OpeningShape({ symbol, px, stroke }: { symbol: OpeningSymbol; px: numbe
   );
 }
 
-const HINTS: Record<string, string> = {
-  select: 'คลิกเลือก • ลากเพื่อย้าย • R หมุน • ดับเบิลคลิกผนังใส่ประตู • คลิกขวาลากเลื่อนแปลน',
-  drawWall: 'คลิกเพื่อวางจุด • พิมพ์ความยาว (ซม.) • Tab แล้วพิมพ์มุม (°) • Enter วางผนัง • Esc จบ',
-  drawRoomRect: 'คลิกมุมแรก แล้วคลิกมุมตรงข้าม หรือพิมพ์กว้าง • Tab • ลึก (ซม.) แล้ว Enter • มีภาพแปลน: มุมดูดเข้าหาเส้นในรูป • กดค้าง \\ ดูแปลน',
-  drawArea: 'ลากกรอบทับห้องทีละห้อง (คลิก 2 มุม) • มุมดูดเข้าหาเส้นในแปลน • กดค้าง \ ดูแปลน • Esc จบ',
-  drawAisle: 'คลิกวางจุดตามแนวกลางทาง (ลูกศรชี้ไปทางจุดสุดท้าย) • พิมพ์ความยาว (ซม.) • Tab มุม • Enter / ดับเบิลคลิก / คลิกจุดเดิม จบเส้น • ปรับกว้างที่แผงขวา • Esc จบ',
-  placeObject: 'คลิกเพื่อวาง (ติดผนังให้เอง) • วางต่อได้หลายตัว • Alt = ไม่ติดผนัง • Esc จบ',
-  addOpening: 'คลิกบนผนังเพื่อวาง • ขยับเมาส์ไปฝั่งที่ต้องการให้ประตูเปิด • กด F สลับด้านบานพับ',
-  placeColumn: 'คลิกเพื่อวางเสา (ติดตาราง) • วางต่อได้หลายต้น • Esc จบ',
-  columnGrid: 'คลิกมุมแรก แล้วคลิกมุมตรงข้าม เพื่อวางเสาเป็นตาราง • ปรับระยะห่างที่แผงขวา • Esc จบ',
-  calibrate: 'คลิก 2 จุดบนแปลนที่รู้ระยะจริง แล้วพิมพ์ระยะ • Shift = แนวตรง • Esc ยกเลิก',
-  measure: 'คลิกจุดแรก แล้วคลิกจุดที่สอง วัดต่อได้หลายเส้น • ดูดเข้าหามุม ผนัง และขอบเครื่อง • Shift = แนวตรง • Backspace ลบเส้นล่าสุด • Esc ยกเลิก / จบ',
-  moveUnderlay: 'ลากเพื่อย้ายแปลนพื้นหลัง • Esc จบ',
+/** What each tool is called and how it is used: shown by the "?" button beside the zoom controls. */
+const HINTS: Record<string, { name: string; tips: string[] }> = {
+  select: { name: 'เลือก / ย้าย', tips: ['คลิกเพื่อเลือก', 'ลากเพื่อย้าย', 'R หมุน 90°', 'Ctrl+D ทำสำเนา', 'ดับเบิลคลิกผนังเพื่อใส่ประตู', 'Alt ค้างไว้ = ไม่ดูดเข้าหาผนัง'] },
+  drawWall: { name: 'วาดผนัง', tips: ['คลิกเพื่อวางจุด', 'พิมพ์ความยาว (ซม.) แล้ว Enter', 'Tab แล้วพิมพ์มุม (°)', 'Esc จบ'] },
+  drawRoomRect: { name: 'วาดห้อง', tips: ['คลิกมุมแรก แล้วคลิกมุมตรงข้าม', 'หรือพิมพ์กว้าง • Tab • ลึก (ซม.) แล้ว Enter', 'มีภาพแปลน: มุมดูดเข้าหาเส้นในรูป'] },
+  drawArea: {
+    name: 'พื้นที่',
+    tips: ['กล่อง: คลิก 2 มุม', 'ทีละจุด: คลิกวางจุด กลับมาจุดแรกเพื่อปิดรอบ', 'มีภาพแปลน: มุมดูดเข้าหาเส้นในรูป', 'Enter / ดับเบิลคลิก ปิดรอบ • Esc จบ'],
+  },
+  drawAisle: {
+    name: 'ทางเดิน / ทิศทางงาน',
+    tips: ['คลิกวางจุดตามแนวกลางทาง', 'ลูกศรชี้ไปทางจุดสุดท้าย', 'พิมพ์ความยาว (ซม.) • Tab มุม', 'Enter / ดับเบิลคลิก / คลิกจุดเดิม จบเส้น', 'ปรับความกว้างที่แผงขวา'],
+  },
+  placeObject: { name: 'วางเครื่อง', tips: ['คลิกเพื่อวาง (ติดผนังให้เอง)', 'วางต่อได้หลายตัว', 'Alt ค้างไว้ = ไม่ติดผนัง', 'Esc จบ'] },
+  addOpening: { name: 'ประตู / หน้าต่าง', tips: ['คลิกบนผนังเพื่อวาง', 'ขยับเมาส์ไปฝั่งที่ต้องการให้ประตูเปิด', 'F สลับด้านบานพับ'] },
+  placeColumn: { name: 'เสา', tips: ['คลิกเพื่อวางเสา (ติดตาราง)', 'วางต่อได้หลายต้น', 'Esc จบ'] },
+  columnGrid: { name: 'ตารางเสา', tips: ['คลิกมุมแรก แล้วคลิกมุมตรงข้าม', 'ปรับระยะห่างที่แผงขวา', 'Esc จบ'] },
+  calibrate: { name: 'วัดสเกลแปลน', tips: ['คลิก 2 จุดบนแปลนที่รู้ระยะจริง', 'พิมพ์ระยะจริง', 'Shift = แนวตรง • Esc ยกเลิก'] },
+  measure: { name: 'วัดระยะ', tips: ['คลิกจุดแรก แล้วคลิกจุดที่สอง', 'วัดต่อได้หลายเส้น', 'ดูดเข้าหามุม ผนัง และขอบเครื่อง', 'Shift = แนวตรง • Backspace ลบเส้นล่าสุด'] },
+  moveUnderlay: { name: 'ย้ายภาพแปลน', tips: ['ลากเพื่อย้ายแปลนพื้นหลัง', 'Esc จบ'] },
 };
 
-const SNAP_LABEL: Record<string, string> = { corner: 'มุม', midpoint: 'กึ่งกลางผนัง', wall: 'ผนัง', plan: 'เส้นในแปลน', angle: 'มุมองศา', align: 'แนวเดียวกัน', grid: 'ตาราง' };
+/** What works whatever the tool. */
+const GENERAL_TIPS = ['Ctrl+Z เลิกทำ • Ctrl+Y ทำซ้ำ', 'Delete ลบที่เลือก', 'Esc ยกเลิกเครื่องมือ', 'ลูกกลิ้งซูม • คลิกขวาลากเลื่อนแปลน', 'กดค้าง \ เพื่อดูแปลนใต้ภาพวาด'];
 
 const NO_TAPES: readonly { a: Vec2; b: Vec2 }[] = [];
 
@@ -1200,16 +1210,22 @@ function AisleLegend({ plan }: { plan: Plan }) {
   );
 }
 
+/** While the plan image is being peeked at, a word on why the drawing faded; nothing otherwise. */
 function Hud() {
-  const tool = useUi((s) => s.tool);
-  const cursor = useUi((s) => s.cursor);
   const peek = useUi((s) => s.peek);
-  if (peek) return <div className="hud">กำลังดูแปลน • ปล่อยปุ่มเพื่อกลับ</div>;
+  return peek ? <div className="hud">กำลังดูแปลน • ปล่อยปุ่มเพื่อกลับ</div> : null;
+}
+
+function PlanHelp() {
+  const tool = useUi((s) => s.tool);
+  const hint = HINTS[tool.kind] ?? HINTS.select;
   return (
-    <div className="hud">
-      {HINTS[tool.kind]}
-      {cursor && cursor.kind !== 'free' ? ` • Snap: ${SNAP_LABEL[cursor.kind] ?? cursor.kind}` : ''}
-    </div>
+    <HelpButton
+      sections={[
+        { title: hint.name, items: hint.tips },
+        { title: 'ทั่วไป', items: GENERAL_TIPS },
+      ]}
+    />
   );
 }
 
