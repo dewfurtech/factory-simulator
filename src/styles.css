@@ -3299,3 +3299,109 @@ body:has(.home) {
     bottom: 76px;
   }
 }
+
+/* The project's name in the top bar: a button that opens its details and the customer's. */
+.project-info {
+  position: relative;
+  min-width: 0;
+}
+.project-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 280px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.project-title:hover,
+.project-title.on {
+  border-color: var(--line-2);
+  background: var(--card);
+}
+.project-title > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+  opacity: 0;
+}
+.project-title:hover > svg,
+.project-title.on > svg {
+  opacity: 1;
+}
+.project-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-company {
+  flex: none;
+  max-width: 120px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: #c2410c;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  display: grid;
+  gap: 10px;
+  width: 340px;
+  padding: 14px;
+  border-radius: 14px;
+}
+.pi-field {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.pi-field input,
+.pi-field textarea {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: #fff;
+  resize: vertical;
+}
+.pi-field input:focus,
+.pi-field textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+.pi-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* The customer under a project's name on its card. */
+.card-client {
+  display: block;
+  margin-top: -2px;
+  font-size: 12.5px;
+  color: #c2410c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

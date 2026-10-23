@@ -239,6 +239,36 @@ test('a link carries the sender and the tapes, is listed on the start page, and 
   await expect(late.getByTestId('route-problem')).toContainText('ไม่พบลิงก์นี้');
 });
 
+test('the project name and customer are edited from the top bar, shown on the card, and kept out of share links', async ({ page, browser }) => {
+  await openSample(page);
+  await page.getByTestId('project-title').click();
+  await page.getByTestId('pi-name').fill('โรงงาน ABC เฟส 2');
+  await page.getByTestId('pi-company').fill('บริษัท เอบีซี');
+  await page.getByTestId('pi-phone').fill('081-234-5678');
+  await page.getByTestId('pi-done').click();
+  await expect(page.getByTestId('project-title')).toContainText('โรงงาน ABC เฟส 2');
+  await expect(page.getByTestId('project-title')).toContainText('บริษัท เอบีซี');
+  // One undo step takes the whole edit back.
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('project-title')).not.toContainText('บริษัท เอบีซี');
+  await page.keyboard.press('Control+y');
+  await expect(page.getByTestId('project-title')).toContainText('บริษัท เอบีซี');
+
+  await page.getByTestId('share-link').click();
+  await page.getByTestId('share-make').click();
+  const url = await page.getByTestId('share-url').inputValue();
+  const customer = await (await browser.newContext()).newPage();
+  await customer.goto(url);
+  await expect(customer.getByTestId('share-banner')).toBeVisible();
+  const client = await customer.evaluate(
+    () => (window as unknown as { __factory: { project: { getState(): { project: { client?: unknown } } } } }).__factory.project.getState().project.client,
+  );
+  expect(client).toBeUndefined();
+
+  await page.goto('/#/');
+  await expect(page.getByTestId('card-client').first()).toContainText('บริษัท เอบีซี');
+});
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 

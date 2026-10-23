@@ -189,6 +189,16 @@ export interface Project {
   upper?: UpperFloor;
   /** Tape measurements laid on the plan: saved, shared by link, and undone like any other change. */
   tapes?: Tape[];
+  /** Who the plan is for: kept with the project, shown on its card, and searched by. */
+  client?: Client;
+}
+
+/** The customer a plan is drawn for. Every field is optional; empty ones are left out. */
+export interface Client {
+  company?: string;
+  contact?: string;
+  phone?: string;
+  note?: string;
 }
 
 /** One tape measurement: the distance between two points on the plan. */

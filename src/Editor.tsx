@@ -6,6 +6,7 @@ import { deleteSelection, dispatchKey, objectKey } from './editor2d/tools';
 import { CatalogPanel } from './panels/CatalogPanel';
 import { LayersPanel } from './panels/LayersPanel';
 import { PropertiesPanel } from './panels/PropertiesPanel';
+import { ProjectInfo } from './panels/ProjectInfo';
 import { download, planPicture, shownScale, svgBlob, toPng } from './editor2d/exportImage';
 import { exportProject, flushAutosave } from './store/persist';
 import { useProject } from './store/project';
@@ -290,7 +291,6 @@ function MainMenu() {
 
 export function Editor() {
   useKeyboard();
-  const name = useProject((s) => s.project!.name);
   const canUndo = useProject((s) => s.past.length > 0);
   const canRedo = useProject((s) => s.future.length > 0);
   const view = useUi((s) => s.view);
@@ -313,9 +313,7 @@ export function Editor() {
           <div className="brand tb-desk">
             <Icon name="factory" />
           </div>
-          <span className="title tb-desk" title={name}>
-            {name}
-          </span>
+          <ProjectInfo />
           <span className="tb-sep tb-desk" />
           <BarButton icon="undo" label="เลิกทำ (Ctrl+Z)" disabled={!canUndo} onClick={() => useProject.getState().undo()} />
           <BarButton icon="redo" label="ทำซ้ำ (Ctrl+Y)" disabled={!canRedo} onClick={() => useProject.getState().redo()} className="tb-desk" />

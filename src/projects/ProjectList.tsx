@@ -151,7 +151,8 @@ export function ProjectList() {
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? list?.filter((p) => p.name.toLowerCase().includes(q)) : list;
+    // The customer's company and contact count too: a seller looks a plan up by who it is for.
+    return q ? list?.filter((p) => [p.name, p.company, p.contact].some((t) => t?.toLowerCase().includes(q))) : list;
   }, [list, query]);
 
   return (
@@ -239,7 +240,7 @@ export function ProjectList() {
           {list && list.length > 3 && (
             <label className="search list-search">
               <Icon name="search" />
-              <input type="search" placeholder="ค้นหาชื่อโรงงาน" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="ค้นหาชื่อโรงงาน" />
+              <input type="search" placeholder="ค้นหาชื่อโรงงานหรือลูกค้า" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="ค้นหาชื่อโรงงานหรือลูกค้า" />
             </label>
           )}
         </div>
@@ -262,6 +263,11 @@ export function ProjectList() {
                   </div>
                   <div className="card-body">
                     <b title={p.name}>{p.name}</b>
+                    {(p.company || p.contact) && (
+                      <span className="card-client" data-testid="card-client">
+                        {[p.company, p.contact].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
                     <div className="card-meta">
                       <span title="เครื่องจักร">
                         <Icon name="machine" /> {p.machines ?? 0}

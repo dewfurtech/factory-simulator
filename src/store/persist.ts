@@ -11,6 +11,9 @@ export interface ProjectSummary extends Partial<ProjectFacts> {
   id: Id;
   name: string;
   updatedAt: number;
+  /** The customer's company and contact, for the card and the search on the start page. */
+  company?: string;
+  contact?: string;
 }
 
 // Kept apart from the room planner's keys, which may live in the same browser profile.
@@ -18,7 +21,11 @@ const INDEX = 'factory:projects-index';
 const projectKey = (id: Id) => `factory:project:${id}`;
 const assetKey = (id: Id) => `factory:asset:${id}`;
 
+/** Saves run one after another, and anything reading the list waits for the ones under way. */
+let writing: Promise<void> = Promise.resolve();
+
 export async function listProjects(): Promise<ProjectSummary[]> {
+  await writing;
   const index = (await get<ProjectSummary[]>(INDEX)) ?? [];
   return [...index].sort((a, b) => b.updatedAt - a.updatedAt);
 }
@@ -28,10 +35,24 @@ export async function loadProject(id: Id): Promise<Project | undefined> {
   return saved && migrate(saved);
 }
 
-export async function saveProject(project: Project): Promise<void> {
+export function saveProject(project: Project): Promise<void> {
+  const run = writing.then(() => writeProject(project));
+  // A failed save must not stop the ones after it.
+  writing = run.catch(() => undefined);
+  return run;
+}
+
+async function writeProject(project: Project): Promise<void> {
   await set(projectKey(project.id), project);
   const index = (await get<ProjectSummary[]>(INDEX)) ?? [];
-  const summary: ProjectSummary = { id: project.id, name: project.name, updatedAt: project.updatedAt, ...projectFacts(project) };
+  const summary: ProjectSummary = {
+    id: project.id,
+    name: project.name,
+    updatedAt: project.updatedAt,
+    ...projectFacts(project),
+    ...(project.client?.company && { company: project.client.company }),
+    ...(project.client?.contact && { contact: project.client.contact }),
+  };
   await set(INDEX, [...index.filter((p) => p.id !== project.id), summary]);
 }
 
@@ -125,7 +146,9 @@ export async function bundleProject(project: Project, { light = false } = {}): P
     if (blob) assets[blobId] = { type: blob.type, base64: await blobToBase64(blob) };
   }
   const used = useLibrary.getState().models.filter((m) => project.objects.some((o) => o.assetId === m.id));
-  return { format: 'factory-sim', version: 1, project, assets, ...(used.length && { library: used }) };
+  // The seller's notes on the customer (contact, phone, budget) stay with the seller: a share link leaves them out.
+  const sent = light ? (({ client: _client, ...rest }) => (void _client, rest))(project) : project;
+  return { format: 'factory-sim', version: 1, project: sent as Project, assets, ...(used.length && { library: used }) };
 }
 
 interface Backup {
@@ -188,10 +211,17 @@ export function startAutosave(): () => void {
     if (pending) clearTimeout(pending.timer);
     pending = { project: p, timer: setTimeout(() => ((pending = undefined), void saveProject(p)), 400) };
   });
+  // A tab closed, reloaded or sent to the background within the wait still saves its last change.
+  const onHide = () => flushAutosave();
+  const onVisibility = () => document.visibilityState === 'hidden' && flushAutosave();
+  window.addEventListener('pagehide', onHide);
+  document.addEventListener('visibilitychange', onVisibility);
   return () => {
     if (pending) clearTimeout(pending.timer);
     pending = undefined;
     unsub();
+    window.removeEventListener('pagehide', onHide);
+    document.removeEventListener('visibilitychange', onVisibility);
   };
 }
 
