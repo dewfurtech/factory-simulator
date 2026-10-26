@@ -209,3 +209,95 @@ test('a model exported from SketchUp comes in as OBJ at its real size, is placed
   await page.getByTestId('view-3d').click();
   await expect.poll(() => inScene<number>(page, 'model')).toBe(1);
 });
+
+/** A new interior project with a room about 5 × 4 m drawn in the middle of the plan; the plan's middle on screen. */
+async function smallRoom(page: Page) {
+  await interiorApp(page);
+  await page.getByTestId('new-interior').click();
+  await expect(page.getByTestId('interior-editor')).toBeVisible();
+  await page.getByTestId('tool-drawRoomRect').click();
+  const c = await planCentre(page);
+  await page.mouse.click(c.x - 100, c.y - 80);
+  await page.mouse.click(c.x + 100, c.y + 80);
+  await expect.poll(() => projectState(page)).toMatchObject({ rooms: 1, walls: 4 });
+  await page.keyboard.press('Escape');
+  return c;
+}
+
+test('a room drawn in an interior is a room of a home, not a factory zone', async ({ page }) => {
+  const c = await smallRoom(page);
+  await page.mouse.click(c.x, c.y);
+  const panel = page.getByTestId('properties');
+  await expect(panel).toContainText('ห้อง 1');
+  await expect(panel).not.toContainText('พื้นที่ผลิต');
+  await expect(panel).not.toContainText('โซน 1');
+});
+
+test('3D opens on a small room from above: every corner on screen and its floor seen over the near wall', async ({ page }) => {
+  await smallRoom(page);
+  await page.getByTestId('view-3d').click();
+  await expect(page.getByTestId('view3d')).toBeVisible();
+  const seen = async () =>
+    page.evaluate(() => {
+      type V = { x: number; y: number; z: number; project(c: unknown): V };
+      const s = (window as unknown as { __scene?: { camera: { position: V } } }).__scene;
+      const p = (
+        window as unknown as { __factory: { project: { getState(): { project: { plan: { corners: Record<string, { x: number; y: number }> } } } } } }
+      ).__factory.project.getState().project;
+      if (!s) return null;
+      const cam = s.camera;
+      const corners = Object.values(p.plan.corners);
+      const Vec = cam.position.constructor as new (x: number, y: number, z: number) => V;
+      const onScreen = corners.every((c) =>
+        [0, 3].every((h) => {
+          const q = new Vec(c.x / 1000, h, c.y / 1000).project(cam);
+          return Math.abs(q.x) <= 1 && Math.abs(q.y) <= 1;
+        }),
+      );
+      // Where the sight line to the middle of the floor crosses the near wall (the plan's bottom edge), and how high.
+      const ys = corners.map((c) => c.y / 1000);
+      const xs = corners.map((c) => c.x / 1000);
+      const mid = { x: (Math.min(...xs) + Math.max(...xs)) / 2, z: (Math.min(...ys) + Math.max(...ys)) / 2 };
+      const near = Math.max(...ys);
+      const k = (cam.position.z - near) / (cam.position.z - mid.z);
+      return { onScreen, overWall: cam.position.y * (1 - k) };
+    });
+  await expect.poll(seen).not.toBeNull();
+  const r = (await seen())!;
+  expect(r.onScreen).toBe(true);
+  expect(r.overWall).toBeGreaterThan(3);
+});
+
+test('an interior speaks of furniture when shared, and leaves out the factory picture prompt', async ({ page, browser }) => {
+  await smallRoom(page);
+  await page.getByTestId('main-menu').click();
+  await expect(page.getByTestId('menu-share')).toBeVisible();
+  await expect(page.getByTestId('menu-flow')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.getByTestId('share-link').click();
+  await expect(page.getByRole('dialog')).toContainText('ย้ายเฟอร์นิเจอร์เองได้');
+  await page.getByTestId('share-make').click();
+  const url = await page.getByTestId('share-url').inputValue();
+  const customer = await (await browser.newContext()).newPage();
+  await customer.goto(url);
+  await expect(customer.getByTestId('share-banner')).toContainText('ลากเฟอร์นิเจอร์เพื่อย้าย');
+});
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test('picking a piece puts the library away so the next tap places it; the menu opens over the library', async ({ page }) => {
+    const c = await smallRoom(page);
+    await page.getByTestId('dock-catalog').click();
+    await page.getByTestId('cat-home-chair').click();
+    await expect(page.getByTestId('catalog')).toHaveCount(0);
+    await page.mouse.click(c.x, c.y);
+    await expect.poll(async () => (await projectState(page)).objects.map((o) => o.assetId)).toEqual(['home-chair']);
+
+    await page.getByTestId('dock-catalog').click();
+    await expect(page.getByTestId('catalog')).toBeVisible();
+    await page.getByTestId('main-menu').click();
+    // A trial click fails when something else lies over the item.
+    await page.getByTestId('menu-share').click({ trial: true, timeout: 3000 });
+  });
+});

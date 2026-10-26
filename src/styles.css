@@ -3810,6 +3810,10 @@ body:has(.home) {
   .editor.interior [data-testid='dock-layers'] {
     display: none;
   }
+  /* The library slides over the plan from under the bar (z-index 30): the bar's menus open over it, not behind it. */
+  .editor.interior .topbar {
+    z-index: 31;
+  }
 }
 /* The interior bar has two more buttons than the factory's: below 1640px the panel buttons go icon-only and the BOQ button says only "BOQ". */
 @media (max-width: 1640px) {
