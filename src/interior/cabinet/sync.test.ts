@@ -3,7 +3,7 @@ import type { Id, PlacedObject } from '../../model/types';
 import { CABINET_ITEMS, WALL_CABINET_Z } from '../catalog';
 import { cabinetParts } from './parts';
 import { normalizeSpec } from './spec';
-import { editCabinet, frontChoice, sizeOfSpec, withBay, withBayCount, withFront } from './sync';
+import { changeKind, editCabinet, frontChoice, sizeOfSpec, withBay, withBayCount, withFront } from './sync';
 import { bayEdges } from './plan2d';
 
 const placed = (rotation = 0): PlacedObject => {
@@ -72,6 +72,18 @@ describe('the panel and the spec stay one', () => {
     expect(next.bays.map((b) => frontChoice(b.front))).toEqual(['door-left', 'drawers']);
     expect(withFront(drawers, 'door-right')).toEqual({ front: { kind: 'door', hinge: 'right' }, shelves: 1 });
     expect(frontChoice(withFront(spec.bays[0], 'double').front)).toBe('double');
+  });
+
+  it('a base cabinet turned into a wall cabinet takes its height and depth, and goes up to the wall height; and back down', () => {
+    const o = placed();
+    editCabinet(o, { width: 900 });
+    changeKind(o, 'wall', 0);
+    expect(o.cabinet).toMatchObject({ kind: 'wall', width: 900, height: 700, depth: 350, toeKick: 0 });
+    expect(o.size).toEqual({ w: 900, d: 350, h: 700 });
+    expect(o.z).toBe(WALL_CABINET_Z);
+    changeKind(o, 'base', 0);
+    expect(o.cabinet).toMatchObject({ kind: 'base', height: 850, depth: 600, toeKick: 100 });
+    expect(o.z).toBe(0);
   });
 
   it('the plan draws bay lines on the middle of each divider', () => {

@@ -1,6 +1,6 @@
-import type { PlacedObject, Size3 } from '../../model/types';
+import type { Mm, PlacedObject, Size3 } from '../../model/types';
 import { fromAngle, perp } from '../../model/vec';
-import { normalizeSpec, type Bay, type BayFront, type CabinetSpec, type CabinetSpecInput } from './spec';
+import { normalizeSpec, type Bay, type BayFront, type CabinetKind, type CabinetSpec, type CabinetSpecInput } from './spec';
 
 /**
  * Keeping a placed cabinet and its spec as one: the spec is the truth, the object's size is always the spec's
@@ -26,6 +26,25 @@ export function editCabinet(o: PlacedObject, patch: CabinetSpecInput): void {
   }
   o.cabinet = next;
   o.size = sizeOfSpec(next);
+}
+
+/**
+ * Height a wall cabinet hangs at, its underside above the floor: a kitchen counter stands 850–900 mm, and the common
+ * gap between counter and wall cabinets is 500–600 mm, so about 1450 mm.
+ */
+export const WALL_CABINET_Z: Mm = 1450;
+
+/**
+ * Turns a placed cabinet into another kind: it takes that kind's own height, depth and plinth (its width and bays
+ * stay), and goes up to the wall-cabinet height when it becomes one, or back down to the floor when it stops being one.
+ * `floor` is the height of the floor it stands on.
+ */
+export function changeKind(o: PlacedObject, kind: CabinetKind, floor: Mm): void {
+  const was = o.cabinet?.kind;
+  if (!o.cabinet || was === kind) return;
+  editCabinet(o, { kind, height: undefined, depth: undefined, toeKick: undefined });
+  if (kind === 'wall' && o.z === floor) o.z = floor + WALL_CABINET_Z;
+  else if (was === 'wall' && o.z === floor + WALL_CABINET_Z) o.z = floor;
 }
 
 /** The bays after setting how many there are: the ones kept stay as they were, new ones copy the last. */

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { levelOf, levelZ } from '../model/levels';
 import type { PlacedObject, PieceColors } from '../model/types';
-import { Field, NumberField, SelectField } from '../panels/fields';
+import { Field, gesture, NumberField, SelectField } from '../panels/fields';
 import { applyEdit, useProject } from '../store/project';
 import { cabinetParts, MATERIAL_GROUP_TH } from './cabinet/parts';
 import { BOARD_MATERIAL_TH, BOARD_MATERIALS, CABINET_KIND_TH, type BoardMaterial, type BoardThickness, type CabinetKind, type CabinetSpecInput } from './cabinet/spec';
-import { editCabinet, FRONT_CHOICE_TH, frontChoice, withBay, withBayCount, withFront, type FrontChoice } from './cabinet/sync';
+import { changeKind, editCabinet, FRONT_CHOICE_TH, frontChoice, withBay, withBayCount, withFront, type FrontChoice } from './cabinet/sync';
 import { MaterialGrid, Swatch } from './MaterialPicker';
 import { materialOf } from './materials';
 
@@ -30,7 +30,18 @@ export function CabinetPanel({ o }: { o: PlacedObject }) {
   return (
     <div className="cabinet-panel" data-testid="cabinet-panel">
       <h5>ตู้บิ้วอิน</h5>
-      <SelectField label="ชนิดตู้" value={spec.kind} options={kinds} onChange={(kind) => edit({ kind })} testId="cab-kind" />
+      <SelectField
+        label="ชนิดตู้"
+        value={spec.kind}
+        options={kinds}
+        onChange={(kind) =>
+          applyEdit((d) => {
+            const x = d.objects.find((y) => y.id === o.id);
+            if (x) changeKind(x, kind, floor);
+          })
+        }
+        testId="cab-kind"
+      />
       <div className="two">
         <NumberField label="กว้าง" value={spec.width} scale={10} suffix="ซม." min={20} onChange={(width) => edit({ width })} testId="cab-width" />
         <NumberField label="ลึก" value={spec.depth} scale={10} suffix="ซม." min={10} onChange={(depth) => edit({ depth })} testId="cab-depth" />
@@ -150,7 +161,7 @@ function LookRow({ o, part, label }: { o: PlacedObject; part: keyof PieceColors;
             {material ? <Swatch material={material} size={18} /> : <span className="swatch" style={{ width: 18, height: 18, background: colour ?? 'transparent' }} />}{' '}
             {material?.name ?? (colour ? colour.toUpperCase() : 'ค่าเริ่มต้น')}
           </button>
-          <input type="color" value={colour ?? '#c8a376'} onChange={(e) => set(e.target.value)} title="เลือกสีเอง" />
+          <input type="color" value={colour ?? '#c8a376'} {...gesture} onChange={(e) => set(e.target.value)} title="เลือกสีเอง" />
         </div>
       </Field>
       {open && (

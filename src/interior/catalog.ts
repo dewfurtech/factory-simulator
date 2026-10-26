@@ -1,7 +1,9 @@
 import { addCatalogItems, type CatalogItem } from '../model/catalog';
 import type { Mm, Size3 } from '../model/types';
 import { normalizeSpec, type CabinetSpecInput } from './cabinet/spec';
-import { sizeOfSpec } from './cabinet/sync';
+import { sizeOfSpec, WALL_CABINET_Z } from './cabinet/sync';
+
+export { WALL_CABINET_Z };
 
 /**
  * What the interior library adds to the built-in catalog: built-in cabinets made to a spec, and home furniture drawn
@@ -9,12 +11,6 @@ import { sizeOfSpec } from './cabinet/sync';
  * factory's shelves. Sizes are common sizes for Thai homes, given so a piece lands at a sensible size; every one can
  * be changed in the panel.
  */
-
-/**
- * Height a wall cabinet hangs at, its underside above the floor: a kitchen counter stands 850–900 mm, and the common
- * gap between counter and wall cabinets is 500–600 mm, so about 1450 mm.
- */
-export const WALL_CABINET_Z: Mm = 1450;
 
 const cabinet = (id: string, label: string, input: CabinetSpecInput, z = 0): CatalogItem => {
   const spec = normalizeSpec(input);
