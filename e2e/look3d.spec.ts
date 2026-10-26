@@ -105,7 +105,8 @@ test('an interior opens with shadows on and clay off, keeps its own switches apa
   await expect.poll(async () => (await sceneLook(page)).shadowMap).toBe(false);
 
   // The reference picture in clay: taken in clay with shadows, while the screen stays as it was.
-  await page.getByTestId('flow-button').click();
+  // Its buttons are switched off for now (AI_PICTURES): the dialog opens through the test hook.
+  await page.evaluate(() => void (window as unknown as { __factory: { openFlow(): Promise<void> } }).__factory.openFlow());
   const dialog = page.getByTestId('flow-dialog');
   await expect(dialog.locator('.flow-ref img')).toBeVisible();
   const plain = await dialog.locator('.flow-ref img').getAttribute('src');

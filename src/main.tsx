@@ -24,6 +24,8 @@ createRoot(document.getElementById('root')!).render(
 // The stores on window for the console and the browser tests (built with --mode e2e).
 if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') {
   void Promise.all([import('./store/project'), import('./store/ui')]).then(([p, u]) => {
-    Object.assign(window, { __factory: { project: p.useProject, ui: u.useUi } });
+    // `openFlow` opens the AI picture dialog while its buttons are switched off (AI_PICTURES in src/ui/FlowDialog.tsx).
+    const openFlow = () => import('./ui/FlowDialog').then((f) => f.openFlowDialog());
+    Object.assign(window, { __factory: { project: p.useProject, ui: u.useUi, openFlow } });
   });
 }
