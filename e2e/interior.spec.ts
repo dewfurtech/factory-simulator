@@ -87,8 +87,10 @@ const objects = (page: Page) =>
 const inScene = <T>(page: Page, pick: 'door' | 'model') =>
   page.evaluate((what) => {
     type Node = { name: string; rotation: { y: number } };
-    const scene = (window as unknown as { __scene: { scene: { traverse(f: (o: Node) => void): void } } }).__scene.scene;
+    // The 3D view loads a moment after its tab is clicked: until then there is nothing to find.
+    const scene = (window as unknown as { __scene?: { scene: { traverse(f: (o: Node) => void): void } } }).__scene?.scene;
     let out = 0;
+    if (!scene) return out;
     scene.traverse((o) => {
       if (what === 'door' && o.name === 'door') out = Math.max(out, Math.abs(o.rotation.y));
       if (what === 'model' && o.name === 'cube.obj') out = 1;
