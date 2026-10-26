@@ -43,7 +43,9 @@ download(quoteCsv(q)); // UTF-8 มี BOM, CRLF
   `Quote` บอก `pricedCount`, `unpricedCount`, `unpricedItems`; `quoteSummary(q)` ให้ข้อความสรุป
 - `csv.ts`: `boqCsv`, `quoteCsv`, `toCsv`, `markdownTable`, `boqMarkdown`, `quoteMarkdown`
 
-## เฟส 1 จะแปลง `Room.finish` + เรขาคณิตห้องเป็น `Surface[]` อย่างไร (ยังไม่ได้ทำ)
+## เฟส 1 แปลง `Room.finish` + เรขาคณิตห้องเป็น `Surface[]` อย่างไร (ทำแล้วใน `src/interior/boqSurfaces.ts`)
+
+ต่างจากแผนเดิมเล็กน้อย: พื้น/ฝ้าใส่ `boundsMm` เฉพาะห้องสี่เหลี่ยม ห้องรูปทรงอื่นคิดจากพื้นที่ + % เผื่อแทนการนับเต็มกรอบ บัวพื้นเปิดจากหน้า BOQ (`boqOptions.skirting`) ยังไม่มีช่องบัวในวัสดุห้อง และยังไม่ส่ง `cabinetParts`
 
 ต่อห้องที่มี `finish`:
 
