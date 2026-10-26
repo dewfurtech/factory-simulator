@@ -1,0 +1,166 @@
+/* Only what this test page adds; colours, type, buttons, fields and panels come from src/styles.css. */
+
+.cab-app {
+  display: grid;
+  grid-template-rows: 56px 1fr;
+  grid-template-areas: 'top' 'main';
+  height: 100%;
+}
+.cab-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+.cab-title b {
+  font-size: 15px;
+}
+.cab-title span {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.cab-main {
+  grid-area: main;
+  position: relative;
+  min-height: 0;
+}
+.cab-view {
+  position: absolute;
+  inset: 0 380px 0 0;
+}
+.cab-view canvas {
+  display: block;
+}
+.cab-main .side-panel {
+  top: 0;
+  animation: none;
+  box-shadow: none;
+}
+.cab-hint {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.cab-open {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+}
+.cab-open b {
+  font-size: 13px;
+}
+.cab-open input[type='range'] {
+  width: 240px;
+  accent-color: var(--accent);
+}
+.cab-open .pct {
+  width: 40px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.cab-bay {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--canvas);
+}
+.cab-bay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cab-bay-head b {
+  font-size: 13px;
+}
+.cab-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  color: var(--ink-2);
+}
+.cab-check input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+.cab-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.cab-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-3);
+  font-size: 12px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line-2);
+}
+.cab-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.cab-table .n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cab-table td small {
+  display: block;
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.cab-totals {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+.cab-totals span {
+  color: var(--ink-2);
+}
+.cab-totals b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.seg.full {
+  display: flex;
+}
+.seg.full button {
+  flex: 1;
+}
+
+@media (max-width: 760px) {
+  .cab-view {
+    inset: 0 0 45% 0;
+  }
+  .cab-main .side-panel {
+    top: 55%;
+    width: 100%;
+    max-width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+  .cab-open input[type='range'] {
+    width: 140px;
+  }
+  .cab-hint {
+    display: none;
+  }
+}
