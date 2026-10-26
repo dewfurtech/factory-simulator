@@ -12,3 +12,6 @@ test-results/
 # Local secrets (GEMINI_API_KEY for the dev server), never committed
 .env.local
 .env.*.local
+
+# .env is read by Vite (loadEnv) too: keep any key in it out of git
+.env
