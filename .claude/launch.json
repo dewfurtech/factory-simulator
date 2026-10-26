@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5174
+    },
+    {
+      "name": "port-ai-5177",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--port", "5177", "--strictPort"],
+      "port": 5177
     }
   ]
 }

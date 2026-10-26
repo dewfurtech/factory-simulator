@@ -4250,6 +4250,14 @@ body:has(.home) {
   gap: 6px;
   font-size: 13px;
   cursor: pointer;
+  white-space: nowrap;
+}
+/* A plain checkbox, not the dialog's full-width text box. */
+.dialog .flow-clay input {
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
 }
 
 /* Making the picture on the server: the button with its spinner, and how it went. */
