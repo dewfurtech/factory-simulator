@@ -60,10 +60,14 @@ export interface CustomerMode {
   sender?: string;
 }
 
-/** How the 3D view looks: every surface in plain clay, and shadows from the sun. */
+/**
+ * How the 3D view looks: plain (both off), realistic (PBR materials, light from the surroundings, ambient occlusion)
+ * or every surface in plain clay, never realistic and clay together; and shadows from the sun with any of them.
+ */
 export interface Look3D {
   clay: boolean;
   shadows: boolean;
+  realistic: boolean;
 }
 
 /** Which kind of project a 3D look belongs to: each keeps its own. */
@@ -71,8 +75,8 @@ export type LookKind = 'factory' | 'interior';
 
 /** A factory opens as it always has (no clay, no shadows); an interior opens with shadows. */
 export const DEFAULT_LOOK: Record<LookKind, Look3D> = {
-  factory: { clay: false, shadows: false },
-  interior: { clay: false, shadows: true },
+  factory: { clay: false, shadows: false, realistic: false },
+  interior: { clay: false, shadows: true, realistic: false },
 };
 
 const LOOK_KEY = 'factory:look3d';
@@ -82,7 +86,10 @@ export function loadLook(): Record<LookKind, Look3D> {
   const out = { factory: { ...DEFAULT_LOOK.factory }, interior: { ...DEFAULT_LOOK.interior } };
   try {
     const kept = JSON.parse(localStorage.getItem(LOOK_KEY) ?? 'null') as Partial<Record<LookKind, Partial<Look3D>>> | null;
-    for (const k of ['factory', 'interior'] as const) for (const f of ['clay', 'shadows'] as const) if (typeof kept?.[k]?.[f] === 'boolean') out[k][f] = kept[k]![f]!;
+    for (const k of ['factory', 'interior'] as const) {
+      for (const f of ['clay', 'shadows', 'realistic'] as const) if (typeof kept?.[k]?.[f] === 'boolean') out[k][f] = kept[k]![f]!;
+      if (out[k].clay && out[k].realistic) out[k].realistic = false;
+    }
   } catch {
     /* no storage here (private window, blocked site data): the defaults */
   }
@@ -174,7 +181,11 @@ export const useUi = create<UiState>((set) => ({
   look3d: loadLook(),
   setLook: (kind, patch) =>
     set((s) => {
-      const look3d = { ...s.look3d, [kind]: { ...s.look3d[kind], ...patch } };
+      const next = { ...s.look3d[kind], ...patch };
+      // Realistic and clay are two looks, not layers: turning one on turns the other off.
+      if (patch.clay) next.realistic = false;
+      else if (patch.realistic) next.clay = false;
+      const look3d = { ...s.look3d, [kind]: next };
       keepLook(look3d);
       return { look3d };
     }),
