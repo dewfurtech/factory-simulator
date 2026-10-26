@@ -60,8 +60,49 @@ export interface CustomerMode {
   sender?: string;
 }
 
+/** How the 3D view looks: every surface in plain clay, and shadows from the sun. */
+export interface Look3D {
+  clay: boolean;
+  shadows: boolean;
+}
+
+/** Which kind of project a 3D look belongs to: each keeps its own. */
+export type LookKind = 'factory' | 'interior';
+
+/** A factory opens as it always has (no clay, no shadows); an interior opens with shadows. */
+export const DEFAULT_LOOK: Record<LookKind, Look3D> = {
+  factory: { clay: false, shadows: false },
+  interior: { clay: false, shadows: true },
+};
+
+const LOOK_KEY = 'factory:look3d';
+
+/** The looks last chosen in this browser, over the defaults; the defaults when nothing is kept or it can't be read. */
+export function loadLook(): Record<LookKind, Look3D> {
+  const out = { factory: { ...DEFAULT_LOOK.factory }, interior: { ...DEFAULT_LOOK.interior } };
+  try {
+    const kept = JSON.parse(localStorage.getItem(LOOK_KEY) ?? 'null') as Partial<Record<LookKind, Partial<Look3D>>> | null;
+    for (const k of ['factory', 'interior'] as const) for (const f of ['clay', 'shadows'] as const) if (typeof kept?.[k]?.[f] === 'boolean') out[k][f] = kept[k]![f]!;
+  } catch {
+    /* no storage here (private window, blocked site data): the defaults */
+  }
+  return out;
+}
+
+function keepLook(look: Record<LookKind, Look3D>) {
+  try {
+    localStorage.setItem(LOOK_KEY, JSON.stringify(look));
+  } catch {
+    /* not kept; the switch still works for this visit */
+  }
+}
+
 interface UiState {
   view: ViewMode;
+  /** The 3D look of each kind of project, kept in this browser across visits. */
+  look3d: Record<LookKind, Look3D>;
+  /** Changes one kind's 3D look and keeps it. */
+  setLook(kind: LookKind, patch: Partial<Look3D>): void;
   /** Set while a shared link is open; null in the full editor. */
   customer: CustomerMode | null;
   tool: Tool;
@@ -82,8 +123,11 @@ interface UiState {
   move3d: boolean;
   /** Set by the open 3D view: the plan point (mm) under the middle of its screen, where a new machine is dropped. */
   floorCentre: (() => Vec2 | null) | null;
-  /** Set by the open 3D view: the view as it shows, as a PNG, for a reference picture; `longSide` px or more across, when given. */
-  snapshot3d: ((longSide?: number) => Promise<Blob | null>) | null;
+  /**
+   * Set by the open 3D view: the view as it shows, as a PNG, for a reference picture; `longSide` px or more across, when
+   * given; in `look` for this one picture when given (the screen keeps its own look).
+   */
+  snapshot3d: ((longSide?: number, look?: Partial<Look3D>) => Promise<Blob | null>) | null;
   /** Every area out of sight in both views, without touching the areas' own flags. */
   areasHidden: boolean;
   /** Interior projects: the ceilings taken off in 3D, to look into the rooms from above. Off at first: the 3D view
@@ -97,7 +141,7 @@ interface UiState {
   peek: boolean;
   /** Selects something and asks the open views to move to it. */
   goTo(sel: Selection): void;
-  set(patch: Partial<Omit<UiState, 'set' | 'setTool' | 'toggleDock' | 'goTo'>>): void;
+  set(patch: Partial<Omit<UiState, 'set' | 'setTool' | 'toggleDock' | 'goTo' | 'setLook'>>): void;
   setTool(tool: Tool): void;
   toggleDock(dock: Dock): void;
 }
@@ -106,6 +150,13 @@ export const SELECT: Tool = { kind: 'select', drag: null };
 
 export const useUi = create<UiState>((set) => ({
   view: '2d',
+  look3d: loadLook(),
+  setLook: (kind, patch) =>
+    set((s) => {
+      const look3d = { ...s.look3d, [kind]: { ...s.look3d[kind], ...patch } };
+      keepLook(look3d);
+      return { look3d };
+    }),
   customer: null,
   tool: SELECT,
   selection: null,
