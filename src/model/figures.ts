@@ -28,6 +28,9 @@ export const headsTall = (kind: FigureKind): number => (kind === 'child' ? 6 : 7
 
 const S = (w: Mm, d: Mm, h: Mm): Size3 => ({ w, d, h });
 
+/** The licence (CC BY 4.0) asks for the author's name with the model wherever it is used. */
+export const MAN_MODEL_CREDIT = 'โมเดล 3D: "Business Man - Low Polygon game character" โดย manoeldarochadeoliveira (Sketchfab) สัญญาอนุญาต CC BY 4.0';
+
 /**
  * Heights are round, typical figures, not anyone measured: 1.75 m for a man and 1.62 m for a woman are about the adult
  * averages of many countries (Thai averages run a few centimetres lower, about 1.70 and 1.58), and 1.20 m is a child
@@ -35,7 +38,8 @@ const S = (w: Mm, d: Mm, h: Mm): Size3 => ({ w, d, h });
  * arms down: about 450 across the shoulders and arms and 250 front to back for an adult.
  */
 export const FIGURE_ITEMS: CatalogItem[] = [
-  { id: FIGURE_IDS.man, label: 'ผู้ชาย 1.75 ม.', group: 'people', size: S(450, 250, 1750) },
+  // The man's 3D body is a model by another author, credited where the library shows the piece (src/view3d/figures3d.ts).
+  { id: FIGURE_IDS.man, label: 'ผู้ชาย 1.75 ม.', group: 'people', size: S(450, 250, 1750), summary: MAN_MODEL_CREDIT },
   { id: FIGURE_IDS.woman, label: 'ผู้หญิง 1.62 ม.', group: 'people', size: S(410, 240, 1620) },
   { id: FIGURE_IDS.child, label: 'เด็ก 1.20 ม.', group: 'people', size: S(320, 180, 1200) },
   // A factory hand in plain overalls and an orange hard hat; the hat is inside the 1.75 m.

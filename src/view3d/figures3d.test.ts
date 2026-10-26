@@ -89,3 +89,17 @@ describe('scale figures in 3D', () => {
     expect(rig.build({ id: 'x' as Id, assetId: 'desk', size: { w: 1, d: 1, h: 1 } })).toBeNull();
   });
 });
+
+describe('the man’s model file', () => {
+  it('is small, keeps only the idle clip, and carries its author’s credit', async () => {
+    const { readFileSync } = await import('node:fs');
+    const glb = readFileSync('public/models/business-man.glb');
+    expect(glb.readUInt32LE(0)).toBe(0x46546c67);
+    expect(glb.length).toBeLessThan(1.2e6);
+    const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8'));
+    expect(json.animations.map((a: { name: string }) => a.name)).toEqual(['Rig|idle']);
+    expect(json.skins).toHaveLength(1);
+    expect(json.asset.extras.author).toMatch(/manoeldarochadeoliveira/);
+    expect(json.asset.extras.license).toMatch(/CC-BY-4\.0/);
+  });
+});

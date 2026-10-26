@@ -3,7 +3,7 @@ import { catalogItem, isMachine } from '../model/catalog';
 import { machinePhoto } from '../model/photos';
 import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
 import { disposeTree, FLAT } from './lowpoly';
-import { figureThumb } from './figures3d';
+import { figureModelPending, figureThumb } from './figures3d';
 
 /**
  * Small pictures of catalog items for the library. A Mastrox machine shows its real photo; everything else is
@@ -93,6 +93,9 @@ export function thumbnail(id: string, cb: (url: string) => void): void {
   if (photo) return cb(photo.url);
   const done = urls.get(id);
   if (done !== undefined) return cb(done);
+  // A figure drawn from a model waits for it, so the picture shows the model and not its stand-in.
+  const pending = figureModelPending(id);
+  if (pending) return void pending.then(() => thumbnail(id, cb));
   if (!waiting.has(id)) {
     waiting.set(id, []);
     queue.push(id);
