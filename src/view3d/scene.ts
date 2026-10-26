@@ -6,6 +6,7 @@ import { roomPolygon } from '../model/plan';
 import { bounds, pointInPolygon } from '../model/vec';
 import { buildAreas, buildBuilding, buildIsland, buildZoneLabels, type FinishHooks } from './building3d';
 import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
+import { interiorFrame } from './frameInterior';
 import { machineObject } from './machines3d';
 import { machineFootprint } from '../model/catalog';
 import { FLOW_IN, FLOW_OUT, flowArrows } from '../model/flow';
@@ -395,6 +396,11 @@ export class FactoryScene {
     if (!pts.length) {
       this.controls.target.set(0, 0, 0);
       this.camera.position.set(12, 14, 18);
+    } else if (this.opts.finishes) {
+      // An interior: a few rooms, looked down into from high enough to see the floors over the walls.
+      const f = interiorFrame(pts, this.camera.fov, this.camera.aspect);
+      this.controls.target.set(...f.target);
+      this.camera.position.set(...f.position);
     } else {
       const b = bounds(pts);
       const cx = ((b.min.x + b.max.x) / 2) * M;
