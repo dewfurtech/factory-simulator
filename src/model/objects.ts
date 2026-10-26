@@ -102,34 +102,47 @@ export function snapObject(plan: Plan, others: readonly PlacedObject[], moving: 
   const ou = fromAngle(rotation);
   const ov = perp(ou);
   const halfAlong = (axis: Vec2) => (Math.abs(dot(ou, axis)) * width + Math.abs(dot(ov, axis)) * depth) / 2;
-  let bestWall: { gap: number; pos: Vec2; face: [Vec2, Vec2] } | null = null;
-  for (const wall of hanging ? [] : Object.values(plan.walls)) {
-    const a = plan.corners[wall.a];
-    const b = plan.corners[wall.b];
-    const ab = sub(b, a);
-    const l = len(ab);
-    if (l === 0) continue;
-    const dir = scale(ab, 1 / l);
-    const rel = sub(target, a);
-    const along = dot(rel, dir);
-    const reach = halfAlong(dir);
-    if (along < -reach || along > l + reach) continue;
-    const side = Math.sign(cross(dir, rel)) || 1;
-    const n = scale(perp(dir), side);
-    const want = wall.thickness / 2 + halfAlong(n);
-    const gap = Math.abs(Math.abs(cross(dir, rel)) - want);
-    if (gap > radius || (bestWall && gap >= bestWall.gap)) continue;
-    const foot = add(a, scale(dir, along));
-    const faceOffset = scale(n, wall.thickness / 2);
-    bestWall = {
-      gap,
-      pos: add(foot, scale(n, want)),
-      face: [add(a, faceOffset), add(b, faceOffset)],
-    };
-  }
-  if (bestWall) {
-    pos = bestWall.pos;
-    guides.push({ from: bestWall.face[0], to: bestWall.face[1] });
+  // The nearest wall face within reach of an object centred at `from`, leaving out walls running the way `skipDir` does.
+  const nearestWall = (from: Vec2, skipDir: Vec2 | null) => {
+    let best: { gap: number; dir: Vec2; pos: Vec2; face: [Vec2, Vec2] } | null = null;
+    for (const wall of hanging ? [] : Object.values(plan.walls)) {
+      const a = plan.corners[wall.a];
+      const b = plan.corners[wall.b];
+      const ab = sub(b, a);
+      const l = len(ab);
+      if (l === 0) continue;
+      const dir = scale(ab, 1 / l);
+      if (skipDir && Math.abs(dot(dir, skipDir)) > 0.7) continue;
+      const rel = sub(from, a);
+      const along = dot(rel, dir);
+      const reach = halfAlong(dir);
+      if (along < -reach || along > l + reach) continue;
+      const side = Math.sign(cross(dir, rel)) || 1;
+      const n = scale(perp(dir), side);
+      const want = wall.thickness / 2 + halfAlong(n);
+      const gap = Math.abs(Math.abs(cross(dir, rel)) - want);
+      if (gap > radius || (best && gap >= best.gap)) continue;
+      const foot = add(a, scale(dir, along));
+      const faceOffset = scale(n, wall.thickness / 2);
+      best = {
+        gap,
+        dir,
+        pos: add(foot, scale(n, want)),
+        face: [add(a, faceOffset), add(b, faceOffset)],
+      };
+    }
+    return best;
+  };
+  // Onto the nearest wall, then onto a wall running across it as well, so a push into a corner sits against both.
+  const first = nearestWall(target, null);
+  if (first) {
+    pos = first.pos;
+    guides.push({ from: first.face[0], to: first.face[1] });
+    const second = nearestWall(pos, first.dir);
+    if (second) {
+      pos = second.pos;
+      guides.push({ from: second.face[0], to: second.face[1] });
+    }
   }
 
   const u = fromAngle(rotation);
@@ -153,7 +166,7 @@ export function snapObject(plan: Plan, others: readonly PlacedObject[], moving: 
   }
 
   // An object lifted into the air on purpose (a wall cabinet) keeps its height; one sitting on something follows the surface.
-  const z = isResting(others, moving) ? restingZ(others, moving.id, pos) : moving.z;
+  const z = isResting(others, moving) ? restingZ(others, moving, pos) : moving.z;
   return { x: pos.x, y: pos.y, z, rotation, guides };
 }
 
@@ -162,14 +175,16 @@ const REST_TOL: Mm = 5;
 
 /**
  * Height an object set down at `pos` rests at: on top of whatever it lands on, else the floor.
- * Ignores the moving object, everything stacked on it (so it can't land on its own load) and ceiling lights.
+ * Ignores the moving object, everything stacked on it (so it can't land on its own load), and anything
+ * whose underside is above the object (a second-floor slab over a ground-floor room is overhead, not a shelf).
  */
-export function restingZ(others: readonly PlacedObject[], movingId: Id, pos: Vec2): Mm {
-  const skip = stackOn(others, movingId);
-  skip.add(movingId);
+export function restingZ(others: readonly PlacedObject[], moving: Pick<PlacedObject, 'id' | 'z' | 'size'>, pos: Vec2): Mm {
+  const skip = stackOn(others, moving.id);
+  skip.add(moving.id);
+  const top = moving.z + moving.size.h;
   let z = 0;
   for (const o of others) {
-    if (skip.has(o.id)) continue;
+    if (skip.has(o.id) || o.z > top) continue;
     if (pointInPolygon(pos, obbCorners(objectObb(o)))) z = Math.max(z, o.z + o.size.h);
   }
   return z;
@@ -177,7 +192,7 @@ export function restingZ(others: readonly PlacedObject[], movingId: Id, pos: Vec
 
 /** Whether `o` sits on the floor or on another object (or sinks into one), rather than being lifted into the air on purpose. */
 export function isResting(others: readonly PlacedObject[], o: PlacedObject): boolean {
-  return o.z <= restingZ(others, o.id, o) + REST_TOL;
+  return o.z <= restingZ(others, o, o) + REST_TOL;
 }
 
 /** Everything resting on `id`, directly or on top of something that does. */

@@ -1,7 +1,7 @@
 import { CATEGORIES, MACHINES } from '../machines/data.js';
 import SIZES from '../machines/sizes.json';
 import type { CustomModel } from './library';
-import type { Mm, PlacedObject, Size3, Vec2 } from './types';
+import type { FlowOverride, FlowSide, Mm, PlacedObject, Size3, Vec2 } from './types';
 import { add, fromAngle, perp, scale } from './vec';
 
 /** What a thing is used for; sets its default shape, colour and where its front is. */
@@ -135,8 +135,7 @@ export interface MachineInfo {
   options?: MachineOption[];
 }
 
-/** A side of a machine in its own frame: front is where the operator stands (plan local +y), right is plan local +x. */
-export type FlowSide = 'front' | 'back' | 'left' | 'right';
+export type { FlowSide };
 export interface MachineFlow {
   in: FlowSide;
   out: FlowSide;
@@ -153,13 +152,15 @@ export interface MachineOption {
 
 export const FLOW_SIDE_LABEL: Record<FlowSide, string> = { front: 'ด้านหน้า', back: 'ด้านหลัง', left: 'ซ้าย', right: 'ขวา' };
 
-/** Where a placed machine takes work in and lets it out, with the ticked add-ons moving the ends; null for things without a flow. */
-export function machineFlow(assetId: string, chosen: readonly string[] | undefined): MachineFlow | null {
-  const base = INFO.get(assetId)?.flow;
-  if (!base) return null;
-  const flow = { ...base };
+/**
+ * Where a placed machine takes work in and lets it out: what the catalog says, with the ticked add-ons moving the
+ * ends, and what the user set for this one (`override`) over both. Null until both ends are known.
+ */
+export function machineFlow(assetId: string, chosen: readonly string[] | undefined, override?: FlowOverride): MachineFlow | null {
+  const flow: FlowOverride = { ...INFO.get(assetId)?.flow };
   for (const o of machineOptions(assetId)) if (chosen?.includes(o.id) && o.flow) Object.assign(flow, o.flow);
-  return flow;
+  Object.assign(flow, override);
+  return flow.in && flow.out ? { in: flow.in, out: flow.out } : null;
 }
 
 /** Unit direction (plan local frame) out of the machine through a side, and the half extent of the box that way. */

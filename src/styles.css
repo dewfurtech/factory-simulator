@@ -3909,3 +3909,20 @@ body:has(.home) {
     grid-template-columns: 1fr;
   }
 }
+
+/* The in and out sides of a machine as the user sets them: a select beside each arrow's label. */
+.ms-flow label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ms-flow select {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  padding: 2px 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+}

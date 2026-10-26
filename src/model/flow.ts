@@ -30,8 +30,8 @@ function arrow(tail: Vec2, tip: Vec2, w: Mm): Vec2[] {
 }
 
 /** The in and out arrows of a placed machine in its local frame; none for things without a flow. */
-export function flowArrows(o: Pick<PlacedObject, 'assetId' | 'options' | 'size'>, minLen: Mm = 0): FlowArrow[] {
-  const flow = machineFlow(o.assetId, o.options);
+export function flowArrows(o: Pick<PlacedObject, 'assetId' | 'options' | 'size' | 'flow'>, minLen: Mm = 0): FlowArrow[] {
+  const flow = machineFlow(o.assetId, o.options, o.flow);
   if (!flow) return [];
   const len = Math.max(minLen, Math.min(700, Math.max(400, Math.min(o.size.w, o.size.d) * 0.3)));
   const w = len * 0.3;

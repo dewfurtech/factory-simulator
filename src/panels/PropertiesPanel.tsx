@@ -463,6 +463,8 @@ function SelectionProps({ sel, project, extras }: { sel: Selection; project: Pro
                 assetId={o.assetId}
                 placed={o.size}
                 options={o.options}
+                flowOverride={o.flow}
+                onFlow={(next) => set((x) => void (x.flow = next))}
                 onOptions={(next) => {
                   const f = machineFootprint(o.assetId, next);
                   applyEdit((d) => {

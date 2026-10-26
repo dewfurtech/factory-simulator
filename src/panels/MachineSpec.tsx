@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '../editor2d/Toolbar';
 import { FLOW_SIDE_LABEL, MACHINE_CATEGORIES, machineFlow, machineInfo, machineOptions } from '../model/catalog';
+import type { FlowOverride, FlowSide } from '../model/types';
 import { FLOW_IN, FLOW_OUT } from '../model/flow';
 import { machinePhoto } from '../model/photos';
 import type { Size3 } from '../model/types';
@@ -89,7 +90,23 @@ function MachinePhoto({ assetId, name }: { assetId: string; name: string }) {
 }
 
 /** A Mastrox machine's details: its photo, what it is, its size, and the add-ons that make it longer. Nothing for other objects. */
-export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: string; placed?: Size3; options?: readonly string[]; onOptions?: (next: string[]) => void }) {
+export function MachineSpec({
+  assetId,
+  placed,
+  options,
+  onOptions,
+  flowOverride,
+  onFlow,
+}: {
+  assetId: string;
+  placed?: Size3;
+  options?: readonly string[];
+  onOptions?: (next: string[]) => void;
+  /** The in and out sides the user set for this placed machine, over the catalog's. */
+  flowOverride?: FlowOverride;
+  /** Called with the sides to keep for this machine; undefined puts the catalog's back. */
+  onFlow?: (next: FlowOverride | undefined) => void;
+}) {
   const m = machineInfo(assetId);
   if (!m) return null;
   const addons = machineOptions(assetId);
@@ -97,7 +114,16 @@ export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: 
   const cat = MACHINE_CATEGORIES.find((c) => c.id === m.cat);
   // With add-ons ticked the brochure size no longer applies: the placed size is the machine measured with them.
   const withAddons = chosen.length > 0 && !!placed;
-  const flow = machineFlow(assetId, chosen);
+  const flow = machineFlow(assetId, chosen, flowOverride);
+  const catalogFlow = machineFlow(assetId, chosen);
+  const setSide = (end: 'in' | 'out', side: string) => {
+    if (!onFlow) return;
+    const next: FlowOverride = { ...flowOverride };
+    if (side) next[end] = side as FlowSide;
+    else delete next[end];
+    onFlow(next.in || next.out ? next : undefined);
+  };
+  const sides = Object.entries(FLOW_SIDE_LABEL) as [FlowSide, string][];
   const size: [number, number, number] | null = withAddons ? [placed.w, placed.d, placed.h] : (m.size ?? (placed ? [placed.w, placed.d, placed.h] : null));
   return (
     <div className="machine-spec" data-testid="machine-spec">
@@ -109,12 +135,36 @@ export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: 
           {m.summary}
         </p>
       )}
-      {flow && (
-        <p className="ms-flow" data-testid="machine-flow">
-          <span style={{ color: FLOW_IN }}>▶ งานเข้า {FLOW_SIDE_LABEL[flow.in]}</span>
-          <span style={{ color: FLOW_OUT }}>▶ งานออก {FLOW_SIDE_LABEL[flow.out]}</span>
+      {onFlow ? (
+        <div className="ms-flow" data-testid="machine-flow">
+          {(['in', 'out'] as const).map((end) => (
+            <label key={end} style={{ color: end === 'in' ? FLOW_IN : FLOW_OUT }}>
+              ▶ {end === 'in' ? 'งานเข้า' : 'งานออก'}
+              <select value={flowOverride?.[end] ?? ''} onChange={(ev) => setSide(end, ev.target.value)} data-testid={`flow-${end}`}>
+                <option value="">{catalogFlow ? `ตามเครื่อง (${FLOW_SIDE_LABEL[catalogFlow[end]]})` : 'ไม่กำหนด'}</option>
+                {sides.map(([id, label]) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+          {flowOverride && (
+            <button type="button" className="btn btn-sm" onClick={() => onFlow(undefined)} data-testid="flow-reset">
+              ใช้ค่าตามเครื่อง
+            </button>
+          )}
           <small className="muted">มองจากด้านหน้าเครื่อง (ด้านที่มีขีดหนาบนผัง)</small>
-        </p>
+        </div>
+      ) : (
+        flow && (
+          <p className="ms-flow" data-testid="machine-flow">
+            <span style={{ color: FLOW_IN }}>▶ งานเข้า {FLOW_SIDE_LABEL[flow.in]}</span>
+            <span style={{ color: FLOW_OUT }}>▶ งานออก {FLOW_SIDE_LABEL[flow.out]}</span>
+            <small className="muted">มองจากด้านหน้าเครื่อง (ด้านที่มีขีดหนาบนผัง)</small>
+          </p>
+        )
       )}
       {addons.length > 0 && onOptions && (
         <section className="ms-addons" data-testid="machine-addons">
