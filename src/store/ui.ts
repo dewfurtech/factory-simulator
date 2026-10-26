@@ -82,6 +82,8 @@ interface UiState {
   move3d: boolean;
   /** Set by the open 3D view: the plan point (mm) under the middle of its screen, where a new machine is dropped. */
   floorCentre: (() => Vec2 | null) | null;
+  /** Set by the open 3D view: the view as it shows, as a PNG, for a reference picture. */
+  snapshot3d: (() => Promise<Blob | null>) | null;
   /** Every area out of sight in both views, without touching the areas' own flags. */
   areasHidden: boolean;
   /** Interior projects: the ceilings taken off in 3D, to look into the rooms from above. */
@@ -117,6 +119,7 @@ export const useUi = create<UiState>((set) => ({
   interiorCutaway: false,
   move3d: false,
   floorCentre: null,
+  snapshot3d: null,
   areasHidden: false,
   ceilingsHidden: false,
   bannerClosed: false,

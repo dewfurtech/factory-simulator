@@ -7,6 +7,13 @@ import type { CustomModel } from '../model/library';
 import { useLibrary } from './library';
 import { useProject } from './project';
 
+/** Every blob a project keeps in the asset store: its plan image(s), the pictures made from it, and (interior projects) its uploaded materials. */
+const projectAssetIds = (project: Project): Id[] => [
+  ...underlayImageIds(project),
+  ...(project.renders ?? []).map((r) => r.assetId),
+  ...(project.materials ?? []).map((m) => m.imageId),
+];
+
 export interface ProjectSummary extends Partial<ProjectFacts> {
   id: Id;
   name: string;
@@ -70,9 +77,6 @@ export async function deleteProject(id: Id): Promise<void> {
   if (project) for (const blobId of projectAssetIds(project)) await del(assetKey(blobId));
 }
 
-/** Every blob a project keeps in the asset store: its plan images, and (interior projects) its uploaded materials. */
-const projectAssetIds = (project: Project): Id[] => [...underlayImageIds(project), ...(project.materials ?? []).map((m) => m.imageId)];
-
 export async function duplicateProject(id: Id): Promise<Project | undefined> {
   const src = await loadProject(id);
   if (!src) return undefined;
@@ -88,6 +92,11 @@ export async function duplicateProject(id: Id): Promise<Project | undefined> {
     const picture = await loadAsset(m.imageId);
     m.imageId = newId('u');
     if (picture) await saveAsset(m.imageId, picture);
+  }
+  for (const r of copy.renders ?? []) {
+    const image = await loadAsset(r.assetId);
+    r.assetId = newId('r');
+    if (image) await saveAsset(r.assetId, image);
   }
   await saveProject(copy);
   return copy;

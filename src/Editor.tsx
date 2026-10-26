@@ -12,6 +12,7 @@ import { useProject } from './store/project';
 import { createShare, lastSender, shareUrl } from './store/share';
 import { SELECT, useUi, type ViewMode } from './store/ui';
 import { shareDialog } from './ui/Dialog';
+import { openFlowDialog } from './ui/FlowDialog';
 
 import { Loading3D } from './ui/Loading3D';
 const View3D = lazy(() => import('./view3d/View3D'));
@@ -239,6 +240,9 @@ export function MainMenu({ back = 'กลับไปรายการโรง
           >
             <Icon name="image" /> บันทึกแปลนเป็นไฟล์ SVG
           </button>
+          <button role="menuitem" onClick={() => (setOpen(false), void openFlowDialog())} data-testid="menu-flow">
+            <Icon name="bulb" /> สร้างภาพโรงงานด้วย Google Flow
+          </button>
         </div>
       )}
     </div>
@@ -338,6 +342,16 @@ export function Editor() {
           >
             <Icon name={customer ? 'reply' : 'share'} />
             <span>{customer ? 'ส่งกลับ' : 'แชร์ลิงก์'}</span>
+          </button>
+          {/* Desktop only: on a phone the bar is full, and the main menu has the same entry. */}
+          <button
+            className="tb-toggle tb-desk"
+            onClick={() => void openFlowDialog()}
+            title="สร้างภาพโรงงานจากแปลนนี้ด้วย Google Flow: พรอมต์ ภาพอ้างอิง และรับภาพกลับ"
+            data-testid="flow-button"
+          >
+            <Icon name="bulb" />
+            <span>ภาพ AI</span>
           </button>
           <span className="tb-sep" />
           <div className="seg seg-icons seg-panels" role="group" aria-label="แผง">

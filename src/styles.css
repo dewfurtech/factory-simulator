@@ -3259,7 +3259,6 @@ body:has(.home) {
   color: var(--ink-2);
 }
 
-
 /* The tool rail's group headings and the one tool that matters most for a sale. */
 .rail-head {
   margin: 6px 0 2px;
@@ -3619,9 +3618,7 @@ body:has(.home) {
   display: block;
 }
 .swatch-none {
-  background:
-    linear-gradient(45deg, transparent 46%, var(--line-2) 46%, var(--line-2) 54%, transparent 54%),
-    var(--card) !important;
+  background: linear-gradient(45deg, transparent 46%, var(--line-2) 46%, var(--line-2) 54%, transparent 54%), var(--card) !important;
 }
 .surface-row {
   display: grid;
@@ -3800,4 +3797,115 @@ body:has(.home) {
 }
 .editor.interior .tb-toggle {
   white-space: nowrap;
+}
+
+/* Google Flow dialog (a wide dialog, sized by .dialog-wide above): prompt, reference picture, and the pictures brought back. */
+.flow {
+  display: grid;
+  gap: 12px;
+}
+.flow h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.flow-step {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--card);
+}
+.flow-step h3 {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.flow-step textarea {
+  font-size: 12.5px;
+  line-height: 1.45;
+  min-height: 120px;
+}
+.flow-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.flow-ref {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.flow-ref img,
+.flow-ref-empty {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line-2);
+  background: var(--bg);
+}
+.flow-ref-empty {
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.flow-ref-text {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.flow-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 12px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: 10px;
+  color: var(--ink-2);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+}
+.flow-drop:hover,
+.flow-drop.over {
+  border-color: var(--select);
+  background: var(--accent-soft);
+}
+.flow-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.flow-thumb {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+.flow-thumb img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line-2);
+  display: block;
+}
+.flow-thumb figcaption {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.flow-thumb figcaption span {
+  flex: 1;
+}
+@media (max-width: 560px) {
+  .flow-ref {
+    grid-template-columns: 1fr;
+  }
 }

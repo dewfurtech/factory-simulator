@@ -188,6 +188,15 @@ export interface PlacedObject extends LayerFlags {
   fromPlan?: true;
   /** Machines only: average breakdowns per working day, overriding the project default. */
   breakdownsPerDay?: number;
+  /** Machines only: where the work goes in and out as the user set it, over what the catalog says. */
+  flow?: FlowOverride;
+}
+
+/** A side of a machine in its own frame: front is where the operator stands (plan local +y), right is plan local +x. */
+export type FlowSide = 'front' | 'back' | 'left' | 'right';
+export interface FlowOverride {
+  in?: FlowSide;
+  out?: FlowSide;
 }
 
 /** An image of an existing plan placed in plan coordinates. */
@@ -223,6 +232,10 @@ export interface Project {
   client?: Client;
   /** Interior projects: materials the user uploaded, each a picture kept in the asset store. */
   materials?: CustomMaterial[];
+  /** Pictures of the factory made by an image model (Google Flow) from this plan, brought back in by the person. */
+  renders?: Render[];
+  /** The prompt as last edited in the render dialog; absent until it is changed from the one built from the plan. */
+  renderPrompt?: string;
 }
 
 export type ProjectKind = 'factory' | 'interior';
@@ -237,6 +250,15 @@ export interface CustomMaterial {
   imageId: Id;
   /** Real-world width one repeat of the picture covers, mm. */
   scale: Mm;
+}
+
+/** One picture made outside from this plan and kept with it; its image is an asset under `assetId`. */
+export interface Render {
+  id: Id;
+  assetId: Id;
+  createdAt: number;
+  /** The prompt it was made with, as it stood when the picture was added. */
+  prompt?: string;
 }
 
 /** The customer a plan is drawn for. Every field is optional; empty ones are left out. */

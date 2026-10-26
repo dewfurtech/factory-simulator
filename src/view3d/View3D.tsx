@@ -57,11 +57,12 @@ export default function View3D({ finishes }: { finishes?: FinishHooks } = {}) {
         const r = s.renderer.domElement.getBoundingClientRect();
         return s.floorPoint(r.left + r.width / 2, r.top + r.height / 2);
       },
+      snapshot3d: () => s.snapshot(),
     });
     const start = setTimeout(() => setStarted(true), 40);
     return () => {
       clearTimeout(start);
-      useUi.getState().set({ floorCentre: null });
+      useUi.getState().set({ floorCentre: null, snapshot3d: null });
       s.dispose();
       sceneRef.current = null;
     };
