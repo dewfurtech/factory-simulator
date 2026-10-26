@@ -15,6 +15,7 @@ import { IssuesChip, useTroubled } from '../panels/IssuesChip';
 import { HelpButton } from '../ui/HelpButton';
 import { Loading3D } from '../ui/Loading3D';
 import { isFigure } from '../model/figures';
+import { DevMachineDetail } from './DevMachineDetail';
 
 /**
  * The 3D pane: the factory, with the picked object highlighted. An interior project passes `finishes`, which puts
@@ -326,6 +327,7 @@ export default function View3D({ finishes, pieces }: { finishes?: FinishHooks; p
         </button>
       </div>
       <IssuesChip />
+      <DevMachineDetail objects={project.objects} refresh={(ids) => sceneRef.current?.refreshAssets(ids)} />
       <HelpButton
         className="view-help"
         sections={[
