@@ -282,7 +282,7 @@ test('the AI picture dialog of an interior writes the prompt from its rooms, not
   await expect(dialog).toContainText('สร้างภาพห้องด้วย Google Flow');
   const prompt = page.getByTestId('flow-prompt');
   await expect(prompt).toHaveValue(/^Photorealistic interior photograph of the rooms below/);
-  await expect(prompt).toHaveValue(/Room 1, room: [d.]+ × [d.]+ m/);
+  await expect(prompt).toHaveValue(/Room 1, room: [0-9.]+ × [0-9.]+ m/);
   await expect(prompt).not.toHaveValue(/factory|machine/i);
 });
 
