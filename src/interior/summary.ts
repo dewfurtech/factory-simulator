@@ -1,4 +1,5 @@
 import { catalogItem } from '../model/catalog';
+import { isFigure } from '../model/figures';
 import { roomStats, roomWalls, wallLength, wallSideOf } from '../model/plan';
 import type { MaterialId, Plan, Project, Room, Size3, Wall } from '../model/types';
 import { materialOf, SURFACES, type Material, type Surface } from './materials';
@@ -100,7 +101,7 @@ export function moodSummary(project: Project): MoodSummary {
 
   const furniture = new Map<string, FurnitureLine>();
   for (const o of project.objects) {
-    if (o.hidden) continue;
+    if (o.hidden || isFigure(o)) continue;
     const name = catalogItem(o.assetId)?.label ?? o.name;
     const key = `${name}|${o.size.w}|${o.size.d}|${o.size.h}`;
     const line = furniture.get(key);

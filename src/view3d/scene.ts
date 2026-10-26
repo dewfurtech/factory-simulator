@@ -13,6 +13,8 @@ import { FLOW_IN, FLOW_OUT, flowArrows } from '../model/flow';
 import { disposeTree, FLAT, LABEL_LAYER, textSprite } from './lowpoly';
 import { SceneLook } from './look';
 import type { Look3D } from '../store/ui';
+import { FigureRig } from './figures3d';
+import { isFigure } from '../model/figures';
 
 FLAT.userData.shared = true;
 
@@ -30,6 +32,10 @@ export interface SceneOptions {
   ceilings?: boolean;
   /** Interior projects: cabinets, home furniture and imported models, drawn their own way. */
   pieces?: PieceHooks;
+  /** The life-size people out of sight. */
+  figuresHidden?: boolean;
+  /** The people's idle sway on. */
+  figureIdle?: boolean;
 }
 
 /** What another kind of project (an interior) draws its own way. */
@@ -81,6 +87,8 @@ export class FactoryScene {
   private look: SceneLook;
   private raf = 0;
   private framed = false;
+  /** The life-size people, and their idle pose (src/view3d/figures3d.ts). */
+  private figures = new FigureRig();
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -137,6 +145,12 @@ export class FactoryScene {
       for (const [id, node] of this.objectMeshes) node.visible = this.shows(this.objectKeys.get(id)!);
     }
     this.areas.visible = this.opts.areas;
+    this.figures.idle = !!this.opts.figureIdle;
+    if (before.figuresHidden !== this.opts.figuresHidden) {
+      for (const [id, node] of this.objectMeshes) node.visible = this.shows(this.objectKeys.get(id)!);
+      this.updateTroubled();
+      this.updateSelectionBox();
+    }
     if (before.pieces !== this.opts.pieces && this.project) {
       for (const node of this.objectMeshes.values()) {
         this.objects.remove(node);
@@ -299,7 +313,7 @@ export class FactoryScene {
 
   /** Hidden objects never show; with the walls cut down, neither does anything up on a second floor. */
   private shows(o: PlacedObject): boolean {
-    return !o.hidden && !(this.opts.cutaway && o.z >= 2500);
+    return !o.hidden && !(this.opts.cutaway && o.z >= 2500) && !(this.opts.figuresHidden && isFigure(o));
   }
 
   /**
@@ -311,7 +325,7 @@ export class FactoryScene {
     const holder = new THREE.Group();
     holder.userData.objectId = o.id;
     const custom = catalogItem(o.assetId)?.custom;
-    const own = isMachine(o) ? null : this.opts.pieces?.build(o, () => (this.dirty = true));
+    const own = isFigure(o) ? this.figures.build(o) : isMachine(o) ? null : this.opts.pieces?.build(o, () => (this.dirty = true));
     if (own) holder.add(own);
     else if (isMachine(o)) {
       const blocky = machineObject(o.assetId, o.options);
@@ -510,6 +524,7 @@ export class FactoryScene {
     this.raf = requestAnimationFrame(this.loop);
     this.controls.update();
     this.stepOpen();
+    if (this.figures.tick(performance.now())) this.dirty = true;
     if (!this.dirty) return;
     this.dirty = false;
     this.fitLabels();

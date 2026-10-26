@@ -14,6 +14,7 @@ import { download } from '../editor2d/exportImage';
 import { IssuesChip, useTroubled } from '../panels/IssuesChip';
 import { HelpButton } from '../ui/HelpButton';
 import { Loading3D } from '../ui/Loading3D';
+import { isFigure } from '../model/figures';
 
 /**
  * The 3D pane: the factory, with the picked object highlighted. An interior project passes `finishes`, which puts
@@ -33,6 +34,11 @@ export default function View3D({ finishes, pieces }: { finishes?: FinishHooks; p
   // Clay and shadows, kept apart for factories and interiors.
   const lookKind = finishes ? 'interior' : 'factory';
   const look = useUi((s) => s.look3d[lookKind]);
+  // The life-size people: one switch hides them in both views; the idle sway is kept per kind of project.
+  const figuresHidden = useUi((s) => s.figuresHidden);
+  const idleKey = finishes ? 'interior' : 'factory';
+  const idle = useUi((s) => s.figureIdle[idleKey]);
+  const hasFigures = project.objects.some(isFigure);
   const [top, setTop] = useState(false);
   const [cabinetsOpen, setCabinetsOpen] = useState(false);
   // Move mode: dragging a machine slides it over the floor, as on the plan.
@@ -103,10 +109,10 @@ export default function View3D({ finishes, pieces }: { finishes?: FinishHooks; p
   // Things that cannot stand where they are get a red frame in 3D, as they get a red outline on the plan.
   const troubled = useTroubled();
   useEffect(() => sceneRef.current?.markTroubled(troubled.map((t) => t.id)), [troubled, started]);
-  useEffect(
-    () => sceneRef.current?.setOptions(finishes ? { cutaway, areas, finishes, ceilings: !ceilingsHidden && !top, pieces } : { cutaway, areas }),
-    [cutaway, areas, finishes, ceilingsHidden, top, pieces],
-  );
+  useEffect(() => {
+    const people = { figuresHidden, figureIdle: idle };
+    sceneRef.current?.setOptions(finishes ? { cutaway, areas, finishes, ceilings: !ceilingsHidden && !top, pieces, ...people } : { cutaway, areas, ...people });
+  }, [cutaway, areas, finishes, ceilingsHidden, top, pieces, figuresHidden, idle]);
   useEffect(() => sceneRef.current?.setLook(look), [look]);
   useEffect(() => sceneRef.current?.setPiecesOpen(cabinetsOpen ? 1 : 0), [cabinetsOpen]);
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
@@ -279,6 +285,34 @@ export default function View3D({ finishes, pieces }: { finishes?: FinishHooks; p
         >
           <Icon name="sun" />
         </button>
+        {hasFigures && (
+          <button
+            className={`ib sm${figuresHidden ? '' : ' on'}`}
+            onClick={() => {
+              const ui = useUi.getState();
+              const sel = ui.selection;
+              const picked = sel?.kind === 'object' && project.objects.find((o) => o.id === sel.id);
+              // A hidden person cannot stay picked.
+              ui.set({ figuresHidden: !figuresHidden, ...(!figuresHidden && picked && isFigure(picked) && { selection: null }) });
+            }}
+            title={figuresHidden ? 'แสดงหุ่นคน (ซ่อนอยู่ทั้งแปลนและ 3D)' : 'ซ่อนหุ่นคน: หุ่นเทียบขนาดหายจากแปลนและ 3D (ยังอยู่ในโปรเจกต์)'}
+            aria-pressed={!figuresHidden}
+            data-testid="figures-toggle"
+          >
+            <Icon name="person" />
+          </button>
+        )}
+        {hasFigures && !figuresHidden && (
+          <button
+            className={`ib sm${idle ? ' on' : ''}`}
+            onClick={() => useUi.getState().set({ figureIdle: { ...useUi.getState().figureIdle, [idleKey]: !idle } })}
+            title={idle ? 'ท่าขยับ: เปิดอยู่ (หุ่นหายใจ ขยับตัวเล็กน้อย) คลิกเพื่อหยุด' : 'ท่าขยับ: ให้หุ่นหายใจและขยับตัวเล็กน้อย'}
+            aria-pressed={idle}
+            data-testid="figures-idle"
+          >
+            <Icon name="personIdle" />
+          </button>
+        )}
         <button className="ib sm" onClick={() => sceneRef.current?.frame()} title="มุมมองทั้งโรงงาน">
           <Icon name="fit" />
         </button>

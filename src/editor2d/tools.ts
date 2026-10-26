@@ -1,4 +1,5 @@
 import { catalogItem } from '../model/catalog';
+import { isFigure } from '../model/figures';
 import { newId } from '../model/id';
 import { incidentWalls } from '../model/miter';
 import { moveWithStack, obbCorners, objectObb, snapObject } from '../model/objects';
@@ -638,7 +639,8 @@ export function placeObjectAt(assetId: string, p: Vec2, radius: Mm, free = false
   edit((d) => {
     d.objects.push(obj);
   });
-  ui().set({ selection: { kind: 'object', id: obj.id } });
+  // A person put down while the people are hidden brings them all back into sight.
+  ui().set({ selection: { kind: 'object', id: obj.id }, ...(isFigure(obj) && { figuresHidden: false }) });
   return obj.id;
 }
 

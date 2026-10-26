@@ -1,4 +1,5 @@
 import { catalogItem } from '../../model/catalog';
+import { isFigure } from '../../model/figures';
 import { roomStats } from '../../model/plan';
 import type { Id, PlacedObject, Project, Render, Size3 } from '../../model/types';
 import { BOARD_MATERIAL_TH, CABINET_KIND_TH } from '../cabinet/spec';
@@ -121,7 +122,7 @@ export function piecesAndCabinets(p: Project): { pieces: PieceLine[]; cabinets: 
   const pieces = new Map<string, PieceLine>();
   const cabinets = new Map<string, CabinetLine>();
   for (const o of p.objects) {
-    if (o.hidden) continue;
+    if (o.hidden || isFigure(o)) continue;
     const name = nameOf(o);
     const c = o.cabinet;
     if (!c) {

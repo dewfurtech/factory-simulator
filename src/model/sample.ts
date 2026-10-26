@@ -1,4 +1,5 @@
-import { catalogItem } from './catalog';
+import { catalogItem, spotsOf } from './catalog';
+import { FIGURE_IDS } from './figures';
 import { newId } from './id';
 import { OPENING_PRESETS, type OpeningPresetId } from './openings';
 import { addPolygon, DEFAULT_WALL, emptyPlan, GLASS_WALL, openingOffsetAt, OUTER_WALL, roomAt, wallAt } from './plan';
@@ -89,8 +90,8 @@ export function sampleFactory(name = 'โรงงานตัวอย่าง
   const E = -Math.PI / 2; // east
 
   // Production hall.
-  put('rakete-3500a', 13500, 3500);
-  put('nebula', 22000, 3600);
+  const rakete = put('rakete-3500a', 13500, 3500);
+  const nebula = put('nebula', 22000, 3600);
   put('nova-x4', 29500, 3200);
   put('booster-e10', 36500, 3000);
   put('moon-40', 22000, 10500);
@@ -101,6 +102,11 @@ export function sampleFactory(name = 'โรงงานตัวอย่าง
   put('vair-10', 45800, 11500, R, 'VAir ปั๊มลม');
   put('conveyor', 36500, 17800);
   put('floor-mark', 44000, 14000, 0, 'ทางเข้าออกรถ');
+  // Two hands at the controls, for a sense of how big the machines are: each where its operator stands, facing it.
+  for (const id of [rakete, nebula]) {
+    const spot = spotsOf(p.objects.find((o) => o.id === id)!)[0];
+    put(FIGURE_IDS.worker, Math.round(spot.at.x), Math.round(spot.at.y), spot.facing - Math.PI / 2, 'พนักงาน');
+  }
 
   // Raw-material store.
   for (const x of [3000, 7500]) for (const y of [2000, 5500, 9000]) put('rack', x, y);

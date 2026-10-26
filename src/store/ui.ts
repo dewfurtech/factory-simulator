@@ -139,6 +139,10 @@ interface UiState {
   goto: { sel: Selection; n: number } | null;
   /** Holding the peek key or button: the drawing fades so the plan image beneath it can be checked against. */
   peek: boolean;
+  /** The life-size people out of sight in both views (they stay in the project). Remembered in this browser. */
+  figuresHidden: boolean;
+  /** The people's idle sway in 3D, kept apart for factories (off at first: a factory view has no motion) and interiors (on). */
+  figureIdle: { factory: boolean; interior: boolean };
   /** Selects something and asks the open views to move to it. */
   goTo(sel: Selection): void;
   set(patch: Partial<Omit<UiState, 'set' | 'setTool' | 'toggleDock' | 'goTo' | 'setLook'>>): void;
@@ -147,6 +151,23 @@ interface UiState {
 }
 
 export const SELECT: Tool = { kind: 'select', drag: null };
+
+const FIGURES_KEY = 'figures.view';
+type FigurePrefs = Pick<UiState, 'figuresHidden' | 'figureIdle'>;
+
+/** The people switches as this browser last left them; private windows and blocked storage just get the defaults. */
+function readFigurePrefs(): FigurePrefs {
+  const prefs: FigurePrefs = { figuresHidden: false, figureIdle: { factory: false, interior: true } };
+  try {
+    const raw = JSON.parse(localStorage.getItem(FIGURES_KEY) ?? 'null') as Partial<{ hidden: boolean; idleFactory: boolean; idleInterior: boolean }> | null;
+    if (raw?.hidden === true) prefs.figuresHidden = true;
+    if (typeof raw?.idleFactory === 'boolean') prefs.figureIdle.factory = raw.idleFactory;
+    if (typeof raw?.idleInterior === 'boolean') prefs.figureIdle.interior = raw.idleInterior;
+  } catch {
+    /* nothing kept, or storage blocked */
+  }
+  return prefs;
+}
 
 export const useUi = create<UiState>((set) => ({
   view: '2d',
@@ -177,8 +198,19 @@ export const useUi = create<UiState>((set) => ({
   bannerClosed: false,
   goto: null,
   peek: false,
+  ...readFigurePrefs(),
   goTo: (sel) => set((s) => ({ selection: sel, boxed: [], goto: { sel, n: (s.goto?.n ?? 0) + 1 } })),
   set: (patch) => set('selection' in patch && !('boxed' in patch) ? { ...patch, boxed: [] } : patch),
   setTool: (tool) => set({ tool, cursor: null, objectGuides: [] }),
   toggleDock: (dock) => set((s) => ({ dock: s.dock === dock ? null : dock })),
 }));
+
+// The people switches are kept in this browser whenever they change.
+useUi.subscribe((s, prev) => {
+  if (s.figuresHidden === prev.figuresHidden && s.figureIdle === prev.figureIdle) return;
+  try {
+    localStorage.setItem(FIGURES_KEY, JSON.stringify({ hidden: s.figuresHidden, idleFactory: s.figureIdle.factory, idleInterior: s.figureIdle.interior }));
+  } catch {
+    /* private window: the choice just isn't remembered */
+  }
+});

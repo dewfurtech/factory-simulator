@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { isFigure } from '../model/figures';
 import { deg, fmtArea, fmtLen, fmtSize, rad } from '../format';
 import { CATALOG, catalogItem, GROUP_LABEL, GROUP_ORDER, machineFootprint } from '../model/catalog';
 import { DOOR_STYLE_LABEL, isHanded, isSliding } from '../model/openings';
@@ -543,7 +544,7 @@ function ProjectProps({ project }: { project: Project }) {
             <span>{interior ? 'ห้อง' : 'โซน'}</span>
           </div>
           <div>
-            <b>{interior ? project.objects.length : facts.machines}</b>
+            <b>{interior ? project.objects.filter((o) => !isFigure(o)).length : facts.machines}</b>
             <span>{interior ? 'เฟอร์นิเจอร์' : 'เครื่องจักร'}</span>
           </div>
         </div>

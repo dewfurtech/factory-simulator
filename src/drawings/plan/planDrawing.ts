@@ -1,5 +1,6 @@
 import { bayEdges } from '../../interior/cabinet/plan2d';
 import { catalogItem, localToPlan } from '../../model/catalog';
+import { isFigure } from '../../model/figures';
 import { onLevel, planOf } from '../../model/levels';
 import { wallFootprints } from '../../model/miter';
 import { obbCorners, objectObb } from '../../model/objects';
@@ -148,7 +149,7 @@ export function planDrawing(project: Project, level = 0, opts: PlanOptions = {})
 
   // ---- Furniture and cabinets: thin outlines; wall cabinets and overhead pieces dashed.
   for (const o of project.objects) {
-    if (o.hidden || !onLevel(o, level) || o.assetId === 'zone-area') continue;
+    if (o.hidden || !onLevel(o, level) || o.assetId === 'zone-area' || isFigure(o)) continue;
     const item = catalogItem(o.assetId);
     const layer = o.cabinet ? 'cabinet' : 'furniture';
     const style = o.cabinet?.kind === 'wall' || item?.overhead ? 'dashed' : undefined;

@@ -55,6 +55,7 @@ const CHIP: Record<CatalogGroup, string> = {
   custom: 'คลังของฉัน',
   cabinet: 'ตู้บิ้วอิน',
   home: 'บ้าน',
+  people: 'คน',
 };
 const MASTROX_COUNT = CATALOG.filter((c) => shelfOf(c) === 'mastrox').length;
 

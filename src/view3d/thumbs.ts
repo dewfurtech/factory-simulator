@@ -3,6 +3,7 @@ import { catalogItem, isMachine } from '../model/catalog';
 import { machinePhoto } from '../model/photos';
 import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
 import { disposeTree, FLAT } from './lowpoly';
+import { figureThumb } from './figures3d';
 
 /**
  * Small pictures of catalog items for the library. A Mastrox machine shows its real photo; everything else is
@@ -41,7 +42,7 @@ function render(id: string): string {
   if (!renderer) setup();
   const item = catalogItem(id);
   const dims = item?.size ?? { w: 1000, d: 1000, h: 1000 };
-  const own = ownThumb?.(id) ?? null;
+  const own = ownThumb?.(id) ?? figureThumb(id);
   const obj: THREE.Object3D = own
     ? own
     : item?.custom

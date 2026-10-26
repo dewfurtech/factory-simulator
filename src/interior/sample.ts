@@ -6,6 +6,7 @@ import { CABINET_ITEMS, HOME_ITEMS, WALL_CABINET_Z } from './catalog';
 import { normalizeSpec, type CabinetSpecInput } from './cabinet/spec';
 import { sizeOfSpec } from './cabinet/sync';
 import { newInteriorProject } from './project';
+import { FIGURE_IDS, FIGURE_ITEMS } from '../model/figures';
 
 const rect = (x0: Mm, y0: Mm, x1: Mm, y1: Mm): Vec2[] => [
   { x: x0, y: y0 },
@@ -23,7 +24,7 @@ const NORTH = Math.PI;
 const WEST = Math.PI / 2;
 const EAST = -Math.PI / 2;
 
-const ITEMS = new Map([...CABINET_ITEMS, ...HOME_ITEMS].map((i) => [i.id, i]));
+const ITEMS = new Map([...CABINET_ITEMS, ...HOME_ITEMS, ...FIGURE_ITEMS].map((i) => [i.id, i]));
 
 /**
  * A furnished one-bedroom condo, 7.0 × 5.5 m, to open and look around before drawing one's own: a living room with
@@ -111,6 +112,8 @@ export function sampleCondo(name = 'ห้องตัวอย่าง: คอ
     },
     colors: { front: 'walnut', carcass: 'walnut' },
   });
+  // A person for scale in the open floor between the TV and the dining table, facing into the room.
+  put(FIGURE_IDS.man, 4250, 2150, 0);
   // Kitchen run on the east wall south of the sofa: base cabinets under a top, wall cabinets above.
   put('cab-base', 6600, 4250, WEST, {
     name: 'ตู้ครัวล่าง',

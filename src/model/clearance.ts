@@ -1,4 +1,5 @@
 import { catalogItem, needsOperator, spotsOf } from './catalog';
+import { isFigure } from './figures';
 import { levelZ, onLevel, planOf } from './levels';
 import { findCollisions, objectObb, obbOverlap, wallObb, type Obb } from './objects';
 import { roomOf, roomTop } from './plan';
@@ -23,8 +24,9 @@ const TOUCH: Mm = 60;
 /** The floor an operator needs at a machine's controls: a person with elbow room. */
 const OPERATOR: Mm = 700;
 
-/** Things that take up floor: not floor markings, not an upper floor or its railings. */
+/** Things that take up floor: not floor markings, not an upper floor or its railings, not a scale figure (people move). */
 const solid = (o: PlacedObject): boolean => {
+  if (isFigure(o)) return false;
   const item = catalogItem(o.assetId);
   return !item?.open && !item?.overhead;
 };
