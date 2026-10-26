@@ -10,7 +10,7 @@ import { ProjectInfo } from '../panels/ProjectInfo';
 import { useProject } from '../store/project';
 import { useUi } from '../store/ui';
 import { Loading3D } from '../ui/Loading3D';
-import { openFlowDialog } from '../ui/FlowDialog';
+import { AI_PICTURES, openFlowDialog } from '../ui/FlowDialog';
 import { CabinetPanel } from './CabinetPanel';
 import './catalog';
 import { INTERIOR_FINISHES } from './interior3d';
@@ -119,15 +119,17 @@ export function InteriorEditor() {
           <PresentButton />
           <DrawingsButton />
           {/* Desktop only, as in the factory: on a phone the main menu has the same entry. */}
-          <button
-            className="tb-toggle tb-desk"
-            onClick={() => void openFlowDialog()}
-            title="สร้างภาพห้องด้วย Google Flow: พรอมต์จากห้อง วัสดุ และเฟอร์นิเจอร์ ภาพอ้างอิง และรับภาพกลับ"
-            data-testid="flow-button"
-          >
-            <Icon name="bulb" />
-            <span>ภาพ AI</span>
-          </button>
+          {AI_PICTURES && (
+            <button
+              className="tb-toggle tb-desk"
+              onClick={() => void openFlowDialog()}
+              title="สร้างภาพห้องด้วย Google Flow: พรอมต์จากห้อง วัสดุ และเฟอร์นิเจอร์ ภาพอ้างอิง และรับภาพกลับ"
+              data-testid="flow-button"
+            >
+              <Icon name="bulb" />
+              <span>ภาพ AI</span>
+            </button>
+          )}
           <button
             className="tb-toggle tb-accent"
             onClick={() => void shareProject()}

@@ -12,6 +12,13 @@ import { useUi } from '../store/ui';
 import { customDialog } from './Dialog';
 
 /**
+ * Whether the AI picture buttons show (top bar and main menu, factory and interior). Off for now: the owner is not
+ * using it yet. The dialog, its prompts and the pictures already kept with projects stay as they are; true brings
+ * the buttons back.
+ */
+export const AI_PICTURES = false;
+
+/**
  * Pictures of the factory from Google Flow. Flow has no API and no link that takes a prompt, so the dialog does the
  * hand-over both ways: it writes a prompt from the plan (editable, kept with the project), gives a reference picture
  * of the plan or the 3D view to upload there, and takes the finished picture back by drop, paste or file, kept with

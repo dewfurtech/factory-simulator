@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { inflateSync } from 'node:zlib';
-import { freshApp, planCentre, projectState } from './helpers';
+import { freshApp, openSample, planCentre, projectState } from './helpers';
 
 /** The start page with the interior mode switched on, as `?interior` does on the live site. */
 async function interiorApp(page: Page) {
@@ -273,18 +273,19 @@ test('3D opens on a small room from above: every corner on screen and its floor 
   expect(r.overWall).toBeGreaterThan(3);
 });
 
-test('the AI picture dialog of an interior writes the prompt from its rooms, not a factory', async ({ page }) => {
+// The AI picture buttons are switched off for now (AI_PICTURES in src/ui/FlowDialog.tsx); the prompts are unit-tested.
+test('the AI picture buttons are hidden, in an interior and in a factory', async ({ page }) => {
   await smallRoom(page);
+  await expect(page.getByTestId('flow-button')).toHaveCount(0);
   await page.getByTestId('main-menu').click();
-  await expect(page.getByTestId('menu-flow')).toHaveText(/สร้างภาพห้องด้วย Google Flow/);
+  await expect(page.getByTestId('menu-share')).toBeVisible();
+  await expect(page.getByTestId('menu-flow')).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await page.getByTestId('flow-button').click();
-  const dialog = page.getByTestId('flow-dialog');
-  await expect(dialog).toContainText('สร้างภาพห้องด้วย Google Flow');
-  const prompt = page.getByTestId('flow-prompt');
-  await expect(prompt).toHaveValue(/^Photorealistic interior photograph of the rooms below/);
-  await expect(prompt).toHaveValue(/Room 1, room: [0-9.]+ × [0-9.]+ m/);
-  await expect(prompt).not.toHaveValue(/factory|machine/i);
+  await openSample(page);
+  await expect(page.getByTestId('flow-button')).toHaveCount(0);
+  await page.getByTestId('main-menu').click();
+  await expect(page.getByTestId('menu-share')).toBeVisible();
+  await expect(page.getByTestId('menu-flow')).toHaveCount(0);
 });
 
 test('an interior speaks of furniture when shared', async ({ page, browser }) => {
