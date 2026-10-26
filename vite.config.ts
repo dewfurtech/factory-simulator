@@ -64,6 +64,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
+          // The file loaders (models imported from SketchUp) load only when a model is read, not with every 3D view.
+          if (id.includes('node_modules/three/examples/jsm/loaders/')) return 'three-loaders';
           if (id.includes('node_modules/three/')) return 'three';
           // The model builders only: the lineup data and measured sizes beside them belong with the catalog, which every page reads.
           if (id.includes('/src/machines/') && id.endsWith('.js') && !id.endsWith('/data.js')) return 'models';
