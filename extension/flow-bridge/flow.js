@@ -85,10 +85,16 @@ async function addToPrompt(name) {
     if (Date.now() > until) throw new Error('ภาพอ้างอิงที่อัปโหลดไม่ขึ้นในรายการของ Flow');
     await sleep(2000);
   }
+  // Clicking the item attaches it and closes the picker (seen on the live page); "Add to prompt" in the detail pane is
+  // only pressed when the picker is still open after that.
   item.click();
-  const add = await waitFor(() => [...document.querySelectorAll(SEL.addToPrompt)].find((b) => /add to prompt/i.test(b.textContent) && !b.disabled), 15_000, 'ปุ่ม Add to prompt');
-  add.click();
-  await sleep(600);
+  await sleep(800);
+  if (document.querySelector(SEL.pickerItem)) {
+    const add = [...document.querySelectorAll(SEL.addToPrompt)].find((b) => /add to prompt/i.test(b.textContent) && !b.disabled);
+    if (!add) throw new Error('แนบภาพอ้างอิงเข้ากับพรอมต์ไม่ได้ (ไม่เจอปุ่ม Add to prompt)');
+    add.click();
+    await sleep(600);
+  }
 }
 
 function typePrompt(text) {
