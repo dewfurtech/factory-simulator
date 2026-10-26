@@ -21,7 +21,8 @@ function isTyping(e: KeyboardEvent) {
   return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable;
 }
 
-function useKeyboard() {
+/** The editor's shortcuts: undo, redo, delete, Escape, the peek key, and each tool's own. The interior editor shares them. */
+export function useKeyboard() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e)) return;
@@ -70,13 +71,13 @@ function useKeyboard() {
   }, []);
 }
 
-const VIEWS: { id: ViewMode; label: string; icon: string }[] = [
+export const VIEWS: { id: ViewMode; label: string; icon: string }[] = [
   { id: '2d', label: '2D', icon: 'view2d' },
   { id: 'split', label: 'แบ่งจอ', icon: 'split' },
   { id: '3d', label: '3D', icon: 'view3d' },
 ];
 
-function BarButton({
+export function BarButton({
   icon,
   label,
   on,
@@ -123,7 +124,7 @@ async function savePlanPicture(name: string, format: 'png' | 'svg') {
  * Makes a link to the open project as it stands. From the full editor it goes out to a customer; from a share link
  * it is the customer's arrangement going back to the seller.
  */
-function shareProject() {
+export function shareProject() {
   const { customer } = useUi.getState();
   flushAutosave();
   const make = async (note: string, sender: string) => {
@@ -151,7 +152,7 @@ function shareProject() {
 }
 
 /** The strip over the plan when it came from a share link: whose it is, their note, and the way to send it back. */
-function ShareBanner() {
+export function ShareBanner() {
   const customer = useUi((s) => s.customer);
   const closed = useUi((s) => s.bannerClosed);
   if (!customer || closed) return null;
@@ -174,7 +175,8 @@ function ShareBanner() {
   );
 }
 
-function MainMenu() {
+/** The menu behind the top-left button; `back` is the list it goes back to (the factory list by default). */
+export function MainMenu({ back = 'กลับไปรายการโรงงาน' }: { back?: string } = {}) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -203,7 +205,7 @@ function MainMenu() {
             </a>
           ) : (
             <a role="menuitem" href="#/">
-              <Icon name="back" /> กลับไปรายการโรงงาน
+              <Icon name="back" /> {back}
             </a>
           )}
           <button role="menuitem" onClick={() => (setOpen(false), void shareProject())} data-testid="menu-share">

@@ -99,6 +99,9 @@ const PATHS: Record<string, string> = {
   back: 'M15 6l-6 6 6 6',
   search: 'M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14z M16 16l4.5 4.5',
   bulb: 'M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z',
+  sofa: 'M5 11V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3 M3 13a2 2 0 0 1 4 0v4h10v-4a2 2 0 0 1 4 0v5H3z M5 21v-3 M19 21v-3',
+  ceiling: 'M4 6h16 M4 6v3h16V6 M8 9v3 M16 9v3 M12 9v2',
+  swatch: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z M6 6l3 3 M15 6l3 3 M6 15l3 3 M15 15l3 3',
 };
 
 export function Icon({ name }: { name: string }) {
@@ -327,7 +330,8 @@ function ToolGroup({
   );
 }
 
-export function Toolbar() {
+/** The rail of drawing tools. An interior project keeps the building tools and the library but has no columns, areas or aisles. */
+export function Toolbar({ interior = false }: { interior?: boolean } = {}) {
   const tool = useUi((s) => s.tool);
   const dock = useUi((s) => s.dock);
   const [open, setOpen] = useState<string | null>(null);
@@ -370,20 +374,20 @@ export function Toolbar() {
             testId="tool-drawRoomRect"
           />
           <ToolGroup id="opening" text="ประตู" label="ประตู / หน้าต่าง" items={OPENING_ITEMS} {...group('opening')} />
-          <ToolGroup id="column" text="เสา" label="เสา" items={COLUMN_ITEMS} {...group('column')} />
+          {!interior && <ToolGroup id="column" text="เสา" label="เสา" items={COLUMN_ITEMS} {...group('column')} />}
         </>
       )}
       <div className="rail-head">จัดวาง</div>
       <RailButton
-        icon="machine"
-        text="เครื่อง"
-        label="คลังเครื่องจักรและอุปกรณ์ (คอลัมน์ซ้าย)"
+        icon={interior ? 'sofa' : 'machine'}
+        text={interior ? 'เฟอร์ฯ' : 'เครื่อง'}
+        label={interior ? 'คลังเฟอร์นิเจอร์ (คอลัมน์ซ้าย)' : 'คลังเครื่องจักรและอุปกรณ์ (คอลัมน์ซ้าย)'}
         on={dock === 'catalog' || tool.kind === 'placeObject'}
         onClick={() => useUi.getState().set({ dock: dock === 'catalog' ? null : 'catalog' })}
         testId="tool-catalog"
         className="accent"
       />
-      {!customer && (
+      {!customer && !interior && (
         <>
           <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (กล่องโปร่งแสง)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
           <ToolGroup id="aisle" text="ทางเดิน" label="ทางเดิน / ทางรถ / ทิศทางงาน" items={AISLE_ITEMS} {...group('aisle')} />

@@ -1,7 +1,7 @@
 import { del, get, set } from 'idb-keyval';
 import { newId } from '../model/id';
 import { migrate, projectFacts, type ProjectFacts } from '../model/project';
-import type { Id, Project } from '../model/types';
+import type { Id, Project, ProjectKind } from '../model/types';
 import { underlayImageIds, vectorAssetId } from '../model/underlay';
 import type { CustomModel } from '../model/library';
 import { useLibrary } from './library';
@@ -11,6 +11,8 @@ export interface ProjectSummary extends Partial<ProjectFacts> {
   id: Id;
   name: string;
   updatedAt: number;
+  /** Absent for a factory (and on every summary written before interiors existed). */
+  kind?: ProjectKind;
   /** The customer's company and contact, for the card and the search on the start page. */
   company?: string;
   contact?: string;
@@ -50,6 +52,7 @@ async function writeProject(project: Project): Promise<void> {
     name: project.name,
     updatedAt: project.updatedAt,
     ...projectFacts(project),
+    ...(project.kind && { kind: project.kind }),
     ...(project.client?.company && { company: project.client.company }),
     ...(project.client?.contact && { contact: project.client.contact }),
   };
@@ -64,8 +67,11 @@ export async function deleteProject(id: Id): Promise<void> {
     index.filter((p) => p.id !== id),
   );
   await del(projectKey(id));
-  if (project) for (const blobId of underlayImageIds(project)) await del(assetKey(blobId));
+  if (project) for (const blobId of projectAssetIds(project)) await del(assetKey(blobId));
 }
+
+/** Every blob a project keeps in the asset store: its plan images, and (interior projects) its uploaded materials. */
+const projectAssetIds = (project: Project): Id[] => [...underlayImageIds(project), ...(project.materials ?? []).map((m) => m.imageId)];
 
 export async function duplicateProject(id: Id): Promise<Project | undefined> {
   const src = await loadProject(id);
@@ -76,6 +82,12 @@ export async function duplicateProject(id: Id): Promise<Project | undefined> {
     copy.underlay.imageId = newId('u');
     if (image) await saveAsset(copy.underlay.imageId, image);
     if (drawing) await saveAsset(vectorAssetId(copy.underlay.imageId), drawing);
+  }
+  // Uploaded materials get their own copies, so deleting either project leaves the other's pictures alone.
+  for (const m of copy.materials ?? []) {
+    const picture = await loadAsset(m.imageId);
+    m.imageId = newId('u');
+    if (picture) await saveAsset(m.imageId, picture);
   }
   await saveProject(copy);
   return copy;
@@ -137,10 +149,11 @@ export async function exportProject(id: Id): Promise<Blob> {
 /** The project with its plan images and the user's own models it places: everything another browser needs to show it. */
 export async function bundleProject(project: Project, { light = false } = {}): Promise<Bundle> {
   const assets: Bundle['assets'] = {};
-  for (const blobId of underlayImageIds(project)) {
+  for (const blobId of projectAssetIds(project)) {
     // A light bundle (a share link) leaves out the PDF's vector drawing, which is only for drawing walls over the
     // plan (megabytes for a CAD plan), and sends the plan picture as a smaller WebP.
-    if (light && blobId === vectorAssetId(project.underlay!.imageId)) continue;
+    // (An interior's uploaded materials may be there without any plan image.)
+    if (light && project.underlay && blobId === vectorAssetId(project.underlay.imageId)) continue;
     const stored = await loadAsset(blobId);
     const blob = stored && light ? await smaller(stored) : stored;
     if (blob) assets[blobId] = { type: blob.type, base64: await blobToBase64(blob) };
