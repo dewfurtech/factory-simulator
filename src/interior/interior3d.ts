@@ -73,8 +73,9 @@ function texturedPrism(poly: Vec2[], y0: Mm, y1: Mm, holes: Vec2[][] = []): THRE
   const g = new THREE.ExtrudeGeometry(shape, { depth: (y1 - y0) * M, bevelEnabled: false });
   g.rotateX(-Math.PI / 2);
   g.translate(0, y0 * M, 0);
-  const out = g.toNonIndexed();
-  g.dispose();
+  // An extrusion comes out without an index already; asking three.js to drop one it lacks only warns in the console.
+  const out = g.index ? g.toNonIndexed() : g;
+  if (out !== g) g.dispose();
   out.clearGroups();
   return out;
 }

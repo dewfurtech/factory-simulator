@@ -3,6 +3,7 @@ import { emptyPlan } from './plan';
 import type { Id, Project } from './types';
 import { catalogItem, isMachine, machineFootprint } from './catalog';
 import { migrateAisle } from './aisles';
+import { homeRooms } from '../interior/rooms';
 
 export function newProject(name: string): Project {
   return {
@@ -20,6 +21,8 @@ export function migrate(p: Project): Project {
   const plan = p.plan ?? emptyPlan();
   for (const r of Object.values(plan.rooms)) if (!r.zone) Object.assign(r, { zone: 'other' });
   for (const [id, a] of Object.entries(plan.aisles ?? {})) plan.aisles![id as Id] = migrateAisle(a);
+  // Interior projects saved before their rooms were named as a home's: "โซน N" on the production zone.
+  if (p.kind === 'interior') for (const pl of [plan, p.upper?.plan]) if (pl) homeRooms(pl);
   return {
     ...p,
     plan,

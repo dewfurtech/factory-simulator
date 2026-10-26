@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { CATALOG, GROUP_LABEL, GROUP_ORDER, type CatalogGroup, type CatalogItem } from '../model/catalog';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { CATALOG, extraItems, GROUP_LABEL, GROUP_ORDER, type CatalogGroup, type CatalogItem } from '../model/catalog';
 import { allTags, matchesTag, type CustomModel } from '../model/library';
 import { useLibrary } from '../store/library';
 import { ModelForm } from './ModelForm';
@@ -8,6 +8,9 @@ import { ASSET_MIME, setDraggedAsset } from '../editor2d/PlanEditor';
 import { placeObjectAt } from '../editor2d/tools';
 import { Icon } from '../editor2d/Toolbar';
 import { isFurniture } from '../interior/furniture';
+
+/** The interior's import of a SketchUp model: loaded with the dialog, so the factory app never fetches it. */
+const ImportModelDialog = lazy(() => import('../interior/ImportModelDialog').then((m) => ({ default: m.ImportModelDialog })));
 
 function Thumb({ id }: { id: string }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -50,6 +53,8 @@ const CHIP: Record<CatalogGroup, string> = {
   amenity: 'พนักงาน',
   decor: 'อื่น ๆ',
   custom: 'คลังของฉัน',
+  cabinet: 'ตู้บิ้วอิน',
+  home: 'บ้าน',
 };
 const MASTROX_COUNT = CATALOG.filter((c) => shelfOf(c) === 'mastrox').length;
 
@@ -67,19 +72,27 @@ const readShelf = (): Shelf => {
  * The library of Mastrox machines and built-in factory pieces: click to place, or drag onto the plan.
  * An interior project sees no machines: only the built-in furniture and the user's own models.
  */
+/** The phone layout of styles.css, where the library lies over the plan. */
+const PHONE = '(max-width: 640px)';
+
 export function CatalogPanel({ interior = false }: { interior?: boolean } = {}) {
   const [q, setQ] = useState('');
   const [shelf, setShelfState] = useState<Shelf>(() => (interior ? (readShelf() === 'mine' ? 'mine' : 'general') : readShelf()));
   const [group, setGroup] = useState<CatalogGroup | 'all'>('all');
   const [tag, setTag] = useState<string | null>(null);
   const [form, setForm] = useState<{ model?: CustomModel } | null>(null);
-  const models = useLibrary((s) => s.models);
+  const [importing, setImporting] = useState<{ model?: CustomModel } | null>(null);
+  const library = useLibrary((s) => s.models);
+  // Models imported from SketchUp are an interior's: a factory's shelf goes on showing its boxes only.
+  const models = useMemo(() => (interior ? library : library.filter((m) => !m.file)), [library, interior]);
   const tags = useMemo(() => allTags(models), [models]);
   const tool = useUi((s) => s.tool);
   const in3d = useUi((s) => s.view === '3d');
   /** On the plan a click arms the place tool; in 3D there is no plan to click, so the machine lands mid-view, ready to drag. */
   const pick = (assetId: string, on: boolean) => {
     const ui = useUi.getState();
+    // Interior on a phone: the library covers the plan, so it steps aside once a piece is picked.
+    if (interior && !on && window.matchMedia?.(PHONE).matches) ui.set({ dock: null });
     if (in3d) {
       const at = ui.floorCentre?.();
       if (!at) return;
@@ -104,7 +117,7 @@ export function CatalogPanel({ interior = false }: { interior?: boolean } = {}) 
     const needle = q.trim().toLowerCase();
     // A search looks through both shelves (Mastrox first), so nothing hides behind the other tab.
     const mine: CatalogItem[] = models.map((m) => ({ id: m.id, label: m.name, group: 'custom', size: m.size, summary: m.note, custom: m }));
-    const all = interior ? [...CATALOG, ...mine].filter(isFurniture) : [...CATALOG, ...mine];
+    const all = interior ? [...extraItems(), ...CATALOG, ...mine].filter(isFurniture) : [...CATALOG, ...mine];
     const shown = all.filter((c) =>
       needle
         ? c.label.toLowerCase().includes(needle) ||
@@ -160,6 +173,13 @@ export function CatalogPanel({ interior = false }: { interior?: boolean } = {}) 
           </button>
         )}
       </div>
+      {shelf === 'mine' && interior && (
+        <div className="cat-import">
+          <button className="btn btn-sm" onClick={() => setImporting({})} title="นำเข้าโมเดล 3D ที่ส่งออกจาก SketchUp (.dae, .obj, .glb, .gltf)" data-testid="import-model">
+            <Icon name="upload" /> นำเข้าโมเดล 3D (SketchUp)
+          </button>
+        </div>
+      )}
       {!searching && shelf === 'mine' && tags.length > 0 && (
         <div className="cat-chips">
           {tags.length > 0 && (
@@ -185,7 +205,11 @@ export function CatalogPanel({ interior = false }: { interior?: boolean } = {}) 
       )}
       <div className="dock-scroll">
         {!groups.length && shelf === 'mine' && !searching && (
-          <div className="cat-none muted">ยังไม่มีโมเดลของคุณ กดปุ่ม “+ เพิ่ม” แล้วตั้งชื่อ ขนาด สี และ tag หรืออัปโหลดไฟล์ 3D (GLB, glTF, OBJ, STL)</div>
+          <div className="cat-none muted">
+            {interior
+              ? 'ยังไม่มีโมเดลของคุณ กด “+ เพิ่ม” เพื่อใส่กล่องตามขนาด หรือ “นำเข้าโมเดล 3D” เพื่อใช้ไฟล์ที่ส่งออกจาก SketchUp (.dae, .obj, .glb)'
+              : 'ยังไม่มีโมเดลของคุณ กดปุ่ม “+ เพิ่ม” แล้วตั้งชื่อ ขนาด สี และ tag หรืออัปโหลดไฟล์ 3D (GLB, glTF, OBJ, STL)'}
+          </div>
         )}
         {!groups.length && (searching || shelf !== 'mine') && <div className="cat-none muted">ไม่พบ “{q.trim()}”</div>}
         {groups.map(({ g, items }) => (
@@ -232,7 +256,8 @@ export function CatalogPanel({ interior = false }: { interior?: boolean } = {}) 
                         title="แก้ไขหรือลบ"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setForm({ model: c.custom });
+                          if (c.custom?.file) setImporting({ model: c.custom });
+                          else setForm({ model: c.custom });
                         }}
                         data-testid={`edit-${c.id}`}
                       >
@@ -250,6 +275,11 @@ export function CatalogPanel({ interior = false }: { interior?: boolean } = {}) 
         {interior ? 'คลิกแล้ววางบนแปลน หรือลากไปวาง • ด้านที่มีขีดหนาคือด้านหน้า' : 'คลิกแล้ววางบนแปลน หรือลากไปวาง • ด้านที่มีขีดหนาคือด้านหน้า (จุดที่คนยืนทำงาน)'}
       </div>
       {form && <ModelForm model={form.model} onClose={() => setForm(null)} />}
+      {importing && (
+        <Suspense fallback={null}>
+          <ImportModelDialog model={importing.model} onClose={() => setImporting(null)} />
+        </Suspense>
+      )}
     </div>
   );
 }

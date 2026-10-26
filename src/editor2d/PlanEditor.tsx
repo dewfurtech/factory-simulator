@@ -10,6 +10,7 @@ import type { Column, CustomMaterial, Id, PlacedObject, Plan, Project, Underlay,
 import { add, bounds, lerp, perp, scale, signedArea } from '../model/vec';
 import { zoneColor } from '../model/zones';
 import { roomFloorColor } from '../interior/materials';
+import { CabinetPlan } from '../interior/cabinet/plan2d';
 import { fmtArea, fmtLen, fmtSize } from '../format';
 import { editProject, useEditProject, useProject } from '../store/project';
 import { useUi, type Selection, type Tool } from '../store/ui';
@@ -677,7 +678,15 @@ const ColumnLayer = memo(function ColumnLayer({ columns, selection, marked, px }
   );
 });
 
-const GROUP_FILL: Record<string, string> = { machine: '#fff4e8', office: '#ffffff', production: '#eef2ff', storage: '#fbf3e4', amenity: '#f0f9ff', decor: '#ffffff' };
+const GROUP_FILL: Record<string, string> = {
+  cabinet: '#f6efe4',
+  machine: '#fff4e8',
+  office: '#ffffff',
+  production: '#eef2ff',
+  storage: '#fbf3e4',
+  amenity: '#f0f9ff',
+  decor: '#ffffff',
+};
 
 const ObjectLayer = memo(function ObjectLayer({ plan, selection, marked, px, objects, outdoor, issues }: LayerProps & { objects: PlacedObject[]; outdoor: boolean }) {
   const level = useProject((s) => s.level);
@@ -763,8 +772,9 @@ const ObjectShape = memo(function ObjectShape({ o, px, sel, above, bad }: { o: P
         fillOpacity={open ? 0.6 : 0.95}
         stroke={sel ? 'var(--select)' : bad ? 'var(--danger)' : machine ? '#c2410c' : '#52525b'}
         strokeWidth={(sel || bad ? 2.5 : machine ? 1.6 : 1) * px}
-        strokeDasharray={bad && !sel ? `${5 * px} ${3 * px}` : undefined}
+        strokeDasharray={bad && !sel ? `${5 * px} ${3 * px}` : o.cabinet?.kind === 'wall' ? `${8 * px} ${4 * px}` : undefined}
       />
+      {o.cabinet && <CabinetPlan o={o} px={px} />}
       {!open && <line x1={poly[2].x} y1={poly[2].y} x2={poly[3].x} y2={poly[3].y} stroke={machine ? '#ea580c' : '#18181b'} strokeWidth={(machine ? 3.5 : 2) * px} />}
       {Math.min(o.size.w, o.size.d) > 14 * px && Math.max(o.size.w, o.size.d) > o.name.length * 6.5 * px && (
         <text

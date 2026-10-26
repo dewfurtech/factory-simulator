@@ -23,7 +23,7 @@ export type UseKind =
   | 'tools'
   | 'display';
 
-export type CatalogGroup = 'nesting' | 'edge' | 'drill' | 'other' | 'office' | 'production' | 'storage' | 'amenity' | 'decor' | 'custom';
+export type CatalogGroup = 'nesting' | 'edge' | 'drill' | 'other' | 'office' | 'production' | 'storage' | 'amenity' | 'decor' | 'custom' | 'cabinet' | 'home';
 
 export const GROUP_LABEL: Record<CatalogGroup, string> = {
   nesting: 'CNC Nesting (Rakete)',
@@ -36,6 +36,8 @@ export const GROUP_LABEL: Record<CatalogGroup, string> = {
   amenity: 'พนักงาน / ส่วนกลาง',
   decor: 'อื่น ๆ',
   custom: 'คลังของฉัน',
+  cabinet: 'ตู้บิ้วอิน',
+  home: 'เฟอร์นิเจอร์บ้าน',
 };
 
 export interface CatalogItem {
@@ -55,6 +57,8 @@ export interface CatalogItem {
   overhead?: boolean;
   /** One of the user's own models, with its colour, tags and 3D file. */
   custom?: CustomModel;
+  /** Fields a newly placed copy starts with: an interior cabinet's spec, and `z`, the height above the floor it hangs at. */
+  start?: Partial<Pick<PlacedObject, 'cabinet' | 'z'>>;
 }
 
 /** Each machine's footprint as measured from its 3D model by `npm run sizes`, with every combination of its add-ons. */
@@ -115,7 +119,14 @@ export function setCustomItems(models: readonly CustomModel[]): void {
 }
 export const customItems = (): CatalogItem[] => [...CUSTOM.values()];
 
-export const catalogItem = (id: string): CatalogItem | undefined => BY_ID.get(id) ?? CUSTOM.get(id);
+/** Pieces another kind of project adds (an interior's cabinets and home furniture): found by id, never on the factory's shelves. */
+const EXTRA = new Map<string, CatalogItem>();
+export function addCatalogItems(items: readonly CatalogItem[]): void {
+  for (const c of items) EXTRA.set(c.id, c);
+}
+export const extraItems = (): CatalogItem[] => [...EXTRA.values()];
+
+export const catalogItem = (id: string): CatalogItem | undefined => BY_ID.get(id) ?? EXTRA.get(id) ?? CUSTOM.get(id);
 export const isMachine = (o: Pick<PlacedObject, 'assetId'>) => BY_ID.get(o.assetId)?.use === 'machine';
 /** A machine someone has to run. */
 export const needsOperator = (o: Pick<PlacedObject, 'assetId'>) => isMachine(o) && !BY_ID.get(o.assetId)?.unattended;
@@ -197,7 +208,7 @@ export const machineInfo = (assetId: string): MachineInfo | undefined => INFO.ge
 
 export const MACHINE_CATEGORIES = CATEGORIES as { id: string; name: string; series: string }[];
 
-export const GROUP_ORDER: CatalogGroup[] = ['nesting', 'edge', 'drill', 'other', 'office', 'production', 'storage', 'amenity', 'decor', 'custom'];
+export const GROUP_ORDER: CatalogGroup[] = ['cabinet', 'home', 'nesting', 'edge', 'drill', 'other', 'office', 'production', 'storage', 'amenity', 'decor', 'custom'];
 
 /** A point in the object's own frame (x along its width, y toward its front) in plan coordinates. */
 export function localToPlan(o: Pick<PlacedObject, 'x' | 'y' | 'rotation'>, lx: Mm, ly: Mm): Vec2 {

@@ -1,0 +1,415 @@
+/*
+ * The client presentation (PresentPage.tsx): A3 landscape sheets in a full-screen page.
+ * Every rule is under .present-* names, and the print rules only act while <html> has .present-printing (set by the
+ * page's print button), so the BOQ quote's own print rules (A4, .boq-print in styles.css) are left as they are.
+ */
+
+.present-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.present-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  padding: 10px 16px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.present-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.present-title b {
+  font-size: 16px;
+}
+.present-title .muted {
+  font-size: 12.5px;
+}
+.present-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  flex: 1;
+}
+.present-picks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.present-picks label.off {
+  color: var(--ink-3);
+  cursor: default;
+}
+.present-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.present-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+.present-sheets {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+/* A sheet keeps its real size in mm and is scaled as a whole; its box on screen takes the scaled size. */
+.present-fit {
+  width: calc(420mm * var(--present-scale, 1));
+  height: calc(297mm * var(--present-scale, 1));
+  flex: none;
+  box-shadow: var(--shadow);
+}
+.present-fit > .present-sheet {
+  transform: scale(var(--present-scale, 1));
+  transform-origin: 0 0;
+}
+
+/* ---------- One sheet ---------- */
+
+.present-sheet {
+  box-sizing: border-box;
+  width: 420mm;
+  height: 297mm;
+  padding: 16mm 18mm 9mm;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: var(--ink);
+  font-size: 12pt;
+  line-height: 1.4;
+  overflow: hidden;
+}
+.present-h {
+  flex: none;
+  margin: 0 0 8mm;
+  padding-bottom: 4mm;
+  border-bottom: 0.6mm solid var(--accent);
+  font-size: 24pt;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.present-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.present-foot {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6mm;
+  padding-top: 3mm;
+  border-top: 0.25mm solid var(--line-2);
+  font-size: 9.5pt;
+  color: var(--ink-3);
+}
+.present-sheet .muted {
+  color: var(--ink-3);
+}
+.present-noimg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--canvas);
+  color: var(--ink-3);
+  width: 100%;
+  height: 100%;
+}
+
+/* Cover: the main picture on the left, the project's name, client and date on the right. */
+.present-cover-in {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 120mm;
+  gap: 14mm;
+}
+.present-cover-in.text-only {
+  grid-template-columns: 1fr;
+}
+.present-cover-pic {
+  min-height: 0;
+  border-radius: 3mm;
+  overflow: hidden;
+  background: var(--canvas);
+}
+.present-cover-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.present-cover-img.contain {
+  object-fit: contain;
+}
+.present-cover-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 6mm;
+  border-left: 0.6mm solid var(--accent);
+  padding-left: 9mm;
+}
+.present-cover-text h1 {
+  margin: 0 0 6mm;
+  font-size: 34pt;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.present-cover-client {
+  margin: 0 0 2mm;
+  font-size: 16pt;
+  color: var(--ink-2);
+}
+.present-cover-date {
+  margin: 6mm 0 0;
+  font-size: 12pt;
+  color: var(--ink-3);
+}
+
+/* Plan: the drawing, and the rooms with their areas beside it. */
+.present-plan-in {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 95mm;
+  gap: 12mm;
+}
+.present-plan-pic {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.present-plan-pic img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.present-table {
+  align-self: start;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12pt;
+}
+.present-table th,
+.present-table td {
+  padding: 2.2mm 2mm;
+  border-bottom: 0.25mm solid var(--line-2);
+  text-align: left;
+}
+.present-table th {
+  font-size: 10pt;
+  color: var(--ink-3);
+  font-weight: 600;
+  border-bottom: 0.4mm solid var(--ink-2);
+}
+.present-table tfoot td {
+  font-weight: 700;
+  border-bottom: none;
+}
+.present-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Mood & Tone: the colours across the top, then the materials two to a row. */
+.present-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6mm;
+  margin-bottom: 9mm;
+}
+.present-palette > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2mm;
+  font-size: 10.5pt;
+  color: var(--ink-2);
+}
+.present-palette i {
+  display: block;
+  width: 24mm;
+  height: 24mm;
+  border-radius: 3mm;
+  box-shadow: inset 0 0 0 0.25mm rgba(15, 23, 42, 0.15);
+}
+.present-materials {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7mm 12mm;
+  align-content: start;
+}
+.present-material {
+  display: flex;
+  gap: 6mm;
+  align-items: flex-start;
+  break-inside: avoid;
+}
+.present-material b,
+.present-piece b {
+  font-size: 13pt;
+}
+.present-use {
+  font-size: 10.5pt;
+  color: var(--ink-2);
+}
+.present-use.total {
+  margin-top: 1mm;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* Furniture and cabinets: four to a row, a picture over each. */
+.present-pieces {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7mm 9mm;
+  flex: 1;
+  min-height: 0;
+  align-content: start;
+}
+.present-piece {
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+  min-height: 0;
+}
+.present-thumb {
+  height: 34mm;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--canvas);
+  border-radius: 2mm;
+}
+.present-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.present-count {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Pictures of the room: one large, two side by side, three as one large and two, four in a grid. */
+.present-images {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 7mm;
+}
+.present-images.n2 {
+  grid-template-columns: 1fr 1fr;
+}
+.present-images.n3 {
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+.present-images.n3 figure:first-child {
+  grid-row: span 2;
+}
+.present-images.n4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+.present-images figure {
+  position: relative;
+  margin: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 2mm;
+}
+.present-images figure img,
+.present-images figure .present-noimg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 2mm;
+}
+.present-images figcaption {
+  font-size: 10pt;
+  color: var(--ink-3);
+}
+.present-images figure > .ib {
+  position: absolute;
+  top: 3mm;
+  right: 3mm;
+  background: var(--card);
+}
+
+@media (max-width: 640px) {
+  .present-bar {
+    padding: 8px 10px;
+  }
+  .present-picks {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .present-scroll {
+    padding: 10px;
+  }
+}
+
+/* ---------- Print: the sheets alone, one A3 landscape page each, edge to edge ---------- */
+
+@page present-a3 {
+  size: A3 landscape;
+  margin: 0;
+}
+@media print {
+  html.present-printing body > *:not(.present-root) {
+    display: none !important;
+  }
+  html.present-printing body > .present-root {
+    display: block !important;
+    position: static;
+    background: #fff;
+  }
+  html.present-printing .present-bar,
+  html.present-printing .present-noprint {
+    display: none !important;
+  }
+  html.present-printing .present-scroll {
+    overflow: visible;
+    padding: 0;
+  }
+  html.present-printing .present-sheets {
+    display: block;
+  }
+  html.present-printing .present-fit {
+    width: auto;
+    height: auto;
+    box-shadow: none;
+  }
+  html.present-printing .present-sheet {
+    page: present-a3;
+    transform: none;
+    break-after: page;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  html.present-printing .present-fit:last-child .present-sheet {
+    break-after: auto;
+  }
+}

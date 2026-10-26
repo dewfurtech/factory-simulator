@@ -10,9 +10,14 @@ import { ProjectInfo } from '../panels/ProjectInfo';
 import { useProject } from '../store/project';
 import { useUi } from '../store/ui';
 import { Loading3D } from '../ui/Loading3D';
+import { CabinetPanel } from './CabinetPanel';
+import './catalog';
 import { INTERIOR_FINISHES } from './interior3d';
+import { INTERIOR_PIECES } from './objects3d';
 import { RoomMaterials, WallMaterial } from './MaterialPicker';
+import { openBoq } from './BoqPage';
 import { openMoodBoard } from './MoodBoard';
+import { openPresentation, PresentButton } from './present/PresentPage';
 import { HOME_ZONE_IDS } from './zones';
 
 const View3D = lazy(() => import('../view3d/View3D'));
@@ -39,7 +44,14 @@ export function InteriorEditor() {
     <div className={`editor interior${dock ? ' with-dock' : ''}`} data-testid="interior-editor">
       <header className="topbar">
         <div className="tb-group tb-left">
-          <MainMenu back="กลับไปรายการโปรเจกต์" />
+          <MainMenu
+            back="กลับไปรายการโปรเจกต์"
+            extra={(close) => (
+              <button role="menuitem" onClick={() => (close(), openPresentation())} data-testid="menu-present">
+                <Icon name="image" /> นำเสนอลูกค้า (A3)
+              </button>
+            )}
+          />
           <div className="brand tb-desk">
             <Icon name="sofa" />
           </div>
@@ -91,6 +103,13 @@ export function InteriorEditor() {
             <Icon name="palette" />
             <span>Mood &amp; Tone</span>
           </button>
+          <button className="tb-toggle" onClick={() => void openBoq()} title="BOQ / ใบเสนอราคา: ถอดปริมาณวัสดุจากห้อง แล้วใส่ราคาเองเป็นใบเสนอราคา" data-testid="boq-open">
+            <Icon name="report" />
+            <span>
+              BOQ<span className="tb-wide"> / ใบเสนอราคา</span>
+            </span>
+          </button>
+          <PresentButton />
           <button
             className="tb-toggle tb-accent"
             onClick={() => void shareProject()}
@@ -150,13 +169,20 @@ export function InteriorEditor() {
           {view !== '2d' && (
             <div className="pane">
               <Suspense fallback={<Loading3D />}>
-                <View3D finishes={INTERIOR_FINISHES} />
+                <View3D finishes={INTERIOR_FINISHES} pieces={INTERIOR_PIECES} />
               </Suspense>
             </div>
           )}
         </div>
       </main>
-      {showPanel && <PropertiesPanel zoneIds={HOME_ZONE_IDS} roomExtra={(r) => <RoomMaterials room={r} />} wallExtra={(w) => <WallMaterial wall={w} />} />}
+      {showPanel && (
+        <PropertiesPanel
+          zoneIds={HOME_ZONE_IDS}
+          roomExtra={(r) => <RoomMaterials room={r} />}
+          wallExtra={(w) => <WallMaterial wall={w} />}
+          objectExtra={(o) => o.cabinet && <CabinetPanel o={o} />}
+        />
+      )}
     </div>
   );
 }

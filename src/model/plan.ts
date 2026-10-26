@@ -1,7 +1,7 @@
 import { detectFaces, faceKey } from './faces';
 import { newId } from './id';
 import { incidentWalls } from './miter';
-import type { Corner, Id, Mm, PlacedObject, Plan, Room, Vec2, Wall } from './types';
+import type { Corner, Id, MaterialId, Mm, PlacedObject, Plan, Room, Vec2, Wall, WallSide } from './types';
 import { add, dist, dot, lineIntersect, norm, perp, pointInPolygon, polygonPerimeter, projectOnSegment, scale, segmentIntersect, signedArea, sub, bounds } from './vec';
 
 /**
@@ -450,4 +450,21 @@ export function wallSideRooms(plan: Plan, wall: Wall): { A: Room | null; B: Room
   const n = perp(wallDir(plan, wall));
   const probe = wall.thickness / 2 + 20;
   return { A: roomAt(plan, add(mid, scale(n, probe))), B: roomAt(plan, add(mid, scale(n, -probe))) };
+}
+
+/**
+ * Interior projects: the material on each face of a wall. The wall's own finish covers both faces, or only the one
+ * `finishSide` names; a face it leaves bare shows the wall material of the room on that side, and a face with no
+ * room (the outside of an outer wall) shows none.
+ */
+export function wallFaceFinishes(plan: Plan, wall: Wall): Record<WallSide, MaterialId | undefined> {
+  const rooms = wallSideRooms(plan, wall);
+  const face = (side: WallSide) => (wall.finish && (!wall.finishSide || wall.finishSide === side) ? wall.finish : rooms[side]?.finish?.wall);
+  return { A: face('A'), B: face('B') };
+}
+
+/** The face of a wall that looks into a room, or null when the room is on neither side of it. */
+export function wallSideOf(plan: Plan, wall: Wall, room: Room): WallSide | null {
+  const { A, B } = wallSideRooms(plan, wall);
+  return A?.id === room.id ? 'A' : B?.id === room.id ? 'B' : null;
 }

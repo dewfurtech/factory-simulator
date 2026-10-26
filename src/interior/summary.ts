@@ -1,5 +1,5 @@
 import { catalogItem } from '../model/catalog';
-import { roomStats, roomWalls, wallLength } from '../model/plan';
+import { roomStats, roomWalls, wallLength, wallSideOf } from '../model/plan';
 import type { MaterialId, Plan, Project, Room, Size3, Wall } from '../model/types';
 import { materialOf, SURFACES, type Material, type Surface } from './materials';
 
@@ -36,33 +36,46 @@ export interface MoodSummary {
 }
 
 /** Square millimetres of the openings cut in a wall. */
-const openingsArea = (plan: Plan, wall: Wall) =>
+export const openingsArea = (plan: Plan, wall: Wall) =>
   Object.values(plan.openings)
     .filter((o) => o.wallId === wall.id)
     .reduce((s, o) => s + o.width * o.height, 0);
 
+/** How high a wall's face shows inside a room: up to the ceiling, or the wall's top if it stops lower. */
+export const wallFaceHeight = (room: Room, wall: Wall): number => Math.min(wall.height, room.ceilingHeight);
+
 /** One face of a wall as it bounds a room: its length times the room's ceiling height, less the openings in it. */
-export const wallFaceArea = (plan: Plan, room: Room, wall: Wall): number =>
-  Math.max(0, wallLength(plan, wall) * Math.min(wall.height, room.ceilingHeight) - openingsArea(plan, wall));
+export const wallFaceArea = (plan: Plan, room: Room, wall: Wall): number => Math.max(0, wallLength(plan, wall) * wallFaceHeight(room, wall) - openingsArea(plan, wall));
+
+export interface RoomSurface {
+  surface: Surface;
+  material: MaterialId;
+  /** Square millimetres. */
+  area: number;
+  /** The wall, for a wall face. */
+  wall?: Wall;
+}
 
 /**
  * Which material each surface of a room shows, surface by surface. The walls come wall by wall: a wall with a finish
- * of its own shows that, the rest show the room's wall finish.
+ * of its own shows that on the faces it covers (both, or the one it is set for), the rest show the room's wall finish.
  */
-export function roomSurfaces(plan: Plan, room: Room): { surface: Surface; material: MaterialId; area: number }[] {
-  const out: { surface: Surface; material: MaterialId; area: number }[] = [];
+export function roomSurfaces(plan: Plan, room: Room): RoomSurface[] {
+  const out: RoomSurface[] = [];
   const floor = roomStats(plan, room).area;
   if (room.finish?.floor) out.push({ surface: 'floor', material: room.finish.floor, area: floor });
   if (room.finish?.ceiling) out.push({ surface: 'ceiling', material: room.finish.ceiling, area: floor });
   for (const w of roomWalls(plan, room)) {
-    const id = w.finish ?? room.finish?.wall;
-    if (id) out.push({ surface: 'wall', material: id, area: wallFaceArea(plan, room, w) });
+    // The wall's own material counts on this face unless it is set for the other face only.
+    const own = w.finish && (!w.finishSide || w.finishSide === wallSideOf(plan, w, room)) ? w.finish : undefined;
+    const id = own ?? room.finish?.wall;
+    if (id) out.push({ surface: 'wall', material: id, area: wallFaceArea(plan, room, w), wall: w });
   }
   return out;
 }
 
 /** The plans a project has: the ground floor and, when there is one, the floor above it. */
-const plansOf = (p: Project): Plan[] => (p.upper ? [p.plan, p.upper.plan] : [p.plan]);
+export const plansOf = (p: Project): Plan[] => (p.upper ? [p.plan, p.upper.plan] : [p.plan]);
 
 export function moodSummary(project: Project): MoodSummary {
   const lines = new Map<MaterialId, MaterialLine>();

@@ -125,6 +125,9 @@ async function savePlanPicture(name: string, format: 'png' | 'svg') {
  * Makes a link to the open project as it stands. From the full editor it goes out to a customer; from a share link
  * it is the customer's arrangement going back to the seller.
  */
+/** What a customer moves about on a shared plan: machines in a factory, furniture in an interior. */
+const movable = () => (useProject.getState().project?.kind === 'interior' ? 'เฟอร์นิเจอร์' : 'เครื่อง');
+
 export function shareProject() {
   const { customer } = useUi.getState();
   flushAutosave();
@@ -135,17 +138,18 @@ export function shareProject() {
     return shareUrl(id);
   };
   const sender = lastSender();
+  const thing = movable();
   return customer
     ? shareDialog({
         title: 'ส่งการจัดวางกลับ',
-        message: 'สร้างลิงก์ของแปลนตามที่คุณย้ายเครื่องไว้ แล้วส่งลิงก์นั้นกลับให้ผู้ขาย',
+        message: `สร้างลิงก์ของแปลนตามที่คุณย้าย${thing}ไว้ แล้วส่งลิงก์นั้นกลับให้ผู้ขาย`,
         ok: 'สร้างลิงก์',
         sender,
         make,
       })
     : shareDialog({
         title: 'แชร์ลิงก์ให้ลูกค้า',
-        message: 'ลูกค้าเปิดลิงก์แล้วเห็นแปลนนี้ ย้ายเครื่องเองได้ และส่งการจัดวางกลับมาเป็นลิงก์ใหม่ แปลนในลิงก์เป็นสำเนา ณ ตอนนี้ แก้ต่อที่นี่ไม่กระทบลิงก์',
+        message: `ลูกค้าเปิดลิงก์แล้วเห็นแปลนนี้ ย้าย${thing}เองได้ และส่งการจัดวางกลับมาเป็นลิงก์ใหม่ แปลนในลิงก์เป็นสำเนา ณ ตอนนี้ แก้ต่อที่นี่ไม่กระทบลิงก์`,
         ok: 'สร้างลิงก์',
         sender,
         make,
@@ -166,7 +170,7 @@ export function ShareBanner() {
           {reply ? 'การจัดวางที่ลูกค้าส่งกลับมา' : 'แปลนที่ผู้ขายส่งมาให้ดู'}
           {customer.sender && <span className="share-from"> · จาก {customer.sender}</span>}
         </strong>
-        <span>{reply ? 'เปิดในโหมดแก้ไขเต็มได้จากเมนูมุมซ้ายบน' : 'ลากเครื่องเพื่อย้าย กด R หมุน แล้วกด "ส่งกลับ" เพื่อส่งการจัดวางของคุณ'}</span>
+        <span>{reply ? 'เปิดในโหมดแก้ไขเต็มได้จากเมนูมุมซ้ายบน' : `ลาก${movable()}เพื่อย้าย กด R หมุน แล้วกด "ส่งกลับ" เพื่อส่งการจัดวางของคุณ`}</span>
         {customer.note && <q data-testid="share-note-shown">{customer.note}</q>}
       </div>
       <button className="ib sm share-close" onClick={() => useUi.getState().set({ bannerClosed: true })} title="ปิด" aria-label="ปิด" data-testid="share-banner-close">
@@ -177,7 +181,8 @@ export function ShareBanner() {
 }
 
 /** The menu behind the top-left button; `back` is the list it goes back to (the factory list by default). */
-export function MainMenu({ back = 'กลับไปรายการโรงงาน' }: { back?: string } = {}) {
+/** The main menu; `extra` adds items of the caller's own at its end (each gets a `close` to call when picked). */
+export function MainMenu({ back = 'กลับไปรายการโรงงาน', extra }: { back?: string; extra?: (close: () => void) => React.ReactNode } = {}) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -240,9 +245,13 @@ export function MainMenu({ back = 'กลับไปรายการโรง
           >
             <Icon name="image" /> บันทึกแปลนเป็นไฟล์ SVG
           </button>
-          <button role="menuitem" onClick={() => (setOpen(false), void openFlowDialog())} data-testid="menu-flow">
-            <Icon name="bulb" /> สร้างภาพโรงงานด้วย Google Flow
-          </button>
+          {/* Its prompt describes a factory hall: an interior leaves it out until it has a prompt of its own. */}
+          {p.kind !== 'interior' && (
+            <button role="menuitem" onClick={() => (setOpen(false), void openFlowDialog())} data-testid="menu-flow">
+              <Icon name="bulb" /> สร้างภาพโรงงานด้วย Google Flow
+            </button>
+          )}
+          {extra?.(() => setOpen(false))}
         </div>
       )}
     </div>

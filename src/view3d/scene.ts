@@ -6,6 +6,7 @@ import { roomPolygon } from '../model/plan';
 import { bounds, pointInPolygon } from '../model/vec';
 import { buildAreas, buildBuilding, buildIsland, buildZoneLabels, type FinishHooks } from './building3d';
 import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
+import { interiorFrame } from './frameInterior';
 import { machineObject } from './machines3d';
 import { machineFootprint } from '../model/catalog';
 import { FLOW_IN, FLOW_OUT, flowArrows } from '../model/flow';
@@ -25,6 +26,16 @@ export interface SceneOptions {
   finishes?: FinishHooks;
   /** Interior projects: ceilings over the rooms. */
   ceilings?: boolean;
+  /** Interior projects: cabinets, home furniture and imported models, drawn their own way. */
+  pieces?: PieceHooks;
+}
+
+/** What another kind of project (an interior) draws its own way. */
+export interface PieceHooks {
+  /** The 3D object for a placed piece, or null to draw it as usual; `onReady` redraws when a part arrives later. */
+  build(o: PlacedObject, onReady: () => void): THREE.Object3D | null;
+  /** Opens every door and drawer under `node` to `fraction` (0 shut, 1 fully open). */
+  setOpen(node: THREE.Object3D, fraction: number): void;
 }
 
 export interface Picked {
@@ -109,6 +120,36 @@ export class FactoryScene {
       for (const [id, node] of this.objectMeshes) node.visible = this.shows(this.objectKeys.get(id)!);
     }
     this.areas.visible = this.opts.areas;
+    if (before.pieces !== this.opts.pieces && this.project) {
+      for (const node of this.objectMeshes.values()) {
+        this.objects.remove(node);
+        disposeTree(node);
+      }
+      this.objectMeshes.clear();
+      this.objectKeys.clear();
+      this.syncObjects(this.project.objects);
+    }
+    this.dirty = true;
+  }
+
+  /** How far every cabinet door and drawer stands open (0..1), and the swing under way toward a new value. */
+  private openNow = 0;
+  private openAnim: { from: number; to: number; t0: number; ms: number } | null = null;
+
+  /** Opens (1) or shuts (0) every cabinet in the view, over `ms` milliseconds. */
+  setPiecesOpen(to: number, ms = 300) {
+    this.openAnim = { from: this.openNow, to, t0: performance.now(), ms: Math.max(1, ms) };
+    this.dirty = true;
+  }
+
+  private stepOpen() {
+    const a = this.openAnim;
+    const hooks = this.opts.pieces;
+    if (!a || !hooks) return;
+    const k = Math.min(1, (performance.now() - a.t0) / a.ms);
+    this.openNow = a.from + (a.to - a.from) * k * k * (3 - 2 * k);
+    for (const node of this.objectMeshes.values()) hooks.setOpen(node, this.openNow);
+    if (k >= 1) this.openAnim = null;
     this.dirty = true;
   }
 
@@ -189,7 +230,9 @@ export class FactoryScene {
         prev.size.w === o.size.w &&
         prev.size.d === o.size.d &&
         prev.size.h === o.size.h &&
-        (prev.options ?? []).join() === (o.options ?? []).join();
+        (prev.options ?? []).join() === (o.options ?? []).join() &&
+        prev.cabinet === o.cabinet &&
+        prev.colors === o.colors;
       let node = sameShape ? old! : null;
       if (!node) {
         if (old) {
@@ -197,6 +240,7 @@ export class FactoryScene {
           disposeTree(old);
         }
         node = this.makeObject(o);
+        if (this.openNow) this.opts.pieces?.setOpen(node, this.openNow);
         this.objects.add(node);
         this.objectMeshes.set(o.id, node);
       }
@@ -245,7 +289,9 @@ export class FactoryScene {
     const holder = new THREE.Group();
     holder.userData.objectId = o.id;
     const custom = catalogItem(o.assetId)?.custom;
-    if (isMachine(o)) {
+    const own = isMachine(o) ? null : this.opts.pieces?.build(o, () => (this.dirty = true));
+    if (own) holder.add(own);
+    else if (isMachine(o)) {
       const blocky = machineObject(o.assetId, o.options);
       const base = machineFootprint(o.assetId, o.options);
       if (blocky && base) blocky.scale.set(o.size.w / base.w, o.size.h / base.h, o.size.d / base.d);
@@ -350,6 +396,11 @@ export class FactoryScene {
     if (!pts.length) {
       this.controls.target.set(0, 0, 0);
       this.camera.position.set(12, 14, 18);
+    } else if (this.opts.finishes) {
+      // An interior: a few rooms, looked down into from high enough to see the floors over the walls.
+      const f = interiorFrame(pts, this.camera.fov, this.camera.aspect);
+      this.controls.target.set(...f.target);
+      this.camera.position.set(...f.position);
     } else {
       const b = bounds(pts);
       const cx = ((b.min.x + b.max.x) / 2) * M;
@@ -436,6 +487,7 @@ export class FactoryScene {
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop);
     this.controls.update();
+    this.stepOpen();
     if (!this.dirty) return;
     this.dirty = false;
     this.fitLabels();
@@ -500,9 +552,20 @@ export class FactoryScene {
   }
 
   /** The view as it shows now, as a PNG. Drawn afresh: the canvas keeps no frame once it is on screen. */
-  snapshot(): Promise<Blob | null> {
+  /** The view as a PNG; with `longSide`, drawn at least that many pixels along its longer side (for print). */
+  snapshot(longSide?: number): Promise<Blob | null> {
+    const ratio = this.renderer.getPixelRatio();
+    const size = this.renderer.getSize(new THREE.Vector2());
+    const want = longSide ? longSide / Math.max(size.x, size.y, 1) : 0;
+    if (want > ratio) this.renderer.setPixelRatio(want);
     this.renderer.render(this.scene, this.camera);
-    return new Promise((ok) => this.renderer.domElement.toBlob((b) => ok(b), 'image/png'));
+    // toBlob copies the picture as it is when called, so the screen can go back to its own size straight after.
+    const out = new Promise<Blob | null>((ok) => this.renderer.domElement.toBlob((b) => ok(b), 'image/png'));
+    if (want > ratio) {
+      this.renderer.setPixelRatio(ratio);
+      this.dirty = true;
+    }
+    return out;
   }
 
   dispose() {

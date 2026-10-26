@@ -20,5 +20,8 @@ const FURNITURE = new Set([
   'railing',
 ]);
 
-/** Whether a catalog item belongs on the interior editor's shelf (the user's own models always do). */
-export const isFurniture = (c: Pick<CatalogItem, 'id' | 'group'>): boolean => c.group === 'custom' || FURNITURE.has(c.id);
+/**
+ * Whether a catalog item belongs on the interior editor's shelf: the user's own models always do, and so do the
+ * interior's own cabinets and home furniture (src/interior/catalog.ts).
+ */
+export const isFurniture = (c: Pick<CatalogItem, 'id' | 'group'>): boolean => c.group === 'custom' || c.group === 'cabinet' || c.group === 'home' || FURNITURE.has(c.id);

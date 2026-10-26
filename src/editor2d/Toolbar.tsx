@@ -101,6 +101,7 @@ const PATHS: Record<string, string> = {
   bulb: 'M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z',
   sofa: 'M5 11V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3 M3 13a2 2 0 0 1 4 0v4h10v-4a2 2 0 0 1 4 0v5H3z M5 21v-3 M19 21v-3',
   ceiling: 'M4 6h16 M4 6v3h16V6 M8 9v3 M16 9v3 M12 9v2',
+  cabinetOpen: 'M4 4h8v16H4z M12 4l7 3v12l-7 1 M9 12h1 M14 12h1',
   swatch: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z M6 6l3 3 M15 6l3 3 M6 15l3 3 M15 15l3 3',
 };
 

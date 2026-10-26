@@ -74,11 +74,13 @@ function MachineModelPicker({ o }: { o: PlacedObject }) {
   );
 }
 
-/** What another kind of project (an interior) adds to the panel: its own zone list and extra sections under a room or wall. */
+/** What another kind of project (an interior) adds to the panel: its own zone list and extra sections under a room, wall or object. */
 export interface PanelExtras {
   zoneIds?: ZoneKind[];
   roomExtra?: (room: Room) => ReactNode;
   wallExtra?: (wall: Wall) => ReactNode;
+  /** Sections under a placed object (a cabinet's spec and parts list); a cabinet's size is set there, from its spec. */
+  objectExtra?: (o: PlacedObject) => ReactNode;
 }
 
 export function PropertiesPanel(extras: PanelExtras = {}) {
@@ -494,13 +496,14 @@ function SelectionProps({ sel, project, extras }: { sel: Selection; project: Pro
                 <Icon name="copy" /> ทำสำเนา
               </button>
             </div>
-            {!machine && (
+            {!machine && !o.cabinet && (
               <div className="two">
                 <NumberField label="กว้าง" value={o.size.w} scale={10} suffix="ซม." min={10} onChange={(v) => set((x) => void (x.size.w = v))} />
                 <NumberField label="ลึก" value={o.size.d} scale={10} suffix="ซม." min={10} onChange={(v) => set((x) => void (x.size.d = v))} />
                 <NumberField label="สูง" value={o.size.h} scale={10} suffix="ซม." min={1} onChange={(v) => set((x) => void (x.size.h = v))} />
               </div>
             )}
+            {extras.objectExtra?.(o)}
           </div>
         </>
       );

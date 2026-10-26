@@ -3620,6 +3620,14 @@ body:has(.home) {
 .swatch-none {
   background: linear-gradient(45deg, transparent 46%, var(--line-2) 46%, var(--line-2) 54%, transparent 54%), var(--card) !important;
 }
+/* Which face of a wall its own material covers: both, or the face toward one room. */
+.wall-face {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
 .surface-row {
   display: grid;
   gap: 8px;
@@ -3798,6 +3806,30 @@ body:has(.home) {
 .editor.interior .tb-toggle {
   white-space: nowrap;
 }
+/* Phones: the interior bar also carries Mood & Tone and BOQ, so its view buttons are narrower and the layers
+   button (a desk tool, never shown to customers) steps aside to make room. */
+@media (max-width: 640px) {
+  .editor.interior .seg-icons button {
+    padding: 0 5px;
+  }
+  .editor.interior .seg-view button {
+    min-width: 40px;
+  }
+  .editor.interior [data-testid='dock-layers'] {
+    display: none;
+  }
+  /* The library slides over the plan from under the bar (z-index 30): the bar's menus open over it, not behind it. */
+  .editor.interior .topbar {
+    z-index: 31;
+  }
+}
+/* The interior bar has two more buttons than the factory's: below 1640px the panel buttons go icon-only and the BOQ button says only "BOQ". */
+@media (max-width: 1640px) {
+  .editor.interior .tb-wide,
+  .editor.interior .seg-panels span {
+    display: none;
+  }
+}
 
 /* Google Flow dialog (a wide dialog, sized by .dialog-wide above): prompt, reference picture, and the pictures brought back. */
 .flow {
@@ -3925,4 +3957,288 @@ body:has(.home) {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--card);
+}
+
+/* BOQ / quote page (a wide dialog): two tabs of tables that scroll sideways inside their frame on a phone. */
+.boq {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.boq-title {
+  flex: 1;
+  min-width: 0;
+}
+.boq-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.boq-tabs {
+  justify-self: start;
+}
+.dialog .boq-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.dialog .boq-check input {
+  width: auto;
+  height: auto;
+  padding: 0;
+}
+.boq-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.boq-table {
+  min-width: 760px;
+}
+.boq-table td,
+.boq-table th {
+  vertical-align: middle;
+}
+.boq-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.boq-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+}
+.dialog .boq-num {
+  width: 80px;
+  text-align: right;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  font: inherit;
+  background: var(--card);
+}
+.boq-detail td {
+  background: var(--canvas);
+}
+.boq-detail p {
+  margin: 0 0 8px;
+  color: var(--ink-2);
+  white-space: normal;
+}
+.boq-spec {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: 13px;
+}
+.dialog .boq-spec label {
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dialog .boq-spec input[type='text'] {
+  width: 160px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  font: inherit;
+}
+.boq-client {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.boq-date {
+  text-align: right;
+}
+.boq-totals {
+  justify-self: end;
+  display: grid;
+  gap: 6px;
+  min-width: min(320px, 100%);
+}
+.boq-totals > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.boq-grand {
+  padding-top: 6px;
+  border-top: 1px solid var(--line-2);
+  font-size: 16px;
+}
+.boq-unpriced {
+  color: var(--accent);
+  font-size: 12.5px;
+  white-space: nowrap;
+  margin: 0;
+}
+.boq-print {
+  display: none;
+}
+@media (max-width: 640px) {
+  /* Title and close button on the first line, the export buttons under them. */
+  .boq-head {
+    flex-wrap: wrap;
+  }
+  .boq-head .boq-close {
+    order: 1;
+  }
+  .boq-actions {
+    order: 2;
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .boq-date {
+    text-align: left;
+  }
+  .boq-totals {
+    justify-self: stretch;
+  }
+}
+
+/* The quote on A4: only the print sheet shows, in black on white. */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  body {
+    background: #fff !important;
+  }
+  body > *:not(.boq-print) {
+    display: none !important;
+  }
+  .boq-print {
+    display: block;
+    color: #000;
+    font-size: 11pt;
+  }
+  .boq-print h1 {
+    margin: 0;
+    font-size: 20pt;
+  }
+  .boq-print-name {
+    margin: 2mm 0 5mm;
+    font-size: 13pt;
+  }
+  .boq-print .boq-client {
+    border: 1px solid #999;
+    margin-bottom: 5mm;
+  }
+  .boq-print table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 5mm;
+  }
+  .boq-print th,
+  .boq-print td {
+    border-bottom: 1px solid #bbb;
+    padding: 1.6mm 2mm;
+    text-align: left;
+    vertical-align: top;
+  }
+  .boq-print th {
+    border-bottom: 1.5px solid #000;
+    font-size: 9.5pt;
+  }
+  .boq-print .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .boq-print tr {
+    break-inside: avoid;
+  }
+  .boq-print .boq-totals {
+    margin-left: auto;
+    width: 75mm;
+    display: grid;
+    gap: 1.5mm;
+  }
+  .boq-print .boq-totals > div {
+    display: flex;
+    justify-content: space-between;
+  }
+  .boq-print .boq-unpriced {
+    color: #000;
+    font-style: italic;
+  }
+  .boq-print .muted {
+    color: #444;
+  }
+}
+
+/* Interior: a built-in cabinet's panel (src/interior/CabinetPanel.tsx). */
+.cabinet-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cab-bay {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 8px;
+  align-items: end;
+}
+.cab-parts summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.cab-parts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 6px 0;
+}
+.cab-parts-table th {
+  text-align: left;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.cab-parts-table td,
+.cab-parts-table th {
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  vertical-align: top;
+}
+.cab-parts-table .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.cat-import {
+  margin: -4px 12px 8px;
+}
+.cat-import .btn {
+  width: 100%;
+  justify-content: center;
+}
+.model-warnings {
+  margin: 0;
+  padding: 8px 10px 8px 24px;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 12.5px;
+}
+.model-form .check {
+  align-self: flex-start;
+}
+.model-form .check input {
+  width: auto;
+  padding: 0;
 }

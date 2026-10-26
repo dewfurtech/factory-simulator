@@ -620,9 +620,10 @@ export function objectAt(assetId: string, p: Vec2, radius: Mm, free = false): Pl
     name: item?.label ?? 'กล่อง',
     x: p.x,
     y: p.y,
-    z: levelZ(useProject.getState().project!, useProject.getState().level),
+    z: levelZ(useProject.getState().project!, useProject.getState().level) + (item?.start?.z ?? 0),
     rotation: 0,
     size: item ? { ...item.size } : { w: 1000, d: 1000, h: 1000 },
+    ...(item?.start?.cabinet && { cabinet: structuredClone(item.start.cabinet) }),
   };
   if (!free) {
     const s = snapObject(proj.plan, proj.objects, obj, p, Math.max(radius, 300));

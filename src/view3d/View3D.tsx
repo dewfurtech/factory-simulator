@@ -7,7 +7,7 @@ import { objectAt, placeObjectAt, rotateObject } from '../editor2d/tools';
 import { ASSET_MIME, draggedAssetId } from '../editor2d/PlanEditor';
 import type { Id, Vec2 } from '../model/types';
 import { Icon } from '../editor2d/Toolbar';
-import { FactoryScene } from './scene';
+import { FactoryScene, type PieceHooks } from './scene';
 import type { FinishHooks } from './building3d';
 import { locate } from '../model/locate';
 import { download } from '../editor2d/exportImage';
@@ -17,9 +17,10 @@ import { Loading3D } from '../ui/Loading3D';
 
 /**
  * The 3D pane: the factory, with the picked object highlighted. An interior project passes `finishes`, which puts
- * materials on finished surfaces, ceilings over the rooms, and a button to take the ceilings off.
+ * materials on finished surfaces, ceilings over the rooms, and a button to take the ceilings off; and `pieces`, which
+ * draws its cabinets and furniture its own way, with a button that opens every cabinet.
  */
-export default function View3D({ finishes }: { finishes?: FinishHooks } = {}) {
+export default function View3D({ finishes, pieces }: { finishes?: FinishHooks; pieces?: PieceHooks } = {}) {
   const host = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<FactoryScene | null>(null);
   const project = useProject((s) => s.project!);
@@ -30,6 +31,7 @@ export default function View3D({ finishes }: { finishes?: FinishHooks } = {}) {
   const areas = useUi((s) => !s.areasHidden);
   const ceilingsHidden = useUi((s) => s.ceilingsHidden);
   const [top, setTop] = useState(false);
+  const [cabinetsOpen, setCabinetsOpen] = useState(false);
   // Move mode: dragging a machine slides it over the floor, as on the plan.
   const moving = useUi((s) => s.move3d);
   const setMoving = (on: boolean) => useUi.getState().set({ move3d: on });
@@ -57,7 +59,7 @@ export default function View3D({ finishes }: { finishes?: FinishHooks } = {}) {
         const r = s.renderer.domElement.getBoundingClientRect();
         return s.floorPoint(r.left + r.width / 2, r.top + r.height / 2);
       },
-      snapshot3d: () => s.snapshot(),
+      snapshot3d: (longSide?: number) => s.snapshot(longSide),
     });
     const start = setTimeout(() => setStarted(true), 40);
     return () => {
@@ -99,9 +101,10 @@ export default function View3D({ finishes }: { finishes?: FinishHooks } = {}) {
   const troubled = useTroubled();
   useEffect(() => sceneRef.current?.markTroubled(troubled.map((t) => t.id)), [troubled, started]);
   useEffect(
-    () => sceneRef.current?.setOptions(finishes ? { cutaway, areas, finishes, ceilings: !ceilingsHidden && !top } : { cutaway, areas }),
-    [cutaway, areas, finishes, ceilingsHidden, top],
+    () => sceneRef.current?.setOptions(finishes ? { cutaway, areas, finishes, ceilings: !ceilingsHidden && !top, pieces } : { cutaway, areas }),
+    [cutaway, areas, finishes, ceilingsHidden, top, pieces],
   );
+  useEffect(() => sceneRef.current?.setPiecesOpen(cabinetsOpen ? 1 : 0), [cabinetsOpen]);
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
 
   const down = useRef<{ x: number; y: number } | null>(null);
@@ -241,6 +244,17 @@ export default function View3D({ finishes }: { finishes?: FinishHooks } = {}) {
             data-testid="ceilings-hidden"
           >
             <Icon name="ceiling" />
+          </button>
+        )}
+        {pieces && (
+          <button
+            className={`ib sm${cabinetsOpen ? ' on' : ''}`}
+            onClick={() => setCabinetsOpen(!cabinetsOpen)}
+            title={cabinetsOpen ? 'ปิดตู้: ปิดบานและเก็บลิ้นชักของทุกตู้' : 'เปิดตู้: เปิดบานและดึงลิ้นชักของทุกตู้'}
+            aria-pressed={cabinetsOpen}
+            data-testid="cabinets-open"
+          >
+            <Icon name="cabinetOpen" />
           </button>
         )}
         <button className="ib sm" onClick={() => sceneRef.current?.frame()} title="มุมมองทั้งโรงงาน">

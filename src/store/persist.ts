@@ -3,14 +3,16 @@ import { newId } from '../model/id';
 import { migrate, projectFacts, type ProjectFacts } from '../model/project';
 import type { Id, Project, ProjectKind } from '../model/types';
 import { underlayImageIds, vectorAssetId } from '../model/underlay';
-import type { CustomModel } from '../model/library';
+import { modelFileAssetIds, type CustomModel } from '../model/library';
 import { useLibrary } from './library';
+import { withoutPrivate } from './private';
 import { useProject } from './project';
 
-/** Every blob a project keeps in the asset store: its plan image(s), the pictures made from it, and (interior projects) its uploaded materials. */
+/** Every blob a project keeps in the asset store: its plan image(s), the pictures made from it, and (interior projects) its uploaded materials and kept 3D views. */
 const projectAssetIds = (project: Project): Id[] => [
   ...underlayImageIds(project),
   ...(project.renders ?? []).map((r) => r.assetId),
+  ...(project.shots ?? []).map((r) => r.assetId),
   ...(project.materials ?? []).map((m) => m.imageId),
 ];
 
@@ -93,7 +95,7 @@ export async function duplicateProject(id: Id): Promise<Project | undefined> {
     m.imageId = newId('u');
     if (picture) await saveAsset(m.imageId, picture);
   }
-  for (const r of copy.renders ?? []) {
+  for (const r of [...(copy.renders ?? []), ...(copy.shots ?? [])]) {
     const image = await loadAsset(r.assetId);
     r.assetId = newId('r');
     if (image) await saveAsset(r.assetId, image);
@@ -104,6 +106,7 @@ export async function duplicateProject(id: Id): Promise<Project | undefined> {
 
 export const saveAsset = (id: Id, blob: Blob) => set(assetKey(id), blob);
 export const loadAsset = (id: Id) => get<Blob>(assetKey(id));
+export const deleteAsset = (id: Id) => del(assetKey(id));
 
 export interface Bundle {
   format: 'factory-sim';
@@ -168,9 +171,14 @@ export async function bundleProject(project: Project, { light = false } = {}): P
     if (blob) assets[blobId] = { type: blob.type, base64: await blobToBase64(blob) };
   }
   const used = useLibrary.getState().models.filter((m) => project.objects.some((o) => o.assetId === m.id));
-  // The seller's notes on the customer (contact, phone, budget) stay with the seller: a share link leaves them out.
-  const sent = light ? (({ client: _client, ...rest }) => (void _client, rest))(project) : project;
-  return { format: 'factory-sim', version: 1, project: sent as Project, assets, ...(used.length && { library: used }) };
+  // A model imported from SketchUp travels with its files, as they are (a share link warns when they are large).
+  for (const blobId of used.flatMap(modelFileAssetIds)) {
+    const blob = await loadAsset(blobId);
+    if (blob) assets[blobId] = { type: blob.type, base64: await blobToBase64(blob) };
+  }
+  // The seller's notes (the customer's details, the BOQ prices) stay with the seller: a share link leaves them out.
+  const sent = light ? withoutPrivate(project) : project;
+  return { format: 'factory-sim', version: 1, project: sent, assets, ...(used.length && { library: used }) };
 }
 
 interface Backup {
