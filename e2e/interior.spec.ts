@@ -547,7 +547,9 @@ test('the construction drawings of the sample condo: a cover and a dimensioned p
   // The cover first: the project's name and the index of every sheet.
   await expect(sheet).toHaveAttribute('data-sheet', 'ID-00-01');
   await expect(sheet.getByTestId('cover')).toContainText('ห้องตัวอย่าง: คอนโด 1 ห้องนอน');
-  await expect(sheet.getByTestId('cover-index-row')).toHaveCount(2);
+  // The cover, the plan, and seven elevation sheets: two faces each for the bedroom, the bathroom and the L-shaped living room.
+  await expect(sheet.getByTestId('cover-index-row')).toHaveCount(9);
+  await expect(sheet.getByTestId('cover')).toContainText('ELEVATION A, B / รูปด้าน A, B · ห้องนอน');
   await expect(sheet.getByTestId('cover')).toContainText('FLOOR PLAN / แปลนพื้น');
 
   // The plan: overall dimensions over the outer faces, 7000 + 200 by 5500 + 200, its number in the title block.
@@ -559,6 +561,13 @@ test('the construction drawings of the sample condo: a cover and a dimensioned p
   await expect(sheet.getByTestId('title-block')).toContainText('หน่วย มม. · ตรวจระยะหน้างาน');
   await expect(sheet).toContainText('ห้องนอน');
   await expect(sheet).toContainText(/SCALE 1:\d+/);
+
+  // An elevation sheet: two faces of the living room with its kitchen cabinets, the room name whole.
+  await page.getByTestId('drawings-item-ID-09-01').click();
+  await expect(sheet).toHaveAttribute('data-sheet', 'ID-09-01');
+  await expect(sheet.getByTestId('sheet-view')).toHaveCount(2);
+  await expect(sheet).toContainText('นั่งเล่น / ครัว');
+  await page.getByTestId('drawings-item-ID-04-01').click();
 
   const zoom = await page.getByTestId('drawings-zoom').textContent();
   await page.getByTestId('drawings-zoom-in').click();
@@ -575,9 +584,9 @@ test('the construction drawings of the sample condo: a cover and a dimensioned p
   // Printed, one A3 landscape page a sheet.
   await page.evaluate(() => document.documentElement.classList.add('drawings-printing'));
   const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
-  expect(pdfPages(pdf)).toEqual(Array(2).fill({ w: 1191, h: 842 }));
+  expect(pdfPages(pdf)).toEqual(Array(9).fill({ w: 1191, h: 842 }));
   // At full size, not shrunk to fit: the sheet's 400 mm frame is drawn 400 mm (1133.9 pt) wide.
-  expect(pdfFrameWidths(pdf).map(Math.round)).toEqual([1134, 1134]);
+  expect(pdfFrameWidths(pdf).map(Math.round)).toEqual(Array(9).fill(1134));
   await page.evaluate(() => document.documentElement.classList.remove('drawings-printing'));
 
   await page.getByTestId('drawings-close').click();

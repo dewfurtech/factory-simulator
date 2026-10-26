@@ -1,4 +1,6 @@
+import { splitTitle } from './sheet/SheetSvg';
 import { describe, expect, it } from 'vitest';
+import { roomElevations } from './elevation';
 import { sampleCondo } from '../interior/sample';
 import { openingSymbol } from '../model/openings';
 import { drawingsToDxf, dxfText, parseDxf } from './dxf';
@@ -186,15 +188,31 @@ describe('dimension geometry', () => {
 });
 
 describe('the drawing set', () => {
-  it('has the cover and the floor plan, and the cover lists both', () => {
+  it('has the cover, the floor plan and the wall elevations, and the cover lists them all', () => {
     const set = buildDrawingSet(sampleCondo(), Date.UTC(2026, 9, 26));
-    expect(set.sheets.map((s) => s.id)).toEqual([COVER_ID, 'ID-04-01']);
+    const ids = set.sheets.map((s) => s.id);
+    expect(ids.slice(0, 2)).toEqual([COVER_ID, 'ID-04-01']);
+    expect(ids.slice(2)).toEqual(ids.slice(2).map((_, i) => `ID-09-${String(i + 1).padStart(2, '0')}`));
     const cover = set.sheets[0];
-    expect(cover.kind === 'cover' && cover.index.map((i) => i.id)).toEqual([COVER_ID, 'ID-04-01']);
+    expect(cover.kind === 'cover' && cover.index.map((i) => i.id)).toEqual(ids);
     // Nothing the project does not hold: no designer, checker or address.
     expect(set.info).toMatchObject({ project: 'ห้องตัวอย่าง: คอนโด 1 ห้องนอน', location: '', designer: '', checker: '', client: '' });
     const plan = set.sheets[1] as ViewsSheet;
     expect([20, 25, 30, 40, 50, 75, 100]).toContain(plan.scale);
+  });
+
+  it('puts every face of every room on an elevation sheet once, two to a sheet, at a scale the door lines read at', () => {
+    const p = sampleCondo();
+    const set = buildDrawingSet(p, 0);
+    const sheets = set.sheets.filter((s): s is ViewsSheet => s.id.startsWith('ID-09-'));
+    const drawn = sheets.flatMap((s) => s.views.map((v) => v.drawing.title));
+    const faces = Object.values(p.plan.rooms).flatMap((r) => roomElevations(p, 0, r).map((e) => e.drawing.title));
+    expect([...drawn].sort()).toEqual([...faces].sort());
+    for (const s of sheets) {
+      expect(s.views.length).toBeLessThanOrEqual(2);
+      expect(s.scale).toBeLessThanOrEqual(50);
+      expect(s.dxf).toBe(true);
+    }
   });
 });
 
@@ -232,5 +250,12 @@ describe('DXF', () => {
     );
     const e = parseDxf(one).entities[0];
     expect(e.codes).toContainEqual([6, 'DASHED']);
+  });
+});
+
+describe('sheet titles', () => {
+  it('split English from Thai at the first separator, keeping a room name with a slash whole', () => {
+    expect(splitTitle('ELEVATION E, F / รูปด้าน E, F · นั่งเล่น / ครัว')).toEqual(['ELEVATION E, F', 'รูปด้าน E, F · นั่งเล่น / ครัว']);
+    expect(splitTitle('COVER')).toEqual(['COVER', undefined]);
   });
 });

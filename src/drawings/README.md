@@ -9,6 +9,7 @@ sheet/geometry.ts   ความหนาเส้น เส้นประ ม�
 sheet/layout.ts     ขนาดแผ่น ขอบ กรอบชื่อแบบ พื้นที่วาด การวางวิวและเลือกมาตราส่วน
 sheet/SheetSvg.tsx  วาดแผ่นเป็น SVG หน่วย มม.กระดาษ: กรอบ กรอบชื่อแบบ ปก วิว
 plan/               แปลนพร้อมมิติ (planDrawing) และแผ่น ID-04-xx (planSheets)
+elevation/          รูปด้านผนังภายใน (elevations) และแผ่น ID-09-xx สองด้านต่อแผ่น (elevationSheets)
 dxf.ts              ตัวเขียน DXF R12 ASCII (และตัวอ่านง่าย ๆ สำหรับเทสต์)
 DrawingsPage.tsx    หน้าดูชุดแบบ พิมพ์ ส่งออก DXF
 ```

@@ -1,6 +1,7 @@
 import { clientLines, thaiDate } from '../interior/present/sheets';
 import type { Project } from '../model/types';
 import { drawingsToDxf } from './dxf';
+import { elevationSheets } from './elevation/elevationSheets';
 import { planSheets } from './plan/planSheets';
 import { layoutViews, type PlacedView, type ViewSource } from './sheet/layout';
 
@@ -28,7 +29,7 @@ export interface SheetDef {
 }
 
 /** Every kind of sheet the set has, in order after the cover. */
-export const SHEET_DEFS: SheetDef[] = [planSheets];
+export const SHEET_DEFS: SheetDef[] = [planSheets, elevationSheets];
 
 /** What the title block of every sheet reads. Fields the project has no data for stay empty. */
 export interface TitleInfo {

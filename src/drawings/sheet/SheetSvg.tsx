@@ -149,7 +149,7 @@ function Field({
 }
 
 function TitleBlock({ sheet, info, page, pages }: { sheet: BuiltSheet; info: TitleInfo; page: number; pages: number }) {
-  const [en, th] = sheet.title.split(' / ');
+  const [en, th] = splitTitle(sheet.title);
   const rev = { y: TB_Y + 94, h: 50 };
   const revRows = 5;
   const revRow = (rev.h - 9) / revRows;
@@ -203,7 +203,7 @@ function Views({ sheet }: { sheet: ViewsSheet }) {
   return (
     <g>
       {sheet.views.map((v, i) => {
-        const [en, th] = v.drawing.title.split(' / ');
+        const [en, th] = splitTitle(v.drawing.title);
         const head = th ? `${en} / ${th}` : en;
         const w = textWidth(head, 4) * 0.92;
         return (
@@ -276,4 +276,10 @@ export function SheetSvg({ sheet, info, page, pages, className }: { sheet: Built
       <TitleBlock sheet={sheet} info={info} page={page} pages={pages} />
     </svg>
   );
+}
+
+/** A bilingual title `ENGLISH / ไทย` split at its first separator only, so a room named `นั่งเล่น / ครัว` keeps its whole name. */
+export function splitTitle(title: string): [string, string | undefined] {
+  const i = title.indexOf(' / ');
+  return i < 0 ? [title, undefined] : [title.slice(0, i), title.slice(i + 3)];
 }
