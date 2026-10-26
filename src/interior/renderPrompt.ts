@@ -1,4 +1,5 @@
 import { catalogItem } from '../model/catalog';
+import { isFigure } from '../model/figures';
 import { levelOf, planOf } from '../model/levels';
 import { roomOf, roomStats, roomWalls, wallLength } from '../model/plan';
 import { BUILTIN_EN } from '../model/renderPrompt';
@@ -163,7 +164,7 @@ export function buildInteriorPrompt(project: Project): string {
   const lines: string[] = [
     'Photorealistic interior photograph of the rooms below, exactly as designed: every size, material, colour and piece of furniture is listed, and nothing else is in them.',
   ];
-  const pieces = project.objects.filter((o) => !o.hidden && !SKIP.has(o.assetId));
+  const pieces = project.objects.filter((o) => !o.hidden && !SKIP.has(o.assetId) && !isFigure(o));
   const placed = new Set<PlacedObject>();
   const plans = plansOf(project);
   let n = 0;

@@ -1,4 +1,5 @@
 import type { CatalogItem } from '../model/catalog';
+import { FIGURE_IDS } from '../model/figures';
 
 /** The built-in pieces that make sense in a home: the furniture of the factory's office and staff areas, not its racks and forklifts. */
 const FURNITURE = new Set([
@@ -22,6 +23,7 @@ const FURNITURE = new Set([
 
 /**
  * Whether a catalog item belongs on the interior editor's shelf: the user's own models always do, and so do the
- * interior's own cabinets and home furniture (src/interior/catalog.ts).
+ * interior's own cabinets and home furniture (src/interior/catalog.ts), and the scale figures except the factory hand.
  */
-export const isFurniture = (c: Pick<CatalogItem, 'id' | 'group'>): boolean => c.group === 'custom' || c.group === 'cabinet' || c.group === 'home' || FURNITURE.has(c.id);
+export const isFurniture = (c: Pick<CatalogItem, 'id' | 'group'>): boolean =>
+  c.group === 'custom' || c.group === 'cabinet' || c.group === 'home' || (c.group === 'people' && c.id !== FIGURE_IDS.worker) || FURNITURE.has(c.id);

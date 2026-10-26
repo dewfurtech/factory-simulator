@@ -1,5 +1,6 @@
 import { catalogItem, isMachine, machineInfo } from './catalog';
 import type { CatalogGroup } from './catalog';
+import { isFigure } from './figures';
 import { roomPolygon } from './plan';
 import type { Project, ZoneKind } from './types';
 import { bounds, signedArea } from './vec';
@@ -128,7 +129,7 @@ export function buildRenderPrompt(project: Project): string {
     lines.push(`Rooms and zones: ${parts.join('; ')}.`);
   }
 
-  const objects = project.objects.filter((o) => !o.hidden && !SKIP.has(o.assetId));
+  const objects = project.objects.filter((o) => !o.hidden && !SKIP.has(o.assetId) && !isFigure(o));
   const machines = count(
     objects.filter((o) => isMachine(o)),
     (o) => {

@@ -1,5 +1,6 @@
 import { materialOf } from '../../interior/materials';
 import { wallFaceHeight } from '../../interior/summary';
+import { isFigure } from '../../model/figures';
 import { levelOf, levelZ, planOf } from '../../model/levels';
 import { isSliding, openingSpan } from '../../model/openings';
 import { inRoom, wallDir, wallSideOf } from '../../model/plan';
@@ -127,7 +128,7 @@ export function roomElevations(project: Project, level: number, room: Room, opti
   const plan = planOf(project, level);
   const opts = { ...DEFAULTS, ...options };
   const floorZ = levelZ(project, level);
-  const objects = project.objects.filter((o) => !o.hidden && levelOf(o) === level && inRoom(plan, room, o));
+  const objects = project.objects.filter((o) => !o.hidden && !isFigure(o) && levelOf(o) === level && inRoom(plan, room, o));
   return roomFaces(plan, room).map((face, i) => faceElevation(project, plan, room, face, faceLabel(i), objects, floorZ, opts));
 }
 

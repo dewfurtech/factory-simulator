@@ -3,6 +3,7 @@ import SIZES from '../machines/sizes.json';
 import type { CustomModel } from './library';
 import type { FlowOverride, FlowSide, Mm, PlacedObject, Size3, Vec2 } from './types';
 import { add, fromAngle, perp, scale } from './vec';
+import { FIGURE_ITEMS } from './figures';
 
 /** What a thing is used for; sets its default shape, colour and where its front is. */
 export type UseKind =
@@ -23,7 +24,7 @@ export type UseKind =
   | 'tools'
   | 'display';
 
-export type CatalogGroup = 'nesting' | 'edge' | 'drill' | 'other' | 'office' | 'production' | 'storage' | 'amenity' | 'decor' | 'custom' | 'cabinet' | 'home';
+export type CatalogGroup = 'nesting' | 'edge' | 'drill' | 'other' | 'office' | 'production' | 'storage' | 'amenity' | 'decor' | 'custom' | 'cabinet' | 'home' | 'people';
 
 export const GROUP_LABEL: Record<CatalogGroup, string> = {
   nesting: 'CNC Nesting (Rakete)',
@@ -38,6 +39,7 @@ export const GROUP_LABEL: Record<CatalogGroup, string> = {
   custom: 'คลังของฉัน',
   cabinet: 'ตู้บิ้วอิน',
   home: 'เฟอร์นิเจอร์บ้าน',
+  people: 'คน',
 };
 
 export interface CatalogItem {
@@ -108,7 +110,7 @@ const builtins: CatalogItem[] = [
   { id: 'railing', label: 'ราวกันตก', group: 'decor', size: S(3000, 50, 1000), overhead: true },
 ];
 
-export const CATALOG: CatalogItem[] = [...machineItems, ...builtins];
+export const CATALOG: CatalogItem[] = [...machineItems, ...builtins, ...FIGURE_ITEMS];
 const BY_ID = new Map(CATALOG.map((c) => [c.id, c]));
 
 /** The user's own models as catalog items, set by the library store whenever the library changes. */
@@ -208,7 +210,7 @@ export const machineInfo = (assetId: string): MachineInfo | undefined => INFO.ge
 
 export const MACHINE_CATEGORIES = CATEGORIES as { id: string; name: string; series: string }[];
 
-export const GROUP_ORDER: CatalogGroup[] = ['cabinet', 'home', 'nesting', 'edge', 'drill', 'other', 'office', 'production', 'storage', 'amenity', 'decor', 'custom'];
+export const GROUP_ORDER: CatalogGroup[] = ['cabinet', 'home', 'nesting', 'edge', 'drill', 'other', 'office', 'production', 'storage', 'amenity', 'decor', 'people', 'custom'];
 
 /** A point in the object's own frame (x along its width, y toward its front) in plan coordinates. */
 export function localToPlan(o: Pick<PlacedObject, 'x' | 'y' | 'rotation'>, lx: Mm, ly: Mm): Vec2 {
