@@ -1,8 +1,8 @@
 import { roomPolygon, roomStats, roomWalls, wallLength } from '../model/plan';
-import type { MaterialId, Plan, Project, Room } from '../model/types';
+import type { Plan, Project, Room } from '../model/types';
 import { dist, sub } from '../model/vec';
 import { skirtingSurface, takeOff, type BoqLine, type MaterialSpec, type Opening as BoqOpening, type Surface } from './boq';
-import { materialOf, SURFACE_LABEL, type Surface as SurfaceKind } from './materials';
+import { SURFACE_LABEL, type Surface as SurfaceKind } from './materials';
 import { materialSpec } from './materialUnits';
 import { moodSummary, plansOf, roomSurfaces, wallFaceHeight } from './summary';
 
@@ -38,7 +38,12 @@ function roomOpenings(plan: Plan, room: Room): BoqOpening[] {
     .map((o) => ({ kind: o.kind === 'window' ? 'window' : 'door', wMm: o.width, hMm: o.height }));
 }
 
-const rooms = (project: Project) => plansOf(project).flatMap((plan) => Object.values(plan.rooms).filter((r) => !r.outdoor).map((room) => ({ plan, room })));
+const rooms = (project: Project) =>
+  plansOf(project).flatMap((plan) =>
+    Object.values(plan.rooms)
+      .filter((r) => !r.outdoor)
+      .map((room) => ({ plan, room })),
+  );
 
 /** Every finished surface of every indoor room, as BOQ surfaces. */
 export function boqSurfaces(project: Project): Surface[] {
@@ -49,7 +54,13 @@ export function boqSurfaces(project: Project): Surface[] {
     for (const s of roomSurfaces(plan, room)) {
       if (s.surface === 'wall' && s.wall) {
         // One face per wall: its length by the height it shows in this room. A wall is a rectangle, so it is laid out.
-        out.push({ room: room.name, kind: 'wall', areaMm2: s.area, boundsMm: { w: Math.round(wallLength(plan, s.wall)), h: wallFaceHeight(room, s.wall) }, materialId: s.material });
+        out.push({
+          room: room.name,
+          kind: 'wall',
+          areaMm2: s.area,
+          boundsMm: { w: Math.round(wallLength(plan, s.wall)), h: wallFaceHeight(room, s.wall) },
+          materialId: s.material,
+        });
       } else {
         out.push({ room: room.name, kind: s.surface, areaMm2: s.area, perimeterMm: stats.perimeter, ...(rect && { boundsMm: rect }), materialId: s.material });
       }
@@ -88,12 +99,13 @@ export function projectBoq(project: Project): ProjectBoq {
   const specs = ids.map((id) => materialSpec(id, project)).filter((s): s is MaterialSpec => !!s);
   if (opts.skirting) {
     surfaces.push(...skirtingSurfaces(project));
-    specs.push({ id: SKIRTING_ID, name: opts.skirting.name || 'บัวพื้น', unit: { kind: 'linear', ...(opts.skirting.pieceLengthMm && { pieceLengthMm: opts.skirting.pieceLengthMm }) } });
+    specs.push({
+      id: SKIRTING_ID,
+      name: opts.skirting.name || 'บัวพื้น',
+      unit: { kind: 'linear', ...(opts.skirting.pieceLengthMm && { pieceLengthMm: opts.skirting.pieceLengthMm }) },
+    });
   }
   const furniture = moodSummary(project).furniture.map((f) => ({ name: f.name, qty: f.count, sizeMm: f.size }));
   const lines = takeOff(surfaces, specs, { wastePct: opts.wastePct, furniture });
   return { surfaces, specs, lines };
 }
-
-/** The material behind a BOQ line, when the line is a material (for its swatch). */
-export const lineMaterial = (project: Project, id: MaterialId) => materialOf(id, project);

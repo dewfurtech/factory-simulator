@@ -12,6 +12,7 @@ import { useUi } from '../store/ui';
 import { Loading3D } from '../ui/Loading3D';
 import { INTERIOR_FINISHES } from './interior3d';
 import { RoomMaterials, WallMaterial } from './MaterialPicker';
+import { openBoq } from './BoqPage';
 import { openMoodBoard } from './MoodBoard';
 import { HOME_ZONE_IDS } from './zones';
 
@@ -90,6 +91,12 @@ export function InteriorEditor() {
           <button className="tb-toggle" onClick={() => void openMoodBoard()} title="Mood & Tone: ชุดสี วัสดุที่ใช้ และเฟอร์นิเจอร์ของโครงการ" data-testid="mood-tone">
             <Icon name="palette" />
             <span>Mood &amp; Tone</span>
+          </button>
+          <button className="tb-toggle" onClick={() => void openBoq()} title="BOQ / ใบเสนอราคา: ถอดปริมาณวัสดุจากห้อง แล้วใส่ราคาเองเป็นใบเสนอราคา" data-testid="boq-open">
+            <Icon name="report" />
+            <span>
+              BOQ<span className="tb-wide"> / ใบเสนอราคา</span>
+            </span>
           </button>
           <button
             className="tb-toggle tb-accent"

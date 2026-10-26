@@ -45,8 +45,7 @@ export const openingsArea = (plan: Plan, wall: Wall) =>
 export const wallFaceHeight = (room: Room, wall: Wall): number => Math.min(wall.height, room.ceilingHeight);
 
 /** One face of a wall as it bounds a room: its length times the room's ceiling height, less the openings in it. */
-export const wallFaceArea = (plan: Plan, room: Room, wall: Wall): number =>
-  Math.max(0, wallLength(plan, wall) * wallFaceHeight(room, wall) - openingsArea(plan, wall));
+export const wallFaceArea = (plan: Plan, room: Room, wall: Wall): number => Math.max(0, wallLength(plan, wall) * wallFaceHeight(room, wall) - openingsArea(plan, wall));
 
 export interface RoomSurface {
   surface: Surface;
