@@ -1,8 +1,25 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { freshApp, planCentre, projectState } from './helpers';
 
-test('an interior project opens in its own editor, takes a floor material and sums it up', async ({ page }) => {
+/** The start page with the interior mode switched on, as `?interior` does on the live site. */
+async function interiorApp(page: Page) {
+  await page.goto('/?interior');
+  await expect(page.getByTestId('new-interior')).toBeVisible();
+}
+
+test('the interior start button is hidden until ?interior turns it on, and ?interior=0 hides it again', async ({ page }) => {
   await freshApp(page);
+  await expect(page.getByTestId('new-interior')).toHaveCount(0);
+  await interiorApp(page);
+  await page.goto('/');
+  await expect(page.getByTestId('new-interior')).toBeVisible();
+  await page.goto('/?interior=0');
+  await expect(page.getByTestId('new-sample')).toBeVisible();
+  await expect(page.getByTestId('new-interior')).toHaveCount(0);
+});
+
+test('an interior project opens in its own editor, takes a floor material and sums it up', async ({ page }) => {
+  await interiorApp(page);
   await page.getByTestId('new-interior').click();
   await expect(page.getByTestId('interior-editor')).toBeVisible();
   // No columns or aisles on the rail; no Mastrox shelf in the library.
@@ -29,7 +46,7 @@ test('an interior project opens in its own editor, takes a floor material and su
 });
 
 test('the project list marks an interior project', async ({ page }) => {
-  await freshApp(page);
+  await interiorApp(page);
   await page.getByTestId('new-interior').click();
   await expect(page.getByTestId('interior-editor')).toBeVisible();
   await page.goto('/#/');

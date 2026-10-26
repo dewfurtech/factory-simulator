@@ -6,6 +6,7 @@ import { SentLinks } from './SentLinks';
 import { useImport } from '../store/importProgress';
 import { newProject } from '../model/project';
 import { newInteriorProject } from '../interior/project';
+import { interiorEnabled } from '../interior/flag';
 import type { Id, Project } from '../model/types';
 import { placeUnderlay } from '../model/underlay';
 import { deleteProject, duplicateProject, exportAll, exportProject, importFile, listProjects, loadProject, saveProject, type ProjectSummary } from '../store/persist';
@@ -87,6 +88,8 @@ export function ProjectList() {
   const [list, setList] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  /** The interior start button stays hidden on the live site until `?interior` switches it on (src/interior/flag.ts). */
+  const [showInterior] = useState(() => interiorEnabled());
   /** The plan file being read while a project is started from one: a large PDF takes a while. */
   const [reading, setReading] = useState<string | null>(null);
   /** A file is held over the page, about to be dropped. */
@@ -188,15 +191,17 @@ export function ProjectList() {
               <span>วาดผนังและโซนเอง</span>
             </span>
           </button>
-          <button className="start-blank-btn start-interior-btn" onClick={() => void create(newInteriorProject())} data-testid="new-interior">
-            <span className="start-blank-icon">
-              <Icon name="sofa" />
-            </span>
-            <span className="start-blank-text">
-              <b>ห้องตกแต่งภายใน</b>
-              <span>วาดห้อง เลือกวัสดุ วางเฟอร์นิเจอร์</span>
-            </span>
-          </button>
+          {showInterior && (
+            <button className="start-blank-btn start-interior-btn" onClick={() => void create(newInteriorProject())} data-testid="new-interior">
+              <span className="start-blank-icon">
+                <Icon name="sofa" />
+              </span>
+              <span className="start-blank-text">
+                <b>ห้องตกแต่งภายใน</b>
+                <span>วาดห้อง เลือกวัสดุ วางเฟอร์นิเจอร์</span>
+              </span>
+            </button>
+          )}
           <span className="start-templates">
             <span className="muted">หรือลองจากเทมเพลต</span>
             <button className="chip" onClick={() => void import('../model/sample').then((m) => create(m.sampleFactory()))} data-testid="new-sample">
