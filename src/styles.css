@@ -4242,3 +4242,12 @@ body:has(.home) {
   width: auto;
   padding: 0;
 }
+
+/* The AI picture dialog's switch for a clay reference picture. */
+.flow-clay {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}

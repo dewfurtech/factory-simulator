@@ -102,6 +102,8 @@ const PATHS: Record<string, string> = {
   sofa: 'M5 11V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3 M3 13a2 2 0 0 1 4 0v4h10v-4a2 2 0 0 1 4 0v5H3z M5 21v-3 M19 21v-3',
   ceiling: 'M4 6h16 M4 6v3h16V6 M8 9v3 M16 9v3 M12 9v2',
   cabinetOpen: 'M4 4h8v16H4z M12 4l7 3v12l-7 1 M9 12h1 M14 12h1',
+  // A lump of clay on a turntable: the 3D view in plain clay.
+  clay: 'M7 15c-1.5-3 0-8 5-8s6.5 5 5 8z M5 15h14 M8 18h8 M12 15v3',
   swatch: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z M6 6l3 3 M15 6l3 3 M6 15l3 3 M15 15l3 3',
 };
 

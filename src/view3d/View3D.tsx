@@ -30,6 +30,9 @@ export default function View3D({ finishes, pieces }: { finishes?: FinishHooks; p
   const cutaway = useUi((s) => s[cutawayKey]);
   const areas = useUi((s) => !s.areasHidden);
   const ceilingsHidden = useUi((s) => s.ceilingsHidden);
+  // Clay and shadows, kept apart for factories and interiors.
+  const lookKind = finishes ? 'interior' : 'factory';
+  const look = useUi((s) => s.look3d[lookKind]);
   const [top, setTop] = useState(false);
   const [cabinetsOpen, setCabinetsOpen] = useState(false);
   // Move mode: dragging a machine slides it over the floor, as on the plan.
@@ -59,7 +62,7 @@ export default function View3D({ finishes, pieces }: { finishes?: FinishHooks; p
         const r = s.renderer.domElement.getBoundingClientRect();
         return s.floorPoint(r.left + r.width / 2, r.top + r.height / 2);
       },
-      snapshot3d: (longSide?: number) => s.snapshot(longSide),
+      snapshot3d: (longSide, look) => s.snapshot(longSide, look),
     });
     const start = setTimeout(() => setStarted(true), 40);
     return () => {
@@ -104,6 +107,7 @@ export default function View3D({ finishes, pieces }: { finishes?: FinishHooks; p
     () => sceneRef.current?.setOptions(finishes ? { cutaway, areas, finishes, ceilings: !ceilingsHidden && !top, pieces } : { cutaway, areas }),
     [cutaway, areas, finishes, ceilingsHidden, top, pieces],
   );
+  useEffect(() => sceneRef.current?.setLook(look), [look]);
   useEffect(() => sceneRef.current?.setPiecesOpen(cabinetsOpen ? 1 : 0), [cabinetsOpen]);
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
 
@@ -257,6 +261,24 @@ export default function View3D({ finishes, pieces }: { finishes?: FinishHooks; p
             <Icon name="cabinetOpen" />
           </button>
         )}
+        <button
+          className={`ib sm${look.clay ? ' on' : ''}`}
+          onClick={() => useUi.getState().setLook(lookKind, { clay: !look.clay })}
+          title={look.clay ? 'โหมดดินปั้นอยู่: คลิกเพื่อกลับไปเห็นสีและวัสดุ' : 'ดินปั้น: ดูแค่รูปทรงกับเงา ไม่มีสีและวัสดุ'}
+          aria-pressed={look.clay}
+          data-testid="clay-3d"
+        >
+          <Icon name="clay" />
+        </button>
+        <button
+          className={`ib sm${look.shadows ? ' on' : ''}`}
+          onClick={() => useUi.getState().setLook(lookKind, { shadows: !look.shadows })}
+          title={look.shadows ? 'เงาเปิดอยู่: คลิกเพื่อปิดเงา' : 'เงา: เปิดเงาจากแดด'}
+          aria-pressed={look.shadows}
+          data-testid="shadows-3d"
+        >
+          <Icon name="sun" />
+        </button>
         <button className="ib sm" onClick={() => sceneRef.current?.frame()} title="มุมมองทั้งโรงงาน">
           <Icon name="fit" />
         </button>

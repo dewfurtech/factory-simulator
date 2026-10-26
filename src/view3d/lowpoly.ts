@@ -127,10 +127,9 @@ export function disposeTree(o: THREE.Object3D) {
   o.traverse((x) => {
     const m = x as THREE.Mesh;
     if (m.geometry && !m.geometry.userData.shared) m.geometry.dispose();
-    // A mesh wearing the realistic look keeps its own material aside.
-    const orig = m.userData?.lookOrig as THREE.Material | undefined;
-    if (orig && !orig.userData.shared) orig.dispose();
-    const mats = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
+    // A mesh wearing the clay look (look.ts) keeps its own material aside; the clay itself is shared.
+    const orig = m.userData?.lookOrig as THREE.Material | THREE.Material[] | undefined;
+    const mats = [...(m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : []), ...(orig ? (Array.isArray(orig) ? orig : [orig]) : [])];
     for (const mat of mats) {
       if (mat.userData.shared) continue;
       const map = (mat as THREE.SpriteMaterial).map;

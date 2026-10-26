@@ -21,11 +21,14 @@ export function openFlowDialog(): Promise<void> {
   return customDialog((close) => <FlowPanel close={close} />, { wide: true });
 }
 
-/** The 3D view when it is on screen, else the 2D plan drawn as on screen now. */
-async function referencePicture(project: Project): Promise<Blob | null> {
+/**
+ * The 3D view when it is on screen, else the 2D plan drawn as on screen now. With `clay`, the 3D view is taken in
+ * plain clay with shadows (shapes and light only, which an AI picture tool follows best); the screen keeps its look.
+ */
+async function referencePicture(project: Project, clay: boolean): Promise<Blob | null> {
   const snap = useUi.getState().snapshot3d;
   if (snap) {
-    const b = await snap();
+    const b = await snap(undefined, clay ? { clay: true, shadows: true } : undefined);
     if (b) return b;
   }
   const svg = document.querySelector<SVGSVGElement>('svg.plan-svg');
@@ -58,15 +61,18 @@ function FlowPanel({ close }: { close: () => void }) {
   const [copied, setCopied] = useState<'no' | 'yes' | 'failed'>('no');
   const [ref, setRef] = useState<{ url: string; blob: Blob } | null>(null);
   const [refBusy, setRefBusy] = useState(false);
+  const [clayShot, setClayShot] = useState(false);
+  const has3d = !!useUi.getState().snapshot3d;
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const edited = prompt !== (project.renderPrompt ?? buildPrompt(project));
 
-  // The reference picture is taken once when the dialog opens: the 3D view when it is up, else the plan.
+  // The reference picture is taken when the dialog opens (the 3D view when it is up, else the plan), and again in
+  // the other look when the clay switch changes.
   useEffect(() => {
     let gone = false;
     setRefBusy(true);
-    void referencePicture(project).then((blob) => {
+    void referencePicture(project, clayShot).then((blob) => {
       if (gone) return;
       if (!blob) return setRefBusy(false);
       setRef({ url: URL.createObjectURL(blob), blob });
@@ -75,7 +81,7 @@ function FlowPanel({ close }: { close: () => void }) {
     return () => {
       gone = true;
     };
-  }, []);
+  }, [clayShot]);
   useEffect(
     () => () => {
       if (ref) URL.revokeObjectURL(ref.url);
@@ -165,9 +171,13 @@ function FlowPanel({ close }: { close: () => void }) {
           {ref ? <img src={ref.url} alt="ภาพอ้างอิงจากแปลน" /> : <div className="flow-ref-empty">{refBusy ? 'กำลังถ่ายภาพ…' : 'ไม่มีมุมมองให้ถ่าย'}</div>}
           <div className="flow-ref-text">
             <p>
-              {useUi.getState().snapshot3d ? 'ถ่ายจากมุมมอง 3D ที่เปิดอยู่' : 'ถ่ายจากแปลน 2D'} ดาวน์โหลดแล้วอัปโหลดเป็นภาพอ้างอิง (Ingredients / Frames) ใน Flow
-              เพื่อให้ตำแหน่ง{what}ตรงกับแปลน
+              {has3d ? 'ถ่ายจากมุมมอง 3D ที่เปิดอยู่' : 'ถ่ายจากแปลน 2D'} ดาวน์โหลดแล้วอัปโหลดเป็นภาพอ้างอิง (Ingredients / Frames) ใน Flow เพื่อให้ตำแหน่ง{what}ตรงกับแปลน
             </p>
+            {has3d && (
+              <label className="flow-clay" title="ถ่ายมุมเดิมเป็นดินปั้นสีขาวพร้อมเงา ไม่มีสีและวัสดุ ให้ AI ยึดรูปทรงและแสงเงา (หน้าจอไม่เปลี่ยน)">
+                <input type="checkbox" checked={clayShot} onChange={(e) => setClayShot(e.target.checked)} data-testid="flow-clay" /> ถ่ายแบบดินปั้น
+              </label>
+            )}
             <button className="btn btn-sm" disabled={!ref} onClick={() => ref && download(ref.blob, `${safeName(project.name)}-reference.png`)} data-testid="flow-ref-download">
               <Icon name="download" /> ดาวน์โหลดภาพอ้างอิง
             </button>

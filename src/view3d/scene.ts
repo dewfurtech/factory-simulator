@@ -11,6 +11,8 @@ import { machineObject } from './machines3d';
 import { machineFootprint } from '../model/catalog';
 import { FLOW_IN, FLOW_OUT, flowArrows } from '../model/flow';
 import { disposeTree, FLAT, LABEL_LAYER, textSprite } from './lowpoly';
+import { SceneLook } from './look';
+import type { Look3D } from '../store/ui';
 
 FLAT.userData.shared = true;
 
@@ -65,7 +67,18 @@ export class FactoryScene {
   private project: Project | null = null;
   private opts: SceneOptions = { cutaway: false, areas: true };
   private selectedObject: Id | null = null;
-  private dirty = true;
+  private _dirty = true;
+  /** The scene itself changed since the shadow map was drawn (not just the camera). */
+  private shadowsStale = true;
+  /** Wants a frame drawn. Set from anywhere but the camera, it means the scene changed: shadows are drawn again too. */
+  private get dirty() {
+    return this._dirty;
+  }
+  private set dirty(v: boolean) {
+    this._dirty = v;
+    if (v) this.shadowsStale = true;
+  }
+  private look: SceneLook;
   private raf = 0;
   private framed = false;
 
@@ -86,6 +99,9 @@ export class FactoryScene {
     this.scene.add(ground, this.building, this.labels, this.areas, this.objects, this.overlay);
     this.camera.position.set(30, 35, 55);
     this.camera.layers.enable(LABEL_LAYER);
+    // Clay and shadows leave the labels and the selection frames as they are.
+    this.labels.userData.lookSkip = this.overlay.userData.lookSkip = true;
+    this.look = new SceneLook(this.renderer, this.scene, this.sun, this.hemi, () => [this.building, this.objects]);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.12;
@@ -93,7 +109,8 @@ export class FactoryScene {
     this.controls.minDistance = 3;
     this.controls.maxDistance = 400;
     this.controls.screenSpacePanning = false;
-    this.controls.addEventListener('change', () => (this.dirty = true));
+    // Only the camera moved: the frame is drawn again, the shadows stay as they are.
+    this.controls.addEventListener('change', () => (this._dirty = true));
     const ro = new ResizeObserver(() => this.resize());
     ro.observe(host);
     this.disposers.push(() => ro.disconnect());
@@ -130,6 +147,11 @@ export class FactoryScene {
       this.syncObjects(this.project.objects);
     }
     this.dirty = true;
+  }
+
+  /** Clay and shadows on or off (look.ts). */
+  setLook(l: Partial<Look3D>) {
+    if (this.look.set(l)) this.dirty = true;
   }
 
   /** How far every cabinet door and drawer stands open (0..1), and the swing under way toward a new value. */
@@ -491,8 +513,19 @@ export class FactoryScene {
     if (!this.dirty) return;
     this.dirty = false;
     this.fitLabels();
-    this.renderer.render(this.scene, this.camera);
+    this.draw();
   };
+
+  private draw() {
+    try {
+      this.look.prepare(this.shadowsStale);
+    } catch (e) {
+      // The view still draws, in whatever look it has, rather than freeze.
+      console.error(e);
+    }
+    this.shadowsStale = false;
+    this.renderer.render(this.scene, this.camera);
+  }
 
   /** Shrinks names that would overlap on screen so each stays readable; they grow back when zoomed in. */
   private fitLabels() {
@@ -553,18 +586,22 @@ export class FactoryScene {
 
   /** The view as it shows now, as a PNG. Drawn afresh: the canvas keeps no frame once it is on screen. */
   /** The view as a PNG; with `longSide`, drawn at least that many pixels along its longer side (for print). */
-  snapshot(longSide?: number): Promise<Blob | null> {
+  snapshot(longSide?: number, look?: Partial<Look3D>): Promise<Blob | null> {
+    // A picture in another look than the screen's: put on for this one frame, then the screen's look goes back.
+    const was = look && this.look.current;
+    if (look && this.look.set(look)) this.shadowsStale = true;
     const ratio = this.renderer.getPixelRatio();
     const size = this.renderer.getSize(new THREE.Vector2());
     const want = longSide ? longSide / Math.max(size.x, size.y, 1) : 0;
     if (want > ratio) this.renderer.setPixelRatio(want);
-    this.renderer.render(this.scene, this.camera);
+    this.draw();
     // toBlob copies the picture as it is when called, so the screen can go back to its own size straight after.
     const out = new Promise<Blob | null>((ok) => this.renderer.domElement.toBlob((b) => ok(b), 'image/png'));
     if (want > ratio) {
       this.renderer.setPixelRatio(ratio);
       this.dirty = true;
     }
+    if (was && this.look.set(was)) this.dirty = true;
     return out;
   }
 
@@ -572,6 +609,7 @@ export class FactoryScene {
     cancelAnimationFrame(this.raf);
     for (const d of this.disposers) d();
     this.controls.dispose();
+    this.look.dispose();
     disposeTree(this.scene);
     this.renderer.dispose();
     this.renderer.domElement.remove();
