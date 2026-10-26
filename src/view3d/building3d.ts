@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { wallFootprints } from '../model/miter';
-import { roomLabelPoint, roomPolygon, wallDir, wallSideRooms } from '../model/plan';
-import type { Column, Id, Plan, Project, Vec2, Mm, Wall } from '../model/types';
-import { bounds, dot, pointInPolygon, signedArea, sub } from '../model/vec';
+import { roomLabelPoint, roomPolygon, wallDir, wallFaceFinishes } from '../model/plan';
+import type { Column, Id, Plan, Project, Vec2, Mm } from '../model/types';
+import { bounds, dot, perp, pointInPolygon, signedArea, sub } from '../model/vec';
 import { planAreas } from '../model/areas';
 import { AISLE_KINDS, aisleLabel, aisleOutline, arrowHead, isArrow, LINE_COLOR, LINE_WIDTH, offsetLine, planAisles } from '../model/aisles';
 import { fmtLen } from '../format';
@@ -165,8 +165,11 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
     const u = wallDir(plan, wall);
     const len = Math.hypot(plan.corners[wall.b].x - a.x, plan.corners[wall.b].y - a.y);
     const color = wall.color ?? WALL_COLOR;
-    // Interior: the wall's own material, else the wall material of a room it bounds (the first with one).
-    const finish = opts.finishes ? (wall.finish ?? roomWallFinish(plan, wall)) : undefined;
+    // Interior: each face shows the wall's own material where it covers that face, else the wall material of the
+    // room on that side. Faces that differ split the wall down its middle, each half carrying its face's material.
+    const faces = opts.finishes ? wallFaceFinishes(plan, wall) : undefined;
+    const finish = faces && faces.A === faces.B ? faces.A : undefined;
+    const n = perp(u);
     const ops = Object.values(plan.openings)
       .filter((o) => o.wallId === wall.id)
       .sort((p, q) => p.offset - q.offset);
@@ -217,6 +220,17 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
           const pane = prism(piece, c.y0, y1, '#a9d2e6');
           if (pane) glass.push(pane);
         }
+      } else if (faces && faces.A !== faces.B) {
+        // The half on side A (where the normal points), then side B.
+        for (const [face, lo, hi] of [
+          [faces.A, 0, 1e6],
+          [faces.B, -1e6, 0],
+        ] as const) {
+          const half = clipSlab(piece, a, n, lo, hi);
+          if (finished(face, half, c.y0, y1)) continue;
+          const g = prism(half, c.y0, y1, color, WALL_TOP);
+          if (g) solid.push(g);
+        }
       } else if (!finished(finish, piece, c.y0, y1)) {
         const g = prism(piece, c.y0, y1, color, WALL_TOP);
         if (g) solid.push(g);
@@ -260,12 +274,6 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
     if (mesh) mesh.name = 'finished';
   }
   return group;
-}
-
-/** The wall material of a room the wall bounds, for an interior wall without one of its own. */
-function roomWallFinish(plan: Plan, wall: Wall): string | undefined {
-  const { A, B } = wallSideRooms(plan, wall);
-  return A?.finish?.wall ?? B?.finish?.wall;
 }
 
 /**

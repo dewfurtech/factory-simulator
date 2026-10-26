@@ -301,3 +301,54 @@ test.describe('on a phone', () => {
     await page.getByTestId('menu-share').click({ trial: true, timeout: 3000 });
   });
 });
+
+test('a wall between two rooms takes a material on one face only, and Ctrl+Z puts it back on both', async ({ page }) => {
+  await interiorApp(page);
+  await page.getByTestId('new-interior').click();
+  await page.getByTestId('tool-drawRoomRect').click();
+  const c = await planCentre(page);
+  await page.mouse.click(c.x - 200, c.y - 100);
+  await page.mouse.click(c.x, c.y + 100);
+  await page.mouse.click(c.x, c.y - 100);
+  await page.mouse.click(c.x + 200, c.y + 100);
+  await expect.poll(() => projectState(page)).toMatchObject({ rooms: 2 });
+  await page.keyboard.press('Escape');
+  // The wall the two rooms share: the middle one of the walls running down the plan.
+  await page.evaluate(() => {
+    type W = { id: string; a: string; b: string };
+    const f = (
+      window as unknown as {
+        __factory: {
+          project: { getState(): { project: { plan: { walls: Record<string, W>; corners: Record<string, { x: number }> } } } };
+          ui: { getState(): { set(p: object): void } };
+        };
+      }
+    ).__factory;
+    const { walls, corners } = f.project.getState().project.plan;
+    const down = Object.values(walls)
+      .filter((w) => Math.abs(corners[w.a].x - corners[w.b].x) < 1)
+      .sort((p, q) => corners[p.a].x - corners[q.a].x);
+    f.ui.getState().set({ selection: { kind: 'wall', id: down[1].id } });
+  });
+  await page.getByTestId('surface-wall').click();
+  await page.getByTestId('material-paint-sage').click();
+  const face = page.getByTestId('wall-face');
+  await expect(face).toContainText('ทั้งสองหน้า');
+  await expect(face).toContainText('ฝั่งห้อง 1');
+  await expect(face).toContainText('ฝั่งห้อง 2');
+  await expect(page.getByTestId('wall-face-both')).toHaveAttribute('aria-checked', 'true');
+  const sideOfWall = () =>
+    page.evaluate(() => {
+      const p = (
+        window as unknown as { __factory: { project: { getState(): { project: { plan: { walls: Record<string, { finish?: string; finishSide?: string }> } } } } } }
+      ).__factory.project.getState().project;
+      return Object.values(p.plan.walls)
+        .filter((w) => w.finish)
+        .map((w) => `${w.finish}:${w.finishSide ?? 'both'}`);
+    });
+  await page.getByTestId('wall-face-B').click();
+  await expect(page.getByTestId('wall-face-B')).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(sideOfWall).toEqual(['paint-sage:B']);
+  await page.keyboard.press('Control+z');
+  await expect.poll(sideOfWall).toEqual(['paint-sage:both']);
+});

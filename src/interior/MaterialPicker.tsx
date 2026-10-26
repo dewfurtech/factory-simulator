@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../editor2d/Toolbar';
 import { Field } from '../panels/fields';
 import { newId } from '../model/id';
-import type { CustomMaterial, MaterialId, Project, Room, Wall } from '../model/types';
+import { levelView } from '../model/levels';
+import { wallSideRooms } from '../model/plan';
+import type { CustomMaterial, MaterialId, Project, Room, Wall, WallSide } from '../model/types';
 import { applyEdit, useProject } from '../store/project';
 import { loadAsset, saveAsset } from '../store/persist';
 import { GROUP_LABEL, materialOf, materialsFor, SURFACE_LABEL, SURFACES, type Material, type Surface } from './materials';
@@ -249,18 +251,58 @@ export function RoomMaterials({ room }: { room: Room }) {
 /** The materials section of a wall: its own material, over its rooms'. */
 export function WallMaterial({ wall }: { wall: Wall }) {
   const [open, setOpen] = useState(false);
+  // The rooms either side of the wall, on the floor being edited.
+  const plan = useProject((s) => (s.project ? levelView(s.project, s.level).plan : null));
+  const sides = useMemo(() => (plan?.walls[wall.id] ? wallSideRooms(plan, plan.walls[wall.id]) : { A: null, B: null }), [plan, wall.id]);
   const pick = (id: MaterialId | undefined) =>
     applyEdit((d) => {
       const w = d.plan.walls[wall.id];
       if (!w) return;
       if (id) w.finish = id;
-      else delete w.finish;
+      else {
+        delete w.finish;
+        delete w.finishSide;
+      }
     });
+  const setSide = (side: WallSide | undefined) =>
+    applyEdit((d) => {
+      const w = d.plan.walls[wall.id];
+      if (!w) return;
+      if (side) w.finishSide = side;
+      else delete w.finishSide;
+    });
+  const faceLabel = (side: WallSide) => {
+    const r = sides[side];
+    return r ? `ฝั่ง${r.name}` : 'ฝั่งนอก';
+  };
+  const options: { side: WallSide | undefined; label: string }[] = [
+    { side: undefined, label: 'ทั้งสองหน้า' },
+    { side: 'A', label: faceLabel('A') },
+    { side: 'B', label: faceLabel('B') },
+  ];
   return (
     <>
       <h5>วัสดุผนังนี้</h5>
       <SurfaceRow surface="wall" value={wall.finish} onPick={pick} open={open} setOpen={setOpen} />
-      <p className="muted small">ไม่กำหนด = ใช้วัสดุผนังของห้องที่ผนังนี้ล้อมอยู่</p>
+      {wall.finish && (
+        <div className="wall-face" role="radiogroup" aria-label="ใช้วัสดุนี้กับหน้าไหนของผนัง" data-testid="wall-face">
+          <span className="muted small">ใช้กับ</span>
+          {options.map((o) => (
+            <button
+              key={o.side ?? 'both'}
+              type="button"
+              role="radio"
+              aria-checked={wall.finishSide === o.side}
+              className={`chip${wall.finishSide === o.side ? ' on' : ''}`}
+              onClick={() => setSide(o.side)}
+              data-testid={`wall-face-${o.side ?? 'both'}`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="muted small">ไม่กำหนด = แต่ละหน้าของผนังใช้วัสดุผนังของห้องฝั่งนั้น</p>
     </>
   );
 }
