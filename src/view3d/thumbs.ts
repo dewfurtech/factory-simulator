@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { catalogItem, isMachine } from '../model/catalog';
 import { machinePhoto } from '../model/photos';
 import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
-import { FLAT } from './lowpoly';
+import { disposeTree, FLAT } from './lowpoly';
 
 /**
  * Small pictures of catalog items for the library. A Mastrox machine shows its real photo; everything else is
@@ -31,13 +31,22 @@ function setup() {
   camera = new THREE.PerspectiveCamera(30, 160 / 112, 0.05, 200);
 }
 
+/** Pictures another kind of project draws its own way (an interior's cabinets and furniture); null leaves an id to the usual look. */
+let ownThumb: ((id: string) => THREE.Object3D | null) | null = null;
+export function setThumbBuilder(build: ((id: string) => THREE.Object3D | null) | null): void {
+  ownThumb = build;
+}
+
 function render(id: string): string {
   if (!renderer) setup();
   const item = catalogItem(id);
   const dims = item?.size ?? { w: 1000, d: 1000, h: 1000 };
-  const obj: THREE.Object3D = item?.custom
-    ? new THREE.Mesh(plainGeometry(item.custom.shape, dims), new THREE.MeshLambertMaterial({ color: item.custom.color }))
-    : new THREE.Mesh(isMachine({ assetId: id }) ? machineBlock(dims) : builtinGeometry(id, dims), FLAT);
+  const own = ownThumb?.(id) ?? null;
+  const obj: THREE.Object3D = own
+    ? own
+    : item?.custom
+      ? new THREE.Mesh(plainGeometry(item.custom.shape, dims), new THREE.MeshLambertMaterial({ color: item.custom.color }))
+      : new THREE.Mesh(isMachine({ assetId: id }) ? machineBlock(dims) : builtinGeometry(id, dims), FLAT);
   scene.add(obj);
   const box = new THREE.Box3().setFromObject(obj);
   const size = box.getSize(new THREE.Vector3());
@@ -49,6 +58,7 @@ function render(id: string): string {
   renderer!.render(scene, camera);
   const url = renderer!.domElement.toDataURL('image/png');
   scene.remove(obj);
+  if (own) disposeTree(own);
   return url;
 }
 
