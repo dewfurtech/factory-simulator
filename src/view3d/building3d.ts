@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { wallFootprints } from '../model/miter';
-import { roomLabelPoint, roomPolygon, wallDir } from '../model/plan';
-import type { Column, Id, Plan, Project, Vec2, Mm } from '../model/types';
+import { roomLabelPoint, roomPolygon, wallDir, wallSideRooms } from '../model/plan';
+import type { Column, Id, Plan, Project, Vec2, Mm, Wall } from '../model/types';
 import { bounds, dot, pointInPolygon, signedArea, sub } from '../model/vec';
 import { planAreas } from '../model/areas';
 import { AISLE_KINDS, aisleLabel, aisleOutline, arrowHead, isArrow, LINE_COLOR, LINE_WIDTH, offsetLine, planAisles } from '../model/aisles';
@@ -72,11 +72,32 @@ function prism(poly: Vec2[], y0: number, y1: number, color: string, top = color,
   return painted;
 }
 
+/**
+ * Interior projects: how a surface with a material on it (a room's `finish`, a wall's) is built. Absent, every surface
+ * is painted the plain way, as a factory is.
+ */
+export interface FinishHooks {
+  /** The material for a finish id, or null when nothing knows it; `onReady` asks for a redraw when its picture arrives. */
+  material(id: string, onReady: () => void): THREE.Material | null;
+  /** A plan polygon extruded between two heights (mm) with texture coordinates, for the material to tile over. */
+  prism(poly: Vec2[], y0: Mm, y1: Mm, holes?: Vec2[][]): THREE.BufferGeometry | null;
+}
+
+/** The plain ceiling of an interior room without a ceiling material. */
+const CEILING_COLOR = '#f3f2ee';
+const CEILING_THICKNESS = 30;
+
 export interface BuildingOptions {
   /** Walls cut down to this height (mm), or null for full height. */
   cutaway: number | null;
   /** Openings in the floor (a stairwell), cut out of the rooms they fall in. */
   voids?: Vec2[][];
+  /** Interior projects: materials on finished surfaces. */
+  finishes?: FinishHooks;
+  /** Called when a finish's picture arrives after the build, so the view draws again. */
+  onReady?: () => void;
+  /** Interior projects: a ceiling slab over every room at its ceiling height (left out with the walls cut down). */
+  ceilings?: boolean;
 }
 
 /** Floors, walls (with doorways and windows), glazing and columns, merged into a handful of meshes. */
@@ -86,13 +107,34 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
   const glass: THREE.BufferGeometry[] = [];
   const floors: THREE.BufferGeometry[] = [];
   const cap = (h: number) => (opts.cutaway === null ? h : Math.min(h, opts.cutaway));
+  // Finished surfaces, one mesh per material; a surface whose material is unknown falls back to the plain way.
+  const byMaterial = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  const finished = (id: string | undefined, poly: Vec2[], y0: number, y1: number, holes?: Vec2[][]): boolean => {
+    const f = opts.finishes;
+    if (!id || !f) return false;
+    const mat = f.material(id, opts.onReady ?? (() => undefined));
+    if (!mat) return false;
+    const g = f.prism(poly, y0, y1, holes);
+    if (g) {
+      let list = byMaterial.get(mat);
+      if (!list) byMaterial.set(mat, (list = []));
+      list.push(g);
+    }
+    return true;
+  };
 
   for (const r of Object.values(plan.rooms)) {
     if (r.hidden) continue;
     const poly = roomPolygon(plan, r);
     const holes = (opts.voids ?? []).filter((v) => pointInPolygon({ x: v.reduce((s, p) => s + p.x, 0) / v.length, y: v.reduce((s, p) => s + p.y, 0) / v.length }, poly));
-    const g = prism(poly, -20, 0, zoneColor(r), zoneColor(r), holes);
-    if (g) floors.push(g);
+    if (!finished(r.finish?.floor, poly, -20, 0, holes)) {
+      const g = prism(poly, -20, 0, zoneColor(r), zoneColor(r), holes);
+      if (g) floors.push(g);
+    }
+    if (opts.ceilings && opts.cutaway === null && !r.outdoor && !finished(r.finish?.ceiling, poly, r.ceilingHeight, r.ceilingHeight + CEILING_THICKNESS, holes)) {
+      const g = prism(poly, r.ceilingHeight, r.ceilingHeight + CEILING_THICKNESS, CEILING_COLOR, CEILING_COLOR, holes);
+      if (g) solid.push(g);
+    }
   }
 
   // Aisles painted on the floor: a tint between two yellow edge lines. A flow arrow is a red line with an arrowhead.
@@ -123,6 +165,8 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
     const u = wallDir(plan, wall);
     const len = Math.hypot(plan.corners[wall.b].x - a.x, plan.corners[wall.b].y - a.y);
     const color = wall.color ?? WALL_COLOR;
+    // Interior: the wall's own material, else the wall material of a room it bounds (the first with one).
+    const finish = opts.finishes ? (wall.finish ?? roomWallFinish(plan, wall)) : undefined;
     const ops = Object.values(plan.openings)
       .filter((o) => o.wallId === wall.id)
       .sort((p, q) => p.offset - q.offset);
@@ -173,7 +217,7 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
           const pane = prism(piece, c.y0, y1, '#a9d2e6');
           if (pane) glass.push(pane);
         }
-      } else {
+      } else if (!finished(finish, piece, c.y0, y1)) {
         const g = prism(piece, c.y0, y1, color, WALL_TOP);
         if (g) solid.push(g);
       }
@@ -211,7 +255,17 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
   const wallMesh = add(solid, wallMat, true);
   if (wallMesh) wallMesh.userData.wall = true;
   add(glass, GLASS, false);
+  for (const [material, parts] of byMaterial) {
+    const mesh = add(parts, material, true);
+    if (mesh) mesh.name = 'finished';
+  }
   return group;
+}
+
+/** The wall material of a room the wall bounds, for an interior wall without one of its own. */
+function roomWallFinish(plan: Plan, wall: Wall): string | undefined {
+  const { A, B } = wallSideRooms(plan, wall);
+  return A?.finish?.wall ?? B?.finish?.wall;
 }
 
 /**

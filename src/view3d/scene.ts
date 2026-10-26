@@ -4,7 +4,7 @@ import type { Id, PlacedObject, Project } from '../model/types';
 import { catalogItem, isMachine } from '../model/catalog';
 import { roomPolygon } from '../model/plan';
 import { bounds, pointInPolygon } from '../model/vec';
-import { buildAreas, buildBuilding, buildIsland, buildZoneLabels } from './building3d';
+import { buildAreas, buildBuilding, buildIsland, buildZoneLabels, type FinishHooks } from './building3d';
 import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
 import { machineObject } from './machines3d';
 import { machineFootprint } from '../model/catalog';
@@ -21,6 +21,10 @@ export interface SceneOptions {
   cutaway: boolean;
   /** Areas (the translucent boxes) shown at all. */
   areas: boolean;
+  /** Interior projects: materials on finished surfaces; absent for a factory. */
+  finishes?: FinishHooks;
+  /** Interior projects: ceilings over the rooms. */
+  ceilings?: boolean;
 }
 
 export interface Picked {
@@ -100,7 +104,7 @@ export class FactoryScene {
   setOptions(o: Partial<SceneOptions>) {
     const before = this.opts;
     this.opts = { ...this.opts, ...o };
-    if (before.cutaway !== this.opts.cutaway && this.project) {
+    if ((before.cutaway !== this.opts.cutaway || before.finishes !== this.opts.finishes || before.ceilings !== this.opts.ceilings) && this.project) {
       this.rebuildBuilding(this.project);
       for (const [id, node] of this.objectMeshes) node.visible = this.shows(this.objectKeys.get(id)!);
     }
@@ -139,7 +143,8 @@ export class FactoryScene {
       disposeTree(g);
       g.clear();
     }
-    this.building.add(buildBuilding(p.plan, p.columns, { cutaway: this.opts.cutaway ? LOW_WALL : null }));
+    const interior = this.opts.finishes ? { finishes: this.opts.finishes, ceilings: this.opts.ceilings, onReady: () => (this.dirty = true) } : {};
+    this.building.add(buildBuilding(p.plan, p.columns, { cutaway: this.opts.cutaway ? LOW_WALL : null, ...interior }));
     this.areas.add(buildAreas(p.plan));
     if (p.upper) {
       const up = buildAreas(p.upper.plan);
@@ -159,7 +164,7 @@ export class FactoryScene {
     this.labels.add(ground);
     // The second floor stands on its slab; with the walls cut down it is left out, like everything up there.
     if (p.upper && !this.opts.cutaway) {
-      const up = buildBuilding(p.upper.plan, {}, { cutaway: null, voids: p.upper.voids });
+      const up = buildBuilding(p.upper.plan, {}, { cutaway: null, voids: p.upper.voids, ...interior });
       const upLabels = buildZoneLabels(p.upper.plan);
       for (const g of [up, upLabels]) g.position.y = p.upper.z * M + 0.005;
       this.building.add(up);
