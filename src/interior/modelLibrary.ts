@@ -13,7 +13,9 @@ import { deleteAsset, loadAsset, saveAsset } from '../store/persist';
 /** Over this many bytes, a share link of a project placing the model gets heavy: the import says so. */
 export const SHARE_WARN_BYTES = 5 * 1024 * 1024;
 
-export const fmtMb = (bytes: number) => `${(bytes / 1024 / 1024).toLocaleString('th-TH', { maximumFractionDigits: 1 })} MB`;
+/** A file size as people read it: kB under a megabyte, else MB. */
+export const fmtMb = (bytes: number) =>
+  bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} kB` : `${(bytes / 1024 / 1024).toLocaleString('th-TH', { maximumFractionDigits: 1 })} MB`;
 
 export interface NewImportedModel {
   name: string;

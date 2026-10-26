@@ -3949,9 +3949,19 @@ body:has(.home) {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.mf-check > span:last-child {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  font-size: 13px;
+.cat-import {
+  margin: -4px 12px 8px;
+}
+.cat-import .btn {
+  width: 100%;
+  justify-content: center;
+}
+.model-warnings {
+  margin: 0;
+  padding: 8px 10px 8px 24px;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 12.5px;
 }

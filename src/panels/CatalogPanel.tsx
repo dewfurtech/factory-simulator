@@ -167,12 +167,14 @@ export function CatalogPanel({ interior = false }: { interior?: boolean } = {}) 
             <Icon name="plus" /> เพิ่ม
           </button>
         )}
-        {shelf === 'mine' && interior && (
-          <button className="btn btn-sm" onClick={() => setImporting({})} title="นำเข้าโมเดล 3D จาก SketchUp (.dae, .obj, .glb, .gltf)" data-testid="import-model">
-            <Icon name="upload" /> นำเข้าโมเดล 3D
-          </button>
-        )}
       </div>
+      {shelf === 'mine' && interior && (
+        <div className="cat-import">
+          <button className="btn btn-sm" onClick={() => setImporting({})} title="นำเข้าโมเดล 3D ที่ส่งออกจาก SketchUp (.dae, .obj, .glb, .gltf)" data-testid="import-model">
+            <Icon name="upload" /> นำเข้าโมเดล 3D (SketchUp)
+          </button>
+        </div>
+      )}
       {!searching && shelf === 'mine' && tags.length > 0 && (
         <div className="cat-chips">
           {tags.length > 0 && (

@@ -206,17 +206,15 @@ export function ImportModelDialog({ model, onClose }: Props) {
                   ))}
                 </select>
               </label>
-              {canTurn && (
-                <label className="mf-field mf-check">
-                  <span>แกน</span>
-                  <span>
-                    <input type="checkbox" checked={zUp} onChange={(e) => setZUp(e.target.checked)} /> โมเดลนอนอยู่ (แกน Z ขึ้น) ให้ตั้งขึ้น
-                  </span>
-                </label>
-              )}
             </div>
+            {canTurn && (
+              <label className="check">
+                <input type="checkbox" checked={zUp} onChange={(e) => setZUp(e.target.checked)} data-testid="import-model-zup" />
+                โมเดลนอนอยู่ (ส่งออกแบบแกน Z ขึ้น): ตั้งให้ตรง
+              </label>
+            )}
             {read.warnings.length > 0 && (
-              <ul className="issues">
+              <ul className="model-warnings">
                 {read.warnings.map((w) => (
                   <li key={w}>{w}</li>
                 ))}
