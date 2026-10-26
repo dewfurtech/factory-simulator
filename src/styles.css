@@ -3965,3 +3965,10 @@ body:has(.home) {
   color: #92400e;
   font-size: 12.5px;
 }
+.model-form .check {
+  align-self: flex-start;
+}
+.model-form .check input {
+  width: auto;
+  padding: 0;
+}
