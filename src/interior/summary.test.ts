@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addPolygon, DEFAULT_WALL } from '../model/plan';
+import { addPolygon, DEFAULT_WALL, wallSideOf } from '../model/plan';
 import type { Id, Project } from '../model/types';
 import { newInteriorProject } from './project';
 import { moodSummary, roomSurfaces } from './summary';
@@ -112,5 +112,35 @@ describe('furniture', () => {
     const f = moodSummary(p).furniture;
     expect(f[0]).toMatchObject({ count: 2, size: { w: 1800 } });
     expect(f).toHaveLength(3);
+  });
+});
+
+describe('a wall material set for one face', () => {
+  /** Two 4 × 3 m rooms side by side sharing the wall at x = 4000, each with its own wall material. */
+  function twoRooms() {
+    const p = newInteriorProject('test');
+    addPolygon(p.plan, rect(0, 0, 4000, 3000), { ...DEFAULT_WALL, height: 2600 });
+    addPolygon(p.plan, rect(4000, 0, 8000, 3000), { ...DEFAULT_WALL, height: 2600 });
+    const [left, right] = Object.values(p.plan.rooms).sort((a, b) => p.plan.corners[a.cornerIds[0]].x - p.plan.corners[b.cornerIds[0]].x);
+    left.name = 'ซ้าย';
+    right.name = 'ขวา';
+    for (const r of [left, right]) r.ceilingHeight = 2600;
+    left.finish = { wall: 'paint-white' };
+    right.finish = { wall: 'walnut' };
+    const shared = Object.values(p.plan.walls).find((w) => p.plan.corners[w.a].x === 4000 && p.plan.corners[w.b].x === 4000)!;
+    return { p, left, right, shared };
+  }
+  const wallMaterialOf = (p: Project, r: ReturnType<typeof twoRooms>['left'], wall: { id: Id }) => roomSurfaces(p.plan, r).find((s) => s.wall?.id === wall.id)?.material;
+
+  it('counts on that face only; the other face keeps its room material', () => {
+    const { p, left, right, shared } = twoRooms();
+    shared.finish = 'oak';
+    expect(wallMaterialOf(p, left, shared)).toBe('oak');
+    expect(wallMaterialOf(p, right, shared)).toBe('oak');
+    shared.finishSide = wallSideOf(p.plan, shared, right)!;
+    expect(wallMaterialOf(p, left, shared)).toBe('paint-white');
+    expect(wallMaterialOf(p, right, shared)).toBe('oak');
+    const oak = moodSummary(p).materials.find((l) => l.material.id === 'oak')!;
+    expect(oak.uses.map((u) => u.room)).toEqual(['ขวา']);
   });
 });

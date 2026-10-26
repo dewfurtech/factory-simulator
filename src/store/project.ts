@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { DEFAULT_UPPER_Z, fromView, levelView } from '../model/levels';
 import { emptyPlan } from '../model/plan';
 import { migrate } from '../model/project';
+import { homeRooms } from '../interior/rooms';
 import type { Project } from '../model/types';
 
 const HISTORY_LIMIT = 200;
@@ -42,7 +43,11 @@ export const useProject = create<ProjectState>((set, get) => ({
     if (!project) return;
     // On the second floor the recipe edits a view whose plan is that floor's; it is written back after.
     const view = levelView(project, level);
-    const edited = produce(view, (d) => recipe(d));
+    const edited = produce(view, (d) => {
+      recipe(d);
+      // An interior's new rooms are rooms of a home, not factory zones.
+      if (d.kind === 'interior') homeRooms(d.plan, view.plan.rooms);
+    });
     if (edited === view) return;
     const next = { ...fromView(project, edited, level), updatedAt: Date.now() };
     set({

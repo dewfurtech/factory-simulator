@@ -1,5 +1,5 @@
 import { catalogItem } from '../model/catalog';
-import { roomStats, roomWalls, wallLength } from '../model/plan';
+import { roomStats, roomWalls, wallLength, wallSideOf } from '../model/plan';
 import type { MaterialId, Plan, Project, Room, Size3, Wall } from '../model/types';
 import { materialOf, SURFACES, type Material, type Surface } from './materials';
 
@@ -58,7 +58,7 @@ export interface RoomSurface {
 
 /**
  * Which material each surface of a room shows, surface by surface. The walls come wall by wall: a wall with a finish
- * of its own shows that, the rest show the room's wall finish.
+ * of its own shows that on the faces it covers (both, or the one it is set for), the rest show the room's wall finish.
  */
 export function roomSurfaces(plan: Plan, room: Room): RoomSurface[] {
   const out: RoomSurface[] = [];
@@ -66,7 +66,9 @@ export function roomSurfaces(plan: Plan, room: Room): RoomSurface[] {
   if (room.finish?.floor) out.push({ surface: 'floor', material: room.finish.floor, area: floor });
   if (room.finish?.ceiling) out.push({ surface: 'ceiling', material: room.finish.ceiling, area: floor });
   for (const w of roomWalls(plan, room)) {
-    const id = w.finish ?? room.finish?.wall;
+    // The wall's own material counts on this face unless it is set for the other face only.
+    const own = w.finish && (!w.finishSide || w.finishSide === wallSideOf(plan, w, room)) ? w.finish : undefined;
+    const id = own ?? room.finish?.wall;
     if (id) out.push({ surface: 'wall', material: id, area: wallFaceArea(plan, room, w), wall: w });
   }
   return out;

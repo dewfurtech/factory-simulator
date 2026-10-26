@@ -38,7 +38,15 @@ export interface Wall extends LayerFlags {
   color?: string;
   /** Interior projects: the material on this wall, over whatever its room has (see src/interior). */
   finish?: MaterialId;
+  /**
+   * Interior projects: the one face `finish` covers, A or B as `wallSideRooms` names the wall's sides; absent, both.
+   * The other face shows the wall material of the room on its side.
+   */
+  finishSide?: WallSide;
 }
+
+/** A wall's two faces: A on the right of its run from corner a to corner b as the plan shows it on screen, B on the left. */
+export type WallSide = 'A' | 'B';
 
 /** A material from the interior library (src/interior/materials.ts), or one the user uploaded (`Project.materials`). */
 export type MaterialId = string;

@@ -72,6 +72,9 @@ const readShelf = (): Shelf => {
  * The library of Mastrox machines and built-in factory pieces: click to place, or drag onto the plan.
  * An interior project sees no machines: only the built-in furniture and the user's own models.
  */
+/** The phone layout of styles.css, where the library lies over the plan. */
+const PHONE = '(max-width: 640px)';
+
 export function CatalogPanel({ interior = false }: { interior?: boolean } = {}) {
   const [q, setQ] = useState('');
   const [shelf, setShelfState] = useState<Shelf>(() => (interior ? (readShelf() === 'mine' ? 'mine' : 'general') : readShelf()));
@@ -88,6 +91,8 @@ export function CatalogPanel({ interior = false }: { interior?: boolean } = {}) 
   /** On the plan a click arms the place tool; in 3D there is no plan to click, so the machine lands mid-view, ready to drag. */
   const pick = (assetId: string, on: boolean) => {
     const ui = useUi.getState();
+    // Interior on a phone: the library covers the plan, so it steps aside once a piece is picked.
+    if (interior && !on && window.matchMedia?.(PHONE).matches) ui.set({ dock: null });
     if (in3d) {
       const at = ui.floorCentre?.();
       if (!at) return;

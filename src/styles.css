@@ -3620,6 +3620,14 @@ body:has(.home) {
 .swatch-none {
   background: linear-gradient(45deg, transparent 46%, var(--line-2) 46%, var(--line-2) 54%, transparent 54%), var(--card) !important;
 }
+/* Which face of a wall its own material covers: both, or the face toward one room. */
+.wall-face {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
 .surface-row {
   display: grid;
   gap: 8px;
@@ -3809,6 +3817,10 @@ body:has(.home) {
   }
   .editor.interior [data-testid='dock-layers'] {
     display: none;
+  }
+  /* The library slides over the plan from under the bar (z-index 30): the bar's menus open over it, not behind it. */
+  .editor.interior .topbar {
+    z-index: 31;
   }
 }
 /* The interior bar has two more buttons than the factory's: below 1640px the panel buttons go icon-only and the BOQ button says only "BOQ". */
