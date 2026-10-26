@@ -1,6 +1,18 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { classifyFile, colladaAsset, countTriangles, extensionOf, guessUnit, importModelFile, ModelImportError, pickModelFile, placeOnFloor, SKP_MESSAGE } from './importModel';
+import {
+  classifyFile,
+  colladaAsset,
+  countTriangles,
+  extensionOf,
+  guessUnit,
+  importModelFile,
+  ModelImportError,
+  pickModelFile,
+  placeOnFloor,
+  prepareMeshes,
+  SKP_MESSAGE,
+} from './importModel';
 
 describe('file names', () => {
   it('reads the extension in lower case, ignoring folders and dots in names', () => {
@@ -90,6 +102,16 @@ describe('placeOnFloor', () => {
     expect(sizeMm).toEqual({ w: 2000, d: 1000, h: 3000 });
     group.updateWorldMatrix(true, true);
     expect(new THREE.Box3().setFromObject(group, true).min.y).toBeCloseTo(0, 9);
+  });
+
+  it('gives meshes without normals some, and draws both sides of every face', () => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
+    const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial());
+    prepareMeshes(mesh);
+    expect(g.attributes.normal).toBeDefined();
+    expect(Array.from(g.attributes.normal.array.slice(0, 3))).toEqual([0, 0, 1]);
+    expect((mesh.material as THREE.Material).side).toBe(THREE.DoubleSide);
   });
 
   it('counts the triangles of meshes only', () => {

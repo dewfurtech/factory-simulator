@@ -262,17 +262,26 @@ export async function importModelFile(file: File, opts: ImportOptions = {}): Pro
     warnings.push(`โมเดลมี ${triangles.toLocaleString('th-TH')} สามเหลี่ยม เกิน ${TRIANGLE_WARN.toLocaleString('th-TH')} อาจทำให้ฉากช้า ลองลดรายละเอียดใน SketchUp ก่อนส่งออก`);
   if (missing.size) warnings.push(`ไม่พบไฟล์ภาพพื้นผิว: ${[...missing].join(', ')} (เลือกไฟล์ภาพมาพร้อมโมเดลเพื่อให้แสดงลาย)`);
 
-  model.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (m.isMesh) {
-      m.castShadow = true;
-      m.receiveShadow = true;
-    }
-  });
+  prepareMeshes(model);
   const { group, sizeMm } = placeOnFloor(model, scale, zUp);
   group.name = file.name;
   group.userData.importedModel = true;
   return { group, sizeMm, triangles, warnings, format: kind, unit, unitSure };
+}
+
+/**
+ * Readies loaded meshes for the scene: normals where the file has none (else lit faces draw black), both sides of
+ * every face drawn (SketchUp models often have faces turned inside out), and shadows on.
+ */
+export function prepareMeshes(model: THREE.Object3D): void {
+  model.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    if (!m.geometry.attributes.normal) m.geometry.computeVertexNormals();
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) mat.side = THREE.DoubleSide;
+    m.castShadow = true;
+    m.receiveShadow = true;
+  });
 }
 
 function unitFromMeter(meter: number): LengthUnit | null {
