@@ -488,3 +488,21 @@ test.describe('interior on a phone', () => {
     await expect(page.getByTestId('sheet-cover')).toBeVisible();
   });
 });
+
+test('the sample condo opens from the start page furnished, without placement problems, and fills the BOQ', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  await expect(page.getByTestId('new-sample')).toBeVisible();
+  // Hidden on the live site with the rest of the interior mode.
+  await expect(page.getByTestId('new-sample-condo')).toHaveCount(0);
+  await interiorApp(page);
+  await page.getByTestId('new-sample-condo').click();
+  await expect(page.getByTestId('interior-editor')).toBeVisible();
+  await expect.poll(() => projectState(page)).toMatchObject({ rooms: 3 });
+  await expect(page.locator('.issues-chip')).toHaveCount(0);
+  await page.getByTestId('boq-open').click();
+  await expect(page.getByTestId('boq-line-oak')).toBeVisible();
+  await expect(page.getByTestId('boq-line-tile-grey-600')).toBeVisible();
+  expect(errors).toEqual([]);
+});

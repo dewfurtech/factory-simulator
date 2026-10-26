@@ -212,6 +212,11 @@ export function ProjectList() {
             <button className="chip" onClick={() => void import('../model/sample').then((m) => create(m.mastroxLayout()))} data-testid="new-mastrox">
               Layout Mastrox
             </button>
+            {showInterior && (
+              <button className="chip" onClick={() => void import('../interior/sample').then((m) => create(m.sampleCondo()))} data-testid="new-sample-condo">
+                ห้องตัวอย่าง (คอนโด)
+              </button>
+            )}
           </span>
         </div>
 
