@@ -11,6 +11,23 @@
  * - an optional top slab (countertop) lies over the whole footprint.
  */
 
+/** Colours a cabinet is drawn in when its pieces have none of their own. */
+export interface CabinetColors {
+  carcass: string;
+  front: string;
+  back: string;
+  top: string;
+  handle: string;
+}
+
+export const DEFAULT_CABINET_COLORS: CabinetColors = {
+  carcass: '#e7e1d6',
+  front: '#c8a376',
+  back: '#d9d3c7',
+  top: '#8f8a84',
+  handle: '#3b4048',
+};
+
 export type CabinetKind = 'base' | 'wall' | 'tall' | 'open';
 
 export const CABINET_KIND_TH: Record<CabinetKind, string> = {

@@ -245,12 +245,10 @@ export function MainMenu({ back = 'กลับไปรายการโรง
           >
             <Icon name="image" /> บันทึกแปลนเป็นไฟล์ SVG
           </button>
-          {/* Its prompt describes a factory hall: an interior leaves it out until it has a prompt of its own. */}
-          {p.kind !== 'interior' && (
-            <button role="menuitem" onClick={() => (setOpen(false), void openFlowDialog())} data-testid="menu-flow">
-              <Icon name="bulb" /> สร้างภาพโรงงานด้วย Google Flow
-            </button>
-          )}
+          {/* The dialog writes a factory hall's prompt for a factory, a room's for an interior. */}
+          <button role="menuitem" onClick={() => (setOpen(false), void openFlowDialog())} data-testid="menu-flow">
+            <Icon name="bulb" /> {p.kind === 'interior' ? 'สร้างภาพห้องด้วย Google Flow' : 'สร้างภาพโรงงานด้วย Google Flow'}
+          </button>
           {extra?.(() => setOpen(false))}
         </div>
       )}

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { FLAT, Parts } from '../../view3d/lowpoly';
 import { cabinetPieces, type MaterialGroup, type Piece } from './parts';
-import type { CabinetSpec } from './spec';
+import { DEFAULT_CABINET_COLORS, type CabinetColors, type CabinetSpec } from './spec';
 
 /**
  * A cabinet in the flat low-poly style of the rest of the 3D view, built from the very pieces the cut list counts:
@@ -13,21 +13,8 @@ import type { CabinetSpec } from './spec';
 
 const M = 0.001;
 
-export interface CabinetColors {
-  carcass: string;
-  front: string;
-  back: string;
-  top: string;
-  handle: string;
-}
-
-export const DEFAULT_CABINET_COLORS: CabinetColors = {
-  carcass: '#e7e1d6',
-  front: '#c8a376',
-  back: '#d9d3c7',
-  top: '#8f8a84',
-  handle: '#3b4048',
-};
+// The colours live in spec.ts, so code without three.js (the render prompt) can read them.
+export { DEFAULT_CABINET_COLORS, type CabinetColors } from './spec';
 
 export interface BuildCabinetOptions {
   colors?: Partial<CabinetColors>;

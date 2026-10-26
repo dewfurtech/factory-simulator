@@ -268,11 +268,24 @@ test('3D opens on a small room from above: every corner on screen and its floor 
   expect(r.overWall).toBeGreaterThan(3);
 });
 
-test('an interior speaks of furniture when shared, and leaves out the factory picture prompt', async ({ page, browser }) => {
+test('the AI picture dialog of an interior writes the prompt from its rooms, not a factory', async ({ page }) => {
+  await smallRoom(page);
+  await page.getByTestId('main-menu').click();
+  await expect(page.getByTestId('menu-flow')).toHaveText(/สร้างภาพห้องด้วย Google Flow/);
+  await page.keyboard.press('Escape');
+  await page.getByTestId('flow-button').click();
+  const dialog = page.getByTestId('flow-dialog');
+  await expect(dialog).toContainText('สร้างภาพห้องด้วย Google Flow');
+  const prompt = page.getByTestId('flow-prompt');
+  await expect(prompt).toHaveValue(/^Photorealistic interior photograph of the rooms below/);
+  await expect(prompt).toHaveValue(/Room 1, room: [d.]+ × [d.]+ m/);
+  await expect(prompt).not.toHaveValue(/factory|machine/i);
+});
+
+test('an interior speaks of furniture when shared', async ({ page, browser }) => {
   await smallRoom(page);
   await page.getByTestId('main-menu').click();
   await expect(page.getByTestId('menu-share')).toBeVisible();
-  await expect(page.getByTestId('menu-flow')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.getByTestId('share-link').click();
   await expect(page.getByRole('dialog')).toContainText('ย้ายเฟอร์นิเจอร์เองได้');
@@ -465,6 +478,7 @@ test.describe('interior on a phone', () => {
       }
     for (const b of boxes) expect(b.r).toBeLessThanOrEqual(391);
     await expect(page.getByTestId('present-open')).toBeHidden();
+    await expect(page.getByTestId('flow-button')).toBeHidden();
     await page.getByTestId('main-menu').click();
     await page.getByTestId('menu-present').click();
     await expect(page.getByTestId('sheet-cover')).toBeVisible();

@@ -47,7 +47,7 @@ const MACHINE_KIND: Partial<Record<CatalogGroup, string>> = {
 };
 
 /** English names for the built-in furniture, so the model knows the Thai labels' meaning. */
-const BUILTIN_EN: Record<string, string> = {
+export const BUILTIN_EN: Record<string, string> = {
   desk: 'office desk with chair',
   'meeting-table': 'meeting table',
   'office-chair': 'office chair',

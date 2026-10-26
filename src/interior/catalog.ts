@@ -52,6 +52,25 @@ export const HOME_ITEMS: CatalogItem[] = [
   home('home-floor-lamp', 'โคมไฟตั้งพื้น', S(400, 400, 1600)),
 ];
 
+/** English names of the home pieces, for the image-model prompt (src/interior/renderPrompt.ts). */
+export const HOME_EN: Record<string, string> = {
+  'home-bed-35': '3.5 ft single bed',
+  'home-bed-5': '5 ft double bed',
+  'home-bed-6': '6 ft king bed',
+  'home-sofa-1': 'one-seat sofa',
+  'home-sofa-2': 'two-seat sofa',
+  'home-sofa-3': 'three-seat sofa',
+  'home-sofa-l': 'L-shaped sofa',
+  'home-dining-4': 'four-seat dining table',
+  'home-dining-6': 'six-seat dining table',
+  'home-coffee-table': 'coffee table',
+  'home-desk': 'desk',
+  'home-chair': 'chair',
+  'home-dressing-table': 'dressing table',
+  'home-shelving': 'wooden shelving unit',
+  'home-floor-lamp': 'floor lamp',
+};
+
 /** The shape each home piece is drawn with in 3D: an id of FURNITURE_SHAPES, or a builder taking a seat count. */
 export const SHAPE_OF: Record<string, string> = {
   'home-bed-35': 'bed',

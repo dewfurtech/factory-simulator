@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { download, planPicture, shownScale, toPng } from '../editor2d/exportImage';
 import { Icon } from '../editor2d/Toolbar';
 import { newId } from '../model/id';
+import { isInterior } from '../interior/project';
+import { buildInteriorPrompt } from '../interior/renderPrompt';
 import { buildRenderPrompt, FLOW_URL } from '../model/renderPrompt';
 import type { Id, Project, Render } from '../model/types';
 import { loadAsset, saveAsset } from '../store/persist';
@@ -32,6 +34,9 @@ async function referencePicture(project: Project): Promise<Blob | null> {
   return pic ? toPng(pic) : null;
 }
 
+/** The prompt written from the project: a room's for an interior, the factory hall's for a factory. */
+const buildPrompt = (p: Project): string => (isInterior(p) ? buildInteriorPrompt(p) : buildRenderPrompt(p));
+
 const safeName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'factory';
 
 async function addRender(blob: Blob, prompt: string): Promise<void> {
@@ -46,13 +51,16 @@ async function addRender(blob: Blob, prompt: string): Promise<void> {
 function FlowPanel({ close }: { close: () => void }) {
   const project = useProject((s) => s.project!);
   const renders = project.renders ?? [];
-  const [prompt, setPrompt] = useState(() => project.renderPrompt ?? buildRenderPrompt(project));
+  // An interior is pictured as its rooms and furniture; a factory as its hall and machines.
+  const room = isInterior(project);
+  const what = room ? 'เฟอร์นิเจอร์' : 'เครื่อง';
+  const [prompt, setPrompt] = useState(() => project.renderPrompt ?? buildPrompt(project));
   const [copied, setCopied] = useState<'no' | 'yes' | 'failed'>('no');
   const [ref, setRef] = useState<{ url: string; blob: Blob } | null>(null);
   const [refBusy, setRefBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const edited = prompt !== (project.renderPrompt ?? buildRenderPrompt(project));
+  const edited = prompt !== (project.renderPrompt ?? buildPrompt(project));
 
   // The reference picture is taken once when the dialog opens: the 3D view when it is up, else the plan.
   useEffect(() => {
@@ -88,7 +96,7 @@ function FlowPanel({ close }: { close: () => void }) {
   }, [prompt]);
 
   const keepPrompt = () => {
-    const built = buildRenderPrompt(project);
+    const built = buildPrompt(project);
     const next = prompt.trim() === built.trim() ? undefined : prompt;
     if (next !== project.renderPrompt)
       applyEdit((d) => {
@@ -126,10 +134,10 @@ function FlowPanel({ close }: { close: () => void }) {
   return (
     <div className="flow" data-testid="flow-dialog">
       <h2>
-        <Icon name="image" /> สร้างภาพโรงงานด้วย Google Flow
+        <Icon name="image" /> {room ? 'สร้างภาพห้องด้วย Google Flow' : 'สร้างภาพโรงงานด้วย Google Flow'}
       </h2>
       <p>
-        Google Flow ยังไม่มี API ให้เว็บนี้สั่งสร้างและรับภาพกลับเองได้ จึงทำเป็น 3 ขั้น: คัดลอกพรอมต์ไปวางใน Flow → อัปโหลดภาพอ้างอิงจากแปลนนี้ให้ Flow ดูตำแหน่งเครื่อง →
+        Google Flow ยังไม่มี API ให้เว็บนี้สั่งสร้างและรับภาพกลับเองได้ จึงทำเป็น 3 ขั้น: คัดลอกพรอมต์ไปวางใน Flow → อัปโหลดภาพอ้างอิงจากแปลนนี้ให้ Flow ดูตำแหน่ง{what} →
         ได้ภาพแล้วลากหรือวาง (Ctrl+V) กลับมาที่นี่ ภาพจะเก็บไว้กับโปรเจกต์
       </p>
 
@@ -139,7 +147,7 @@ function FlowPanel({ close }: { close: () => void }) {
         <div className="flow-row">
           <button
             className="btn btn-sm"
-            onClick={() => setPrompt(buildRenderPrompt(project))}
+            onClick={() => setPrompt(buildPrompt(project))}
             disabled={!edited && !project.renderPrompt}
             title="ทิ้งที่แก้ไว้ แล้วเขียนใหม่จากแปลนตามที่เป็นอยู่ตอนนี้"
           >
@@ -158,7 +166,7 @@ function FlowPanel({ close }: { close: () => void }) {
           <div className="flow-ref-text">
             <p>
               {useUi.getState().snapshot3d ? 'ถ่ายจากมุมมอง 3D ที่เปิดอยู่' : 'ถ่ายจากแปลน 2D'} ดาวน์โหลดแล้วอัปโหลดเป็นภาพอ้างอิง (Ingredients / Frames) ใน Flow
-              เพื่อให้ตำแหน่งเครื่องตรงกับแปลน
+              เพื่อให้ตำแหน่ง{what}ตรงกับแปลน
             </p>
             <button className="btn btn-sm" disabled={!ref} onClick={() => ref && download(ref.blob, `${safeName(project.name)}-reference.png`)} data-testid="flow-ref-download">
               <Icon name="download" /> ดาวน์โหลดภาพอ้างอิง

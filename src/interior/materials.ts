@@ -22,6 +22,8 @@ export const GROUP_LABEL: Record<MaterialGroup, string> = {
 export interface Material {
   id: MaterialId;
   name: string;
+  /** English name, for the image-model prompt (src/interior/renderPrompt.ts); an uploaded material has none. */
+  en?: string;
   group: MaterialGroup;
   /** The main colour, as the plan paints the floor and the palette lists it. */
   color: string;
@@ -40,9 +42,10 @@ const FLOOR: Surface[] = ['floor'];
 const WALL: Surface[] = ['wall'];
 const WALL_CEILING: Surface[] = ['wall', 'ceiling'];
 
-const m = (id: string, name: string, group: MaterialGroup, color: string, scale: Mm, surfaces: Surface[], textured = true): Material => ({
+const m = (id: string, name: string, en: string, group: MaterialGroup, color: string, scale: Mm, surfaces: Surface[], textured = true): Material => ({
   id,
   name,
+  en,
   group,
   color,
   scale,
@@ -56,33 +59,33 @@ const m = (id: string, name: string, group: MaterialGroup, color: string, scale:
  * is 1200 mm across, a run of six 20 cm planks is 1200 mm.
  */
 export const MATERIALS: Material[] = [
-  m('oak', 'ไม้โอ๊คอ่อน', 'wood', '#c9a471', 1200, ALL),
-  m('teak', 'ไม้สัก', 'wood', '#9d6a3c', 1200, ALL),
-  m('walnut', 'ไม้วอลนัท', 'wood', '#5e3d28', 1200, ALL),
-  m('ash-grey', 'ไม้สีเทาวอช', 'wood', '#aea79f', 1200, ALL),
-  m('wood-tile', 'กระเบื้องลายไม้', 'tile', '#b08a62', 1200, FLOOR),
-  m('tile-white-600', 'กระเบื้องขาว 60×60', 'tile', '#eeede9', 1200, ALL),
-  m('tile-grey-600', 'กระเบื้องเทา 60×60', 'tile', '#979b9f', 1200, ALL),
-  m('tile-charcoal-600', 'กระเบื้องดำด้าน 60×60', 'tile', '#45484d', 1200, ALL),
-  m('subway-white', 'กระเบื้องซับเวย์ขาว', 'tile', '#eeede9', 600, WALL),
-  m('terrazzo', 'หินขัด', 'stone', '#dad6cd', 1200, ALL),
-  m('marble-white', 'หินอ่อนขาว', 'stone', '#ebe9e5', 1200, ALL),
-  m('marble-black', 'หินอ่อนดำ', 'stone', '#35373b', 1200, ALL),
-  m('concrete-polished', 'ปูนขัดมัน', 'concrete', '#b4b2ac', 2000, ALL),
-  m('concrete-raw', 'ปูนเปลือย', 'concrete', '#a3a09a', 2000, WALL_CEILING),
-  m('carpet-grey', 'พรมเทา', 'fabric', '#8c8e95', 1000, FLOOR),
-  m('carpet-beige', 'พรมเบจ', 'fabric', '#c4b39b', 1000, FLOOR),
-  m('brick-red', 'อิฐโชว์แนว', 'brick', '#a85d44', 600, WALL),
-  m('brick-white', 'อิฐทาสีขาว', 'brick', '#e6e2db', 600, WALL),
-  m('wood-slats', 'ไม้ระแนง', 'wood', '#9c7349', 600, WALL_CEILING),
-  m('paint-white', 'สีขาว', 'paint', '#f4f3ef', 1000, WALL_CEILING, false),
-  m('paint-cream', 'สีครีม', 'paint', '#efe6d3', 1000, WALL_CEILING, false),
-  m('paint-warm-grey', 'สีเทาอุ่น', 'paint', '#cfc9c1', 1000, WALL_CEILING, false),
-  m('paint-sage', 'สีเขียวเซจ', 'paint', '#b7c3b0', 1000, WALL_CEILING, false),
-  m('paint-terracotta', 'สีดินเผา', 'paint', '#c98a6b', 1000, WALL_CEILING, false),
-  m('paint-navy', 'สีน้ำเงินเข้ม', 'paint', '#2f3f5c', 1000, WALL, false),
-  m('gypsum-white', 'ฝ้ายิปซัมฉาบเรียบ', 'ceiling', '#f6f5f2', 1000, ['ceiling'], false),
-  m('tbar-600', 'ฝ้าทีบาร์ 60×60', 'ceiling', '#efeeea', 1200, ['ceiling']),
+  m('oak', 'ไม้โอ๊คอ่อน', 'light oak wood', 'wood', '#c9a471', 1200, ALL),
+  m('teak', 'ไม้สัก', 'teak wood', 'wood', '#9d6a3c', 1200, ALL),
+  m('walnut', 'ไม้วอลนัท', 'walnut wood', 'wood', '#5e3d28', 1200, ALL),
+  m('ash-grey', 'ไม้สีเทาวอช', 'grey-washed wood', 'wood', '#aea79f', 1200, ALL),
+  m('wood-tile', 'กระเบื้องลายไม้', 'wood-look tiles', 'tile', '#b08a62', 1200, FLOOR),
+  m('tile-white-600', 'กระเบื้องขาว 60×60', 'white 60×60 cm tiles', 'tile', '#eeede9', 1200, ALL),
+  m('tile-grey-600', 'กระเบื้องเทา 60×60', 'grey 60×60 cm tiles', 'tile', '#979b9f', 1200, ALL),
+  m('tile-charcoal-600', 'กระเบื้องดำด้าน 60×60', 'matte black 60×60 cm tiles', 'tile', '#45484d', 1200, ALL),
+  m('subway-white', 'กระเบื้องซับเวย์ขาว', 'white subway tiles', 'tile', '#eeede9', 600, WALL),
+  m('terrazzo', 'หินขัด', 'terrazzo', 'stone', '#dad6cd', 1200, ALL),
+  m('marble-white', 'หินอ่อนขาว', 'white marble', 'stone', '#ebe9e5', 1200, ALL),
+  m('marble-black', 'หินอ่อนดำ', 'black marble', 'stone', '#35373b', 1200, ALL),
+  m('concrete-polished', 'ปูนขัดมัน', 'polished concrete', 'concrete', '#b4b2ac', 2000, ALL),
+  m('concrete-raw', 'ปูนเปลือย', 'raw exposed concrete', 'concrete', '#a3a09a', 2000, WALL_CEILING),
+  m('carpet-grey', 'พรมเทา', 'grey carpet', 'fabric', '#8c8e95', 1000, FLOOR),
+  m('carpet-beige', 'พรมเบจ', 'beige carpet', 'fabric', '#c4b39b', 1000, FLOOR),
+  m('brick-red', 'อิฐโชว์แนว', 'red exposed brick', 'brick', '#a85d44', 600, WALL),
+  m('brick-white', 'อิฐทาสีขาว', 'white-painted brick', 'brick', '#e6e2db', 600, WALL),
+  m('wood-slats', 'ไม้ระแนง', 'wooden slats', 'wood', '#9c7349', 600, WALL_CEILING),
+  m('paint-white', 'สีขาว', 'white paint', 'paint', '#f4f3ef', 1000, WALL_CEILING, false),
+  m('paint-cream', 'สีครีม', 'cream paint', 'paint', '#efe6d3', 1000, WALL_CEILING, false),
+  m('paint-warm-grey', 'สีเทาอุ่น', 'warm grey paint', 'paint', '#cfc9c1', 1000, WALL_CEILING, false),
+  m('paint-sage', 'สีเขียวเซจ', 'sage green paint', 'paint', '#b7c3b0', 1000, WALL_CEILING, false),
+  m('paint-terracotta', 'สีดินเผา', 'terracotta paint', 'paint', '#c98a6b', 1000, WALL_CEILING, false),
+  m('paint-navy', 'สีน้ำเงินเข้ม', 'dark navy blue paint', 'paint', '#2f3f5c', 1000, WALL, false),
+  m('gypsum-white', 'ฝ้ายิปซัมฉาบเรียบ', 'smooth white gypsum board', 'ceiling', '#f6f5f2', 1000, ['ceiling'], false),
+  m('tbar-600', 'ฝ้าทีบาร์ 60×60', '60×60 cm T-bar ceiling panels', 'ceiling', '#efeeea', 1200, ['ceiling']),
 ];
 
 const BUILT_IN = new Map(MATERIALS.map((x) => [x.id, x]));
