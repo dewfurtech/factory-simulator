@@ -19,6 +19,7 @@ import { RoomMaterials, WallMaterial } from './MaterialPicker';
 import { openBoq } from './BoqPage';
 import { openMoodBoard } from './MoodBoard';
 import { openPresentation, PresentButton } from './present/PresentPage';
+import { DrawingsButton, openDrawings } from '../drawings/DrawingsPage';
 import { HOME_ZONE_IDS } from './zones';
 
 const View3D = lazy(() => import('../view3d/View3D'));
@@ -48,9 +49,14 @@ export function InteriorEditor() {
           <MainMenu
             back="กลับไปรายการโปรเจกต์"
             extra={(close) => (
-              <button role="menuitem" onClick={() => (close(), openPresentation())} data-testid="menu-present">
-                <Icon name="image" /> นำเสนอลูกค้า (A3)
-              </button>
+              <>
+                <button role="menuitem" onClick={() => (close(), openPresentation())} data-testid="menu-present">
+                  <Icon name="image" /> นำเสนอลูกค้า (A3)
+                </button>
+                <button role="menuitem" onClick={() => (close(), openDrawings())} data-testid="menu-drawings">
+                  <Icon name="ruler" /> แบบก่อสร้าง (A3)
+                </button>
+              </>
             )}
           />
           <div className="brand tb-desk">
@@ -111,6 +117,7 @@ export function InteriorEditor() {
             </span>
           </button>
           <PresentButton />
+          <DrawingsButton />
           {/* Desktop only, as in the factory: on a phone the main menu has the same entry. */}
           <button
             className="tb-toggle tb-desk"
