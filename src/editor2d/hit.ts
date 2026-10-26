@@ -7,6 +7,7 @@ import { add, dist, dot, fromAngle, perp, pointInPolygon, projectOnSegment, scal
 import { planAreas } from '../model/areas';
 import { aisleOutline, onAisle, planAisles } from '../model/aisles';
 import { useUi, type Selection } from '../store/ui';
+import { isFigure } from '../model/figures';
 
 /** Objects whose centre sits in no room draw and hit-test beneath the rooms. */
 export function isOutdoor(plan: Plan, o: PlacedObject): boolean {
@@ -29,6 +30,8 @@ function inColumn(c: Column, p: Vec2, radius: Mm): boolean {
 }
 
 const off = (x: { hidden?: boolean; locked?: boolean } | undefined) => !x || x.hidden || x.locked;
+/** The people are out of sight in both views: they cannot be picked either. */
+const unseen = (o: PlacedObject) => off(o) || (useUi.getState().figuresHidden && isFigure(o));
 
 /** Topmost selectable thing under p, in the order the plan draws them; hidden and locked things are skipped. */
 export function hitTest(project: Project, p: Vec2, radius: Mm): Selection | null {
@@ -36,7 +39,7 @@ export function hitTest(project: Project, p: Vec2, radius: Mm): Selection | null
   const level = viewLevel(project);
   const objects = [...project.objects].filter((o) => onLevel(o, level)).reverse();
   const hitObject = (outdoor: boolean): Selection | null => {
-    const o = objects.find((o) => isOutdoor(plan, o) === outdoor && !off(o) && pointInPolygon(p, obbCorners(objectObb(o))));
+    const o = objects.find((o) => isOutdoor(plan, o) === outdoor && !unseen(o) && pointInPolygon(p, obbCorners(objectObb(o))));
     return o ? { kind: 'object', id: o.id } : null;
   };
   // A customer moves the machines and equipment only; the building stays as the seller drew it.
@@ -114,7 +117,7 @@ export function boxSelect(project: Project, from: Vec2, to: Vec2): Selection[] {
   const caught = (shape: Vec2[], closed = true) => (crossing ? touchesBox(shape, lo, hi, closed) : shape.every((p) => inBox(p, lo, hi)));
   const out: Selection[] = [];
   const customer = !!useUi.getState().customer;
-  for (const o of project.objects) if (!off(o) && onLevel(o, viewLevel(project)) && caught(obbCorners(objectObb(o)))) out.push({ kind: 'object', id: o.id });
+  for (const o of project.objects) if (!unseen(o) && onLevel(o, viewLevel(project)) && caught(obbCorners(objectObb(o)))) out.push({ kind: 'object', id: o.id });
   if (customer) return out;
   for (const w of Object.values(plan.walls)) if (!off(w) && caught(wallFootprint(plan, w.id))) out.push({ kind: 'wall', id: w.id });
   const wallsIn = new Set(out.map((s) => s.id));

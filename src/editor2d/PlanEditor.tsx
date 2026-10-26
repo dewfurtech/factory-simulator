@@ -11,6 +11,7 @@ import { add, bounds, lerp, perp, scale, signedArea } from '../model/vec';
 import { zoneColor } from '../model/zones';
 import { roomFloorColor } from '../interior/materials';
 import { CabinetPlan } from '../interior/cabinet/plan2d';
+import { figureKind, headsTall, isFigure } from '../model/figures';
 import { fmtArea, fmtLen, fmtSize } from '../format';
 import { editProject, useEditProject, useProject } from '../store/project';
 import { useUi, type Selection, type Tool } from '../store/ui';
@@ -690,7 +691,8 @@ const GROUP_FILL: Record<string, string> = {
 
 const ObjectLayer = memo(function ObjectLayer({ plan, selection, marked, px, objects, outdoor, issues }: LayerProps & { objects: PlacedObject[]; outdoor: boolean }) {
   const level = useProject((s) => s.level);
-  const shown = objects.filter((o) => onLevel(o, level) && isOutdoor(plan, o) === outdoor);
+  const figuresHidden = useUi((s) => s.figuresHidden);
+  const shown = objects.filter((o) => onLevel(o, level) && isOutdoor(plan, o) === outdoor && !(figuresHidden && isFigure(o)));
   const selObject = selId(selection, 'object');
   return (
     <>
@@ -719,6 +721,7 @@ const ObjectShape = memo(function ObjectShape({ o, px, sel, above, bad }: { o: P
   const machine = item?.use === 'machine';
   const open = item?.open;
   const front = lerp(poly[2], poly[3], 0.5);
+  if (isFigure(o)) return <FigureSymbol o={o} px={px} sel={sel} />;
   if (item?.overhead && above)
     // An upper floor or its railing: a dashed outline over whatever stands beneath.
     return (
@@ -795,6 +798,36 @@ const ObjectShape = memo(function ObjectShape({ o, px, sel, above, bad }: { o: P
     </g>
   );
 });
+
+/**
+ * A person seen from above: the shoulders and arms as an ellipse, the head a circle a little toward the front, and a
+ * small nose showing which way they face. Not a box: a figure is there for scale and takes up no floor.
+ */
+function FigureSymbol({ o, px, sel }: { o: PlacedObject; px: number; sel: boolean }) {
+  const kind = figureKind(o.assetId)!;
+  // A head is about 0.72 of its own height across.
+  const headR = (o.size.h / headsTall(kind)) * 0.36;
+  const head = localToPlan(o, 0, o.size.d * 0.08);
+  const nose = [localToPlan(o, -headR * 0.32, o.size.d * 0.08 + headR * 0.85), localToPlan(o, 0, o.size.d * 0.08 + headR * 1.55), localToPlan(o, headR * 0.32, o.size.d * 0.08 + headR * 0.85)];
+  const stroke = sel ? 'var(--select)' : '#52525b';
+  const w = (sel ? 2.5 : 1) * px;
+  return (
+    <g opacity={o.hidden ? 0.15 : undefined} data-testid="figure-symbol">
+      <ellipse
+        cx={o.x}
+        cy={o.y}
+        rx={o.size.w / 2}
+        ry={(o.size.d / 2) * 0.8}
+        transform={`rotate(${(o.rotation * 180) / Math.PI} ${o.x} ${o.y})`}
+        fill={kind === 'worker' ? '#cbd5e1' : '#e4e4e7'}
+        stroke={stroke}
+        strokeWidth={w}
+      />
+      <polygon points={pts(nose)} fill="#a1a1aa" stroke={stroke} strokeWidth={0.8 * px} />
+      <circle cx={head.x} cy={head.y} r={headR} fill={kind === 'worker' ? '#f97316' : '#f4f4f5'} stroke={stroke} strokeWidth={w} />
+    </g>
+  );
+}
 
 /** Where the work goes in (red, pointing in) and comes out (blue, pointing away), beside the machine's edges. */
 function FlowArrows({ o, px }: { o: PlacedObject; px: number }) {
