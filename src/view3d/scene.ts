@@ -546,9 +546,20 @@ export class FactoryScene {
   }
 
   /** The view as it shows now, as a PNG. Drawn afresh: the canvas keeps no frame once it is on screen. */
-  snapshot(): Promise<Blob | null> {
+  /** The view as a PNG; with `longSide`, drawn at least that many pixels along its longer side (for print). */
+  snapshot(longSide?: number): Promise<Blob | null> {
+    const ratio = this.renderer.getPixelRatio();
+    const size = this.renderer.getSize(new THREE.Vector2());
+    const want = longSide ? longSide / Math.max(size.x, size.y, 1) : 0;
+    if (want > ratio) this.renderer.setPixelRatio(want);
     this.renderer.render(this.scene, this.camera);
-    return new Promise((ok) => this.renderer.domElement.toBlob((b) => ok(b), 'image/png'));
+    // toBlob copies the picture as it is when called, so the screen can go back to its own size straight after.
+    const out = new Promise<Blob | null>((ok) => this.renderer.domElement.toBlob((b) => ok(b), 'image/png'));
+    if (want > ratio) {
+      this.renderer.setPixelRatio(ratio);
+      this.dirty = true;
+    }
+    return out;
   }
 
   dispose() {

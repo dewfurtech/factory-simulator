@@ -8,10 +8,11 @@ import { useLibrary } from './library';
 import { withoutPrivate } from './private';
 import { useProject } from './project';
 
-/** Every blob a project keeps in the asset store: its plan image(s), the pictures made from it, and (interior projects) its uploaded materials. */
+/** Every blob a project keeps in the asset store: its plan image(s), the pictures made from it, and (interior projects) its uploaded materials and kept 3D views. */
 const projectAssetIds = (project: Project): Id[] => [
   ...underlayImageIds(project),
   ...(project.renders ?? []).map((r) => r.assetId),
+  ...(project.shots ?? []).map((r) => r.assetId),
   ...(project.materials ?? []).map((m) => m.imageId),
 ];
 
@@ -94,7 +95,7 @@ export async function duplicateProject(id: Id): Promise<Project | undefined> {
     m.imageId = newId('u');
     if (picture) await saveAsset(m.imageId, picture);
   }
-  for (const r of copy.renders ?? []) {
+  for (const r of [...(copy.renders ?? []), ...(copy.shots ?? [])]) {
     const image = await loadAsset(r.assetId);
     r.assetId = newId('r');
     if (image) await saveAsset(r.assetId, image);
