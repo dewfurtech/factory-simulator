@@ -5,6 +5,7 @@ import type { Id, Project, ProjectKind } from '../model/types';
 import { underlayImageIds, vectorAssetId } from '../model/underlay';
 import type { CustomModel } from '../model/library';
 import { useLibrary } from './library';
+import { withoutPrivate } from './private';
 import { useProject } from './project';
 
 /** Every blob a project keeps in the asset store: its plan image(s), the pictures made from it, and (interior projects) its uploaded materials. */
@@ -168,9 +169,9 @@ export async function bundleProject(project: Project, { light = false } = {}): P
     if (blob) assets[blobId] = { type: blob.type, base64: await blobToBase64(blob) };
   }
   const used = useLibrary.getState().models.filter((m) => project.objects.some((o) => o.assetId === m.id));
-  // The seller's notes on the customer (contact, phone, budget) stay with the seller: a share link leaves them out.
-  const sent = light ? (({ client: _client, ...rest }) => (void _client, rest))(project) : project;
-  return { format: 'factory-sim', version: 1, project: sent as Project, assets, ...(used.length && { library: used }) };
+  // The seller's notes (the customer's details, the BOQ prices) stay with the seller: a share link leaves them out.
+  const sent = light ? withoutPrivate(project) : project;
+  return { format: 'factory-sim', version: 1, project: sent, assets, ...(used.length && { library: used }) };
 }
 
 interface Backup {
