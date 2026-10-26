@@ -4292,3 +4292,36 @@ body:has(.home) {
 .flow .btn-primary:disabled:hover {
   background: var(--ink);
 }
+/* Signing in with Google for the AI picture: who is signed in and the project billed. */
+.flow-google {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--line-2);
+}
+.flow-google .flow-row {
+  align-items: center;
+}
+.flow-google-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.flow-google-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.flow-google-project select,
+.flow-google-project input {
+  height: 30px;
+  min-width: 180px;
+  font-size: 12.5px;
+}
+.flow-google p {
+  margin: 0;
+}

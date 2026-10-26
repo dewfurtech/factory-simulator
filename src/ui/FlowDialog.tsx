@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import type { RenderError } from '../ai/gemini';
+import { chooseProject, GOOGLE_CLIENT_ID, prepareGoogle, renderAsUser, signedIn, signInWithGoogle, signOutOfGoogle, useGoogle } from '../ai/googleAccount';
 import { download, planPicture, shownScale, toPng } from '../editor2d/exportImage';
 import { Icon } from '../editor2d/Toolbar';
 import { newId } from '../model/id';
@@ -76,8 +78,7 @@ const blobToBase64 = (blob: Blob) =>
   });
 
 /** Asks the server for a picture; the answer is the picture, or an error line to show. */
-async function renderOnServer(prompt: string, reference: Blob | null): Promise<{ blob: Blob; model: string } | { error: string }> {
-  const image = reference ? { mimeType: reference.type || 'image/png', data: await blobToBase64(reference) } : undefined;
+async function renderOnServer(prompt: string, image: { mimeType: string; data: string } | undefined): Promise<{ blob: Blob; model: string } | RenderError> {
   let res: Response;
   try {
     res = await fetch('/api/render', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, image, aspectRatio: '16:9' }) });
@@ -85,13 +86,13 @@ async function renderOnServer(prompt: string, reference: Blob | null): Promise<{
     return { error: 'ติดต่อเซิร์ฟเวอร์ไม่ได้' };
   }
   if (!res.ok || !res.headers.get('content-type')?.startsWith('image/')) {
-    let error = `เซิร์ฟเวอร์ตอบ ${res.status}`;
     try {
-      error = ((await res.json()) as { error?: string }).error ?? error;
+      const body = (await res.json()) as RenderError;
+      if (body.error) return body;
     } catch {
-      /* not JSON: keep the status line */
+      /* not JSON: the status line below */
     }
-    return { error };
+    return { error: `เซิร์ฟเวอร์ตอบ ${res.status}` };
   }
   return { blob: await res.blob(), model: res.headers.get('x-render-model') ?? '' };
 }
@@ -113,8 +114,13 @@ function FlowPanel({ close }: { close: () => void }) {
   const edited = prompt !== (project.renderPrompt ?? buildPrompt(project));
   // Making the picture here: whether the server can (it has a key), and how the one in progress is going.
   const [server, setServer] = useState<RenderStatus | null>(null);
-  const [making, setMaking] = useState<{ busy: boolean; error?: string; done?: number }>({ busy: false });
+  const [making, setMaking] = useState<{ busy: boolean; error?: RenderError; done?: number }>({ busy: false });
+  // Signing in with Google: the person's own account and Cloud project instead of the server's key.
+  const google = useGoogle();
+  const viaGoogle = signedIn(google) && Boolean(google.project);
+  const canMake = viaGoogle || Boolean(server?.ready);
 
+  useEffect(() => prepareGoogle(), []);
   useEffect(() => {
     let gone = false;
     fetch('/api/render')
@@ -188,12 +194,15 @@ function FlowPanel({ close }: { close: () => void }) {
   };
 
   const makeHere = async () => {
-    if (making.busy || !server?.ready) return;
+    if (making.busy || !canMake) return;
     keepPrompt();
     setMaking({ busy: true });
-    const got = await renderOnServer(prompt, ref?.blob ?? null);
-    if ('error' in got) return setMaking({ busy: false, error: got.error });
-    await addRender(got.blob, prompt, got.model || server.model);
+    const image = ref ? { mimeType: ref.blob.type || 'image/png', data: await blobToBase64(ref.blob) } : undefined;
+    const input = { prompt, image, aspectRatio: '16:9' };
+    // The signed-in account first: the person chose it over the site's key by signing in.
+    const got = viaGoogle ? await renderAsUser({ token: google.token!, project: google.project }, input) : await renderOnServer(prompt, image);
+    if ('error' in got) return setMaking({ busy: false, error: got });
+    await addRender(got.blob, prompt, got.model || server?.model);
     setMaking({ busy: false, done: Date.now() });
   };
 
@@ -236,27 +245,40 @@ function FlowPanel({ close }: { close: () => void }) {
 
       <section className="flow-step flow-make" data-testid="flow-make">
         <h3>สร้างในเว็บเลย (Gemini)</h3>
+        <GoogleConnect />
         <div className="flow-row">
           <button
             className="btn btn-primary btn-sm"
             onClick={() => void makeHere()}
             aria-busy={making.busy}
-            disabled={!server?.ready || making.busy || !prompt.trim()}
+            disabled={!canMake || making.busy || !prompt.trim()}
             data-testid="flow-make-button"
           >
             {making.busy ? <span className="spinner" aria-hidden /> : <Icon name="bulb" />} {making.busy ? 'กำลังสร้างภาพ…' : 'สร้างภาพในเว็บเลย'}
           </button>
-          <span className="flow-make-note">
-            {!server
-              ? 'กำลังถามเซิร์ฟเวอร์…'
-              : !server.ready
-                ? (server.error ?? 'เซิร์ฟเวอร์ยังไม่มีคีย์ Gemini')
-                : `ใช้พรอมต์ข้างบนกับ${ref ? 'ภาพอ้างอิงข้างล่าง' : 'ไม่มีภาพอ้างอิง'} ผ่านรุ่น ${server.model} มีค่าใช้จ่ายต่อภาพ (ดู README) ราว 20–40 วินาที`}
+          <span className="flow-make-note" data-testid="flow-make-note">
+            {viaGoogle
+              ? `ใช้พรอมต์ข้างบนกับ${ref ? 'ภาพอ้างอิงข้างล่าง' : 'ไม่มีภาพอ้างอิง'} คิดเงินที่โปรเจกต์ ${google.project} ของคุณ ราว 20–40 วินาที`
+              : !server
+                ? 'กำลังถามเซิร์ฟเวอร์…'
+                : server.ready
+                  ? `ใช้พรอมต์ข้างบนกับ${ref ? 'ภาพอ้างอิงข้างล่าง' : 'ไม่มีภาพอ้างอิง'} ผ่านคีย์ของเว็บ รุ่น ${server.model} ราว 20–40 วินาที`
+                  : GOOGLE_CLIENT_ID
+                    ? 'เข้าสู่ระบบด้วย Google แล้วเลือกโปรเจกต์ก่อน'
+                    : (server.error ?? 'เซิร์ฟเวอร์ยังไม่มีคีย์ Gemini')}
           </span>
         </div>
         {making.error && (
           <p className="flow-make-error" role="alert" data-testid="flow-make-error">
-            สร้างภาพไม่สำเร็จ: {making.error}
+            สร้างภาพไม่สำเร็จ: {making.error.error}
+            {making.error.link && (
+              <>
+                {' '}
+                <a href={making.error.link.href} target="_blank" rel="noreferrer">
+                  {making.error.link.label}
+                </a>
+              </>
+            )}
           </p>
         )}
         {making.done && !making.busy && !making.error && <p className="flow-make-ok">ได้ภาพแล้ว อยู่ในแกลเลอรีข้างล่าง</p>}
@@ -317,6 +339,90 @@ function FlowPanel({ close }: { close: () => void }) {
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Signing in with Google and choosing the Cloud project to bill. Hidden when the site has no OAuth client ID
+ * (VITE_GOOGLE_CLIENT_ID); then only the server's key is offered.
+ */
+function GoogleConnect() {
+  const g = useGoogle();
+  if (!GOOGLE_CLIENT_ID) return null;
+  const on = signedIn(g);
+  const consoleLink = (path: string) => `https://console.cloud.google.com/${path}${g.project ? `?project=${encodeURIComponent(g.project)}` : ''}`;
+  return (
+    <div className="flow-google" data-testid="flow-google">
+      {!on ? (
+        <div className="flow-row">
+          <button className="btn btn-sm" onClick={signInWithGoogle} disabled={g.phase !== 'ready'} data-testid="flow-google-signin">
+            <GoogleMark /> {g.token ? 'เข้าสู่ระบบ Google อีกครั้ง' : 'เข้าสู่ระบบด้วย Google'}
+          </button>
+          <span className="flow-make-note">
+            {g.phase === 'loading' || g.phase === 'idle'
+              ? 'กำลังโหลดระบบเข้าสู่ระบบของ Google…'
+              : g.token
+                ? 'การเข้าสู่ระบบหมดอายุแล้ว (อยู่ได้ราว 1 ชั่วโมง)'
+                : 'ใช้บัญชี Google และโปรเจกต์ Cloud ของคุณเอง ค่าภาพคิดที่โปรเจกต์นั้น ไม่ต้องไปเว็บอื่น'}
+          </span>
+        </div>
+      ) : (
+        <>
+          <div className="flow-row">
+            <span className="flow-google-who">
+              <GoogleMark /> {g.email ?? 'เข้าสู่ระบบแล้ว'}
+            </span>
+            <label className="flow-google-project">
+              โปรเจกต์ที่คิดเงิน
+              {g.projects?.length ? (
+                <select value={g.project} onChange={(e) => chooseProject(e.target.value)} data-testid="flow-google-project">
+                  {g.projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name === p.id ? p.id : `${p.name} (${p.id})`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input value={g.project} onChange={(e) => chooseProject(e.target.value)} placeholder="project-id" spellCheck={false} data-testid="flow-google-project" />
+              )}
+            </label>
+            <button className="btn btn-sm btn-ghost" onClick={signOutOfGoogle} data-testid="flow-google-signout">
+              ออกจากระบบ
+            </button>
+          </div>
+          {g.projects && !g.projects.length && <p className="flow-make-note">บัญชีนี้ยังไม่มีโปรเจกต์ Cloud สร้างใหม่ได้ที่ Google Cloud แล้วใส่รหัสโปรเจกต์ข้างบน</p>}
+          {g.projectsError && <p className="flow-make-note">ดึงรายชื่อโปรเจกต์ไม่ได้ ({g.projectsError}) พิมพ์รหัสโปรเจกต์เองได้</p>}
+          <p className="flow-make-note">
+            โปรเจกต์ต้องเปิด{' '}
+            <a href={consoleLink('apis/library/generativelanguage.googleapis.com')} target="_blank" rel="noreferrer">
+              Generative Language API
+            </a>{' '}
+            และ{' '}
+            <a href={consoleLink('billing/linkedaccount')} target="_blank" rel="noreferrer">
+              billing
+            </a>{' '}
+            ไว้ (โมเดลสร้างภาพไม่มี free tier)
+          </p>
+        </>
+      )}
+      {g.error && (
+        <p className="flow-make-error" role="alert">
+          {g.error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Google's "G", in its colours, for the sign-in button (as Google's branding guidelines show it). */
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 48 48" width="16" height="16" aria-hidden>
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
   );
 }
 

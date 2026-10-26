@@ -126,6 +126,39 @@ npm run format     # จัดรูปแบบโค้ดทั้งโป�
 
 เซิร์ฟเวอร์นี้ไม่มีการจำกัดจำนวนครั้ง ใครเปิดเว็บก็กดสร้างได้ และทุกครั้งคิดเงินจากคีย์ของเรา ถ้าเว็บเปิดสาธารณะควรดูยอดใน Google Cloud และตั้ง budget alert ไว้
 
+### เข้าสู่ระบบด้วย Google (บัญชีและโปรเจกต์ของผู้ใช้เอง)
+
+อีกทางของปุ่มเดียวกัน: ผู้ใช้กด **เข้าสู่ระบบด้วย Google** ในไดอะล็อก เลือกโปรเจกต์ Google Cloud ของตัวเอง แล้วภาพจะสร้างจากบัญชีนั้นและคิดเงินที่โปรเจกต์นั้น ไม่ใช่คีย์ของเว็บ และไม่ต้องไปเว็บ Flow ถ้าเข้าสู่ระบบอยู่ เว็บจะใช้ทางนี้ก่อนคีย์ของเซิร์ฟเวอร์
+
+วิธีทำงาน (`src/ai/googleAccount.ts`): ใช้ Google Identity Services แบบ token ในเบราว์เซอร์ ได้ access token อายุราว 1 ชั่วโมงจากหน้าต่างของ Google ไม่มี client secret และ token ไม่ผ่านเซิร์ฟเวอร์ของเรา เก็บในหน่วยความจำเท่านั้น (รีโหลดหน้าแล้วต้องเข้าใหม่) แล้วเบราว์เซอร์เรียก Gemini ตรงด้วย `Authorization: Bearer` กับ header `x-goog-user-project` ซึ่งเป็นวิธีที่ Google ให้ระบุโปรเจกต์ที่ใช้คิดโควตา ([Set the quota project](https://docs.cloud.google.com/docs/quotas/set-quota-project)) โปรเจกต์ที่เลือกจำไว้ในเบราว์เซอร์นั้น
+
+**ตั้งค่าฝั่งเว็บ (ทำครั้งเดียว)** ใน [Google Cloud Console](https://console.cloud.google.com/) ของโปรเจกต์ที่เป็นเจ้าของเว็บ:
+
+1. **APIs & Services → Library** เปิด **Cloud Resource Manager API** (ใช้ดึงรายชื่อโปรเจกต์ของผู้ใช้มาให้เลือก)
+2. **Google Auth Platform → Branding / Audience** (เดิมชื่อ OAuth consent screen) เลือก User type **External** ใส่ชื่อแอป อีเมลติดต่อ โดเมนของเว็บ ลิงก์นโยบายความเป็นส่วนตัว
+3. **Data Access** เพิ่ม scope `https://www.googleapis.com/auth/cloud-platform` (ที่[คู่มือ OAuth ของ Gemini](https://ai.google.dev/gemini-api/docs/oauth)ใช้) และ `email` (ไว้แสดงว่าใครเข้าสู่ระบบอยู่)
+4. **Clients → Create client** ชนิด **Web application** ใส่ **Authorized JavaScript origins** เป็นที่อยู่เว็บจริง (เช่น `https://factory-plan-design.<บัญชี>.workers.dev`) และตอนพัฒนา `http://localhost:5174` ถึง `http://localhost:5179` ไม่ต้องใส่ redirect URI
+5. เอา **Client ID** (ลงท้าย `.apps.googleusercontent.com` เปิดเผยได้ ไม่ใช่ความลับ) ไปใส่เป็น `VITE_GOOGLE_CLIENT_ID`:
+   - ตอนพัฒนา: ใส่ใน `.env.local` แล้วรัน `npm run dev` ใหม่
+   - เว็บจริง: Cloudflare → factory-plan-design → Settings → **Build** → Variables (เป็นค่าตอน build ของ Vite ไม่ใช่ secret ของ Worker) แล้ว deploy ใหม่
+
+ถ้าไม่ใส่ `VITE_GOOGLE_CLIENT_ID` ปุ่มเข้าสู่ระบบจะไม่แสดง เหลือแค่ทางคีย์ของเซิร์ฟเวอร์
+
+**การตรวจแอปของ Google** `cloud-platform` เป็น scope ที่ Google ต้องตรวจก่อน (หน้า Data Access จะแสดงว่าเป็น sensitive) ระหว่างยังไม่ผ่าน:
+
+- ตั้ง Audience เป็น **Testing** แล้วเพิ่มอีเมลผู้ทดสอบใน **Test users** เฉพาะคนในรายชื่อเข้าสู่ระบบได้ และจะเห็นคำเตือน "Google hasn't verified this app" ให้กด Continue
+- จะเปิดให้ทุกคนใช้ ต้องกด **Publish app** แล้วส่งตรวจ ตามที่ Google ขอคือวิดีโอสาธิตขั้นตอนเข้าสู่ระบบ เหตุผลที่ต้องใช้ scope นี้ และยืนยันโดเมน ([OAuth app verification](https://support.google.com/cloud/answer/13464321)) ใช้เวลาตามที่ Google แจ้ง
+
+**สิ่งที่ผู้ใช้แต่ละคนต้องมี** (ลิงก์อยู่ในไดอะล็อกหลังเข้าสู่ระบบ):
+
+- โปรเจกต์ Google Cloud ที่ตัวเองเป็นเจ้าของ หรือมีบทบาท **Service Usage Consumer**
+- เปิด **Generative Language API** ในโปรเจกต์นั้น
+- ผูก **billing** เพราะโมเดลสร้างภาพไม่มี free tier ค่าใช้จ่ายต่อภาพเท่าตารางข้างบน คิดที่โปรเจกต์ของผู้ใช้
+
+ถ้าขาดข้อไหน ไดอะล็อกจะบอกข้อนั้นพร้อมลิงก์ไปหน้าที่แก้ได้
+
+**ยังไม่ได้ลองกับบัญชีจริง** โค้ดส่วนนี้ทดสอบด้วยการจำลองคำตอบของ Google เท่านั้น สิ่งที่ต้องลองจริงคือ Gemini รับ token แบบนี้กับ header `x-goog-user-project` สำหรับการสร้างภาพไหม และเบราว์เซอร์เรียก endpoint ของ Google ตรงได้ (CORS) ไหม เอกสารของ Google เขียนแนวทาง OAuth ไว้สำหรับทดลองเป็นหลัก
+
 ## แชร์ลิงก์ให้ลูกค้า
 
 ปุ่ม **แชร์ลิงก์** บนแถบบน (หรือเมนูหลัก) เก็บสำเนาของแปลน ณ ตอนนั้นไว้บนเซิร์ฟเวอร์ แล้วให้ลิงก์ `#/s/<รหัส>` ไปส่งให้ลูกค้าทางไหนก็ได้ ใส่ข้อความถึงผู้รับได้ (ผู้รับกดปิดแถบข้อความได้)
