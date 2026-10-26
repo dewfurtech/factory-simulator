@@ -3,7 +3,7 @@ import { sampleCondo } from '../interior/sample';
 import { openingSymbol } from '../model/openings';
 import { drawingsToDxf, dxfText, parseDxf } from './dxf';
 import { flip, gridLetter, planDrawing } from './plan/planDrawing';
-import { dimParts, dimValue, pickScale } from './sheet/geometry';
+import { dimParts, dimValue, fmtLength, pickScale } from './sheet/geometry';
 import { DRAW_AREA, layoutViews, LABEL_H } from './sheet/layout';
 import { buildDrawingSet, COVER_ID, sheetDxf, type ViewsSheet } from './sheets';
 import type { Drawing, Prim } from './types';
@@ -232,5 +232,35 @@ describe('DXF', () => {
     );
     const e = parseDxf(one).entities[0];
     expect(e.codes).toContainEqual([6, 'DASHED']);
+  });
+});
+
+describe('units of the dimension numbers', () => {
+  it('writes a length in mm, cm or m', () => {
+    expect(fmtLength(7200)).toBe('7200');
+    expect(fmtLength(7200, 'cm')).toBe('720');
+    expect(fmtLength(725, 'cm')).toBe('72.5');
+    expect(fmtLength(7200, 'm')).toBe('7.20');
+    expect(fmtLength(100, 'm')).toBe('0.10');
+    expect(fmtLength(25, 'm')).toBe('0.025');
+    // Whole mm first: a geometry rounding error never shows.
+    expect(fmtLength(899.9999, 'mm')).toBe('900');
+    expect(fmtLength(899.9999, 'cm')).toBe('90');
+  });
+
+  it('changes the numbers only: the condo reads 720 × 570 cm and 7.20 × 5.70 m, the geometry stays in mm', () => {
+    const p = sampleCondo();
+    const ds = dims(planDrawing(p));
+    expect(ds.map((d) => dimValue(d, 'cm'))).toEqual(expect.arrayContaining(['720', '570', '240', '150']));
+    expect(ds.map((d) => dimValue(d, 'm'))).toEqual(expect.arrayContaining(['7.20', '5.70', '2.40']));
+    const set = buildDrawingSet(p, Date.now(), 'cm');
+    expect(set.info.unit).toBe('cm');
+    const dxf = parseDxf(sheetDxf(set.sheets[1] as ViewsSheet, 'cm'));
+    const texts = dxf.entities.filter((e) => e.type === 'TEXT').map((e) => e.codes.find((c) => c[0] === 1)![1]);
+    expect(texts).toContain('720');
+    expect(texts).not.toContain('7200');
+    const xs = dxf.entities.filter((e) => e.type === 'SOLID' && e.layer === 'wall').flatMap((e) => e.codes.filter((c) => c[0] === 10).map((c) => Number(c[1])));
+    expect(Math.max(...xs)).toBeLessThanOrEqual(7100);
+    expect(Math.max(...xs)).toBeGreaterThan(6000);
   });
 });

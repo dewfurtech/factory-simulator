@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { download } from '../editor2d/exportImage';
 import { Icon } from '../editor2d/Toolbar';
 import { useProject } from '../store/project';
-import { scaleLabel } from './sheet/geometry';
+import { LENGTH_UNITS, scaleLabel, UNIT_TH, type LengthUnit } from './sheet/geometry';
 import { SHEET_H, SHEET_W } from './sheet/layout';
 import { SheetSvg } from './sheet/SheetSvg';
 import { buildDrawingSet, sheetDxf, type ViewsSheet } from './sheets';
@@ -29,6 +29,17 @@ export function DrawingsButton() {
   );
 }
 
+/** The unit of the dimension numbers, remembered in this browser. */
+const UNIT_KEY = 'drawings-unit';
+function savedUnit(): LengthUnit {
+  try {
+    const u = localStorage.getItem(UNIT_KEY);
+    return LENGTH_UNITS.includes(u as LengthUnit) ? (u as LengthUnit) : 'mm';
+  } catch {
+    return 'mm';
+  }
+}
+
 /** A sheet on screen at 96 px to the inch, before zoom. */
 const PX_PER_MM = 96 / 25.4;
 const SHEET_PX = { w: SHEET_W * PX_PER_MM, h: SHEET_H * PX_PER_MM };
@@ -47,7 +58,16 @@ interface ViewState {
 function DrawingsPage({ close }: { close: () => void }) {
   const project = useProject((s) => s.project!);
   const [openedAt] = useState(() => Date.now());
-  const set = useMemo(() => buildDrawingSet(project, openedAt), [project, openedAt]);
+  const [unit, pickUnit] = useState<LengthUnit>(savedUnit);
+  const setUnit = (u: LengthUnit) => {
+    pickUnit(u);
+    try {
+      localStorage.setItem(UNIT_KEY, u);
+    } catch {
+      // Storage off: the choice lasts while the page is open.
+    }
+  };
+  const set = useMemo(() => buildDrawingSet(project, openedAt, unit), [project, openedAt, unit]);
   const [current, setCurrent] = useState(0);
   const sheet = set.sheets[Math.min(current, set.sheets.length - 1)];
   const stage = useRef<HTMLDivElement>(null);
@@ -141,7 +161,7 @@ function DrawingsPage({ close }: { close: () => void }) {
   const exportDxf = () => {
     if (!dxfSheet) return;
     const name = `${project.name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'drawing'} ${dxfSheet.id}.dxf`;
-    download(new Blob([sheetDxf(dxfSheet)], { type: 'application/dxf' }), name);
+    download(new Blob([sheetDxf(dxfSheet, unit)], { type: 'application/dxf' }), name);
   };
 
   const pages = set.sheets.length;
@@ -151,6 +171,13 @@ function DrawingsPage({ close }: { close: () => void }) {
         <div className="drawings-title">
           <b>แบบก่อสร้าง</b>
           <span className="muted">A3 แนวนอน · {pages} แผ่น</span>
+        </div>
+        <div className="seg drawings-unit" role="radiogroup" aria-label="หน่วยของตัวเลขมิติ" title="หน่วยของตัวเลขมิติบนแบบ (เส้นและมาตราส่วนเท่าเดิม)">
+          {LENGTH_UNITS.map((u) => (
+            <button key={u} type="button" role="radio" aria-checked={unit === u} className={unit === u ? 'on' : ''} onClick={() => setUnit(u)} data-testid={`drawings-unit-${u}`}>
+              {UNIT_TH[u]}
+            </button>
+          ))}
         </div>
         <div className="drawings-zoom" role="group" aria-label="ซูม">
           <button type="button" className="ib" onClick={() => zoomBy(1 / 1.25)} title="ซูมออก" aria-label="ซูมออก" data-testid="drawings-zoom-out">
@@ -174,7 +201,7 @@ function DrawingsPage({ close }: { close: () => void }) {
             className="btn"
             onClick={exportDxf}
             disabled={!dxfSheet}
-            title={dxfSheet ? `บันทึกแผ่น ${dxfSheet.id} เป็นไฟล์ DXF ขนาดจริง หน่วย มม. แยก layer` : 'ไม่มีแผ่นที่ส่งออก DXF ได้'}
+            title={dxfSheet ? `บันทึกแผ่น ${dxfSheet.id} เป็นไฟล์ DXF ขนาดจริง (พิกัดหน่วย มม. ตัวเลขมิติหน่วย ${UNIT_TH[unit]}) แยก layer` : 'ไม่มีแผ่นที่ส่งออก DXF ได้'}
             data-testid="drawings-dxf"
           >
             <Icon name="download" /> ส่งออก DXF

@@ -2,6 +2,7 @@ import { clientLines, thaiDate } from '../interior/present/sheets';
 import type { Project } from '../model/types';
 import { drawingsToDxf } from './dxf';
 import { planSheets } from './plan/planSheets';
+import type { LengthUnit } from './sheet/geometry';
 import { layoutViews, type PlacedView, type ViewSource } from './sheet/layout';
 
 /**
@@ -39,6 +40,8 @@ export interface TitleInfo {
   designer: string;
   checker: string;
   date: string;
+  /** The unit the dimension numbers are written in (the note in the title block says which). */
+  unit: LengthUnit;
 }
 
 interface SheetBase {
@@ -67,11 +70,11 @@ export interface DrawingSet {
 
 export const COVER_ID = 'ID-00-01';
 
-export function titleInfo(p: Project, now: number): TitleInfo {
-  return { project: p.name, location: '', client: clientLines(p).join(' · '), designer: '', checker: '', date: thaiDate(now) };
+export function titleInfo(p: Project, now: number, unit: LengthUnit = 'mm'): TitleInfo {
+  return { project: p.name, location: '', client: clientLines(p).join(' · '), designer: '', checker: '', date: thaiDate(now), unit };
 }
 
-export function buildDrawingSet(p: Project, now = Date.now(), defs: SheetDef[] = SHEET_DEFS): DrawingSet {
+export function buildDrawingSet(p: Project, now = Date.now(), unit: LengthUnit = 'mm', defs: SheetDef[] = SHEET_DEFS): DrawingSet {
   const specs = defs.flatMap((d) => d.sheets(p)).sort((a, b) => a.id.localeCompare(b.id));
   const sheets: ViewsSheet[] = specs.map((s) => {
     const { scale, views } = layoutViews(s.views);
@@ -84,11 +87,11 @@ export function buildDrawingSet(p: Project, now = Date.now(), defs: SheetDef[] =
     scale: null,
     index: [{ id: COVER_ID, title: 'COVER / ปก', scale: null }, ...sheets.map((s) => ({ id: s.id, title: s.title, scale: s.scale }))],
   };
-  return { info: titleInfo(p, now), sheets: [cover, ...sheets] };
+  return { info: titleInfo(p, now, unit), sheets: [cover, ...sheets] };
 }
 
-/** The DXF of a sheet's views, at full size; several views keep their places on the sheet. */
-export function sheetDxf(sheet: ViewsSheet): string {
+/** The DXF of a sheet's views, at full size in mm (dimension numbers in `unit`); several views keep their places. */
+export function sheetDxf(sheet: ViewsSheet, unit: LengthUnit = 'mm'): string {
   const first = sheet.views[0];
   return drawingsToDxf(
     sheet.views.map((v) => ({
@@ -96,5 +99,6 @@ export function sheetDxf(sheet: ViewsSheet): string {
       shift: first ? { x: (v.origin.x - first.origin.x) * sheet.scale, y: -(v.origin.y - first.origin.y) * sheet.scale } : undefined,
     })),
     sheet.scale,
+    unit,
   );
 }

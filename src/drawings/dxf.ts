@@ -1,4 +1,4 @@
-import { DASH, dimParts } from './sheet/geometry';
+import { DASH, dimParts, type LengthUnit } from './sheet/geometry';
 import type { Drawing, LineStyle, Prim, Pt } from './types';
 
 /**
@@ -34,8 +34,8 @@ export interface DxfView {
   shift?: Pt;
 }
 
-/** The DXF file of one or more views at a sheet scale (denominator, e.g. 50). */
-export function drawingsToDxf(views: DxfView[], scale: number): string {
+/** The DXF file of one or more views at a sheet scale (denominator, e.g. 50); dimension numbers in `unit`. */
+export function drawingsToDxf(views: DxfView[], scale: number, unit: LengthUnit = 'mm'): string {
   const out: (string | number)[] = [];
   /** Group codes and their values, in pairs. */
   const g = (...pairs: (string | number)[]) => {
@@ -131,7 +131,7 @@ export function drawingsToDxf(views: DxfView[], scale: number): string {
           text({ ...p, at: at(p.at) }, p.layer);
           return;
         case 'dim': {
-          const parts = dimParts(p, scale);
+          const parts = dimParts(p, scale, unit);
           for (const [a, b] of [...parts.lines, ...parts.ticks]) line(at(a), at(b), p.layer);
           text({ ...parts.text, at: at(parts.text.at), anchor: 'middle' }, p.layer);
           return;

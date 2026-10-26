@@ -42,7 +42,7 @@ export const scaleLabel = (scale: number) => `1:${scale}`;
 const sub = (a: Pt, b: Pt): Pt => ({ x: a.x - b.x, y: a.y - b.y });
 const add = (a: Pt, b: Pt): Pt => ({ x: a.x + b.x, y: a.y + b.y });
 const mul = (a: Pt, k: number): Pt => ({ x: a.x * k, y: a.y * k });
-const unit = (a: Pt): Pt => {
+const unitVec = (a: Pt): Pt => {
   const l = Math.hypot(a.x, a.y) || 1;
   return { x: a.x / l, y: a.y / l };
 };
@@ -51,8 +51,24 @@ const left = (a: Pt): Pt => ({ x: -a.y, y: a.x });
 /** Rough width of a string on paper, mm, for fitting (digits and Thai letters run about 0.6 of the size). */
 export const textWidth = (text: string, size: number) => text.length * size * 0.6;
 
-/** The number a dimension shows: its own text, or the distance a–b in whole mm. */
-export const dimValue = (d: Extract<Prim, { kind: 'dim' }>) => d.text ?? String(Math.round(Math.hypot(d.b.x - d.a.x, d.b.y - d.a.y)));
+/** The unit dimension numbers are written in. The model stays in mm; only the numbers change. */
+export type LengthUnit = 'mm' | 'cm' | 'm';
+export const LENGTH_UNITS: LengthUnit[] = ['mm', 'cm', 'm'];
+export const UNIT_TH: Record<LengthUnit, string> = { mm: 'มม.', cm: 'ซม.', m: 'ม.' };
+
+/**
+ * A length in mm as a dimension writes it: whole mm; cm with one decimal only when it has one (72.5); m to two
+ * decimals (7.20), three when the mm would be lost (0.025).
+ */
+export function fmtLength(mm: number, unit: LengthUnit = 'mm'): string {
+  const whole = Math.round(mm);
+  if (unit === 'mm') return String(whole);
+  if (unit === 'cm') return whole % 10 === 0 ? String(whole / 10) : (whole / 10).toFixed(1);
+  return whole % 10 === 0 ? (whole / 1000).toFixed(2) : (whole / 1000).toFixed(3);
+}
+
+/** The number a dimension shows: its own text, or the distance a–b in the unit. */
+export const dimValue = (d: Extract<Prim, { kind: 'dim' }>, unit: LengthUnit = 'mm') => d.text ?? fmtLength(Math.hypot(d.b.x - d.a.x, d.b.y - d.a.y), unit);
 
 export interface DimParts {
   /** Extension lines and the dimension line, model mm. */
@@ -68,20 +84,20 @@ export interface DimParts {
  * dimension line, which sits `offset` paper mm to the left of a→b; a 45° tick at each end; the number above the
  * line, read from the bottom or the right, moved past b when the span is too short for it.
  */
-export function dimParts(d: Extract<Prim, { kind: 'dim' }>, scale: number): DimParts {
-  const u = unit(sub(d.b, d.a));
+export function dimParts(d: Extract<Prim, { kind: 'dim' }>, scale: number, unit: LengthUnit = 'mm'): DimParts {
+  const u = unitVec(sub(d.b, d.a));
   const n = left(u);
   const off = d.offset * scale;
   const s = Math.sign(off) || 1;
   const ext = (p: Pt): [Pt, Pt] => [add(p, mul(n, s * DIM_GAP * scale)), add(p, mul(n, off + s * DIM_OVER * scale))];
   const a1 = add(d.a, mul(n, off));
   const b1 = add(d.b, mul(n, off));
-  const tick = unit(add(u, n));
+  const tick = unitVec(add(u, n));
   const tickAt = (p: Pt): [Pt, Pt] => [add(p, mul(tick, -DIM_TICK * scale)), add(p, mul(tick, DIM_TICK * scale))];
   // Read from the bottom or from the right: the reading direction never points left or straight down.
   const r = u.x < -1e-9 || (Math.abs(u.x) <= 1e-9 && u.y < 0) ? mul(u, -1) : u;
   const up = left(r);
-  const text = dimValue(d);
+  const text = dimValue(d, unit);
   const span = Math.hypot(d.b.x - d.a.x, d.b.y - d.a.y);
   const w = textWidth(text, DIM_TEXT) * scale;
   let at = add(mul(add(a1, b1), 0.5), mul(up, DIM_LIFT * scale));
