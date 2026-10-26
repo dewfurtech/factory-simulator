@@ -1113,7 +1113,7 @@ const HINTS: Record<string, { name: string; tips: string[] }> = {
 };
 
 /** What works whatever the tool. */
-const GENERAL_TIPS = ['Ctrl+Z เลิกทำ • Ctrl+Y ทำซ้ำ', 'Delete ลบที่เลือก', 'Esc ยกเลิกเครื่องมือ', 'ลูกกลิ้งซูม • คลิกขวาลากเลื่อนแปลน', 'กดค้าง \ เพื่อดูแปลนใต้ภาพวาด'];
+const GENERAL_TIPS = ['Ctrl+Z เลิกทำ • Ctrl+Y ทำซ้ำ', 'Delete ลบที่เลือก', 'Esc ยกเลิกเครื่องมือ', 'ลูกกลิ้งซูม • คลิกขวาลากเลื่อนแปลน', 'กดค้าง \\ เพื่อดูแปลนใต้ภาพวาด'];
 
 const NO_TAPES: readonly { a: Vec2; b: Vec2 }[] = [];
 
