@@ -12,6 +12,12 @@ const SEL = {
   prompt: '.ProseMirror[contenteditable="true"]',
   send: 'button[aria-label="Start generation"]',
   dialog: 'mat-dialog-container',
+  // The "+" by the prompt opens a picker of the project's media; each item shows its file name, and picking one shows
+  // a detail pane with "Add to prompt".
+  addIngredient: 'button[aria-label="Add ingredients to the prompt box"]',
+  pickerItem: 'flow-add-menu-asset-item',
+  pickerItemTitle: '.asset-title',
+  addToPrompt: 'flow-add-menu-detail-pane button',
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -29,12 +35,12 @@ async function waitFor(find, ms, what) {
   }
 }
 
-const base64ToFile = (image) => {
+const base64ToFile = (image, name) => {
   const bin = atob(image.data);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   const ext = image.mimeType.split('/')[1] || 'png';
-  return new File([bytes], `factory-plan-reference.${ext}`, { type: image.mimeType });
+  return new File([bytes], `${name}.${ext}`, { type: image.mimeType });
 };
 
 /** Drops the reference picture on the project page, as dragging a file from the desktop does. */
@@ -60,6 +66,27 @@ async function waitForDialogs(ms) {
   }
 }
 
+/** Picks the uploaded picture named `name` in the "+" picker and adds it to the prompt as an ingredient. */
+async function addToPrompt(name) {
+  const findItem = () => [...document.querySelectorAll(SEL.pickerItem)].find((i) => i.querySelector(SEL.pickerItemTitle)?.textContent.trim().startsWith(name));
+  // The upload takes a moment to reach the picker: open it, look, close, and try again.
+  const until = Date.now() + 90_000;
+  let item = null;
+  while (!item) {
+    document.querySelector(SEL.addIngredient).click();
+    await sleep(800);
+    item = findItem();
+    if (item) break;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    if (Date.now() > until) throw new Error('ภาพอ้างอิงที่อัปโหลดไม่ขึ้นในรายการของ Flow');
+    await sleep(2000);
+  }
+  item.click();
+  const add = await waitFor(() => [...document.querySelectorAll(SEL.addToPrompt)].find((b) => /add to prompt/i.test(b.textContent) && !b.disabled), 15_000, 'ปุ่ม Add to prompt');
+  add.click();
+  await sleep(600);
+}
+
 function typePrompt(text) {
   const box = document.querySelector(SEL.prompt);
   box.focus();
@@ -82,9 +109,13 @@ async function run(job) {
   // 2. The reference picture, dropped on the project.
   if (job.image) {
     await progress('reference', 'กำลังใส่ภาพอ้างอิงจากแปลน');
-    dropFile(base64ToFile(job.image));
+    // A name of its own, so the picker shows this very upload and not one from an earlier job.
+    const name = `factory-plan-${job.id}`;
+    dropFile(base64ToFile(job.image, name));
     await sleep(800);
     await waitForDialogs(10 * 60_000);
+    await progress('reference', 'กำลังแนบภาพอ้างอิงเข้ากับพรอมต์');
+    await addToPrompt(name);
   }
 
   // 3. The prompt, and send.
