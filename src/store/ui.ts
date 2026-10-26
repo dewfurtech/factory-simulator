@@ -86,7 +86,8 @@ interface UiState {
   snapshot3d: (() => Promise<Blob | null>) | null;
   /** Every area out of sight in both views, without touching the areas' own flags. */
   areasHidden: boolean;
-  /** Interior projects: the ceilings taken off in 3D, to look into the rooms from above. */
+  /** Interior projects: the ceilings taken off in 3D, to look into the rooms from above. Off at first: the 3D view
+   * opens from above, where a ceiling would hide the whole room; the button puts them back. */
   ceilingsHidden: boolean;
   /** The share link's banner, closed by the viewer for this visit. */
   bannerClosed: boolean;
@@ -121,7 +122,7 @@ export const useUi = create<UiState>((set) => ({
   floorCentre: null,
   snapshot3d: null,
   areasHidden: false,
-  ceilingsHidden: false,
+  ceilingsHidden: true,
   bannerClosed: false,
   goto: null,
   peek: false,

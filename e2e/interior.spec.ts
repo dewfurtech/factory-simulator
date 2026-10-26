@@ -172,6 +172,8 @@ test('a base cabinet is placed, made wider and split in two; its parts list foll
   await page.getByTestId('properties').getByRole('button', { name: 'ปิด', exact: true }).click();
   await page.getByTestId('view-3d').click();
   await expect(page.getByTestId('view3d')).toBeVisible();
+  // The view opens from above with the ceilings off, so the room can be seen into.
+  await expect(page.getByTestId('ceilings-hidden')).toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('cabinets-open').click();
   await expect(page.getByTestId('cabinets-open')).toHaveAttribute('aria-pressed', 'true');
   // The door has swung a quarter turn once the short animation is over.
