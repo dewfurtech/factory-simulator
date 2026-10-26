@@ -72,10 +72,12 @@ export function layoutViews(sources: ViewSource[], area: Cell = DRAW_AREA): { sc
     return null;
   };
   const scale = pickScale((s) => !!tryAt(s));
-  const fit = tryAt(scale) ?? (() => {
-    const ds = drawingsAt(scale);
-    return { ds, boxes: ds.map((d) => drawingBox(d, scale) ?? { x0: 0, y0: 0, x1: 0, y1: 0 }), cs: cells(n, 1, area) };
-  })();
+  const fit =
+    tryAt(scale) ??
+    (() => {
+      const ds = drawingsAt(scale);
+      return { ds, boxes: ds.map((d) => drawingBox(d, scale) ?? { x0: 0, y0: 0, x1: 0, y1: 0 }), cs: cells(n, 1, area) };
+    })();
   const views = fit.ds.map((drawing, i) => {
     const box = fit.boxes[i];
     const cell = fit.cs[i];

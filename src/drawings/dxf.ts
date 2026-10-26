@@ -157,7 +157,10 @@ export function drawingsToDxf(views: DxfView[], scale: number): string {
   for (const [style, name] of ltypes) {
     const dash = (DASH[style] ?? []).map((d) => d * scale);
     g(0, 'LTYPE', 2, name, 70, 0, 3, style === 'solid' ? 'Solid line' : name, 72, 65, 73, dash.length);
-    g(40, dash.reduce((s, d) => s + d, 0));
+    g(
+      40,
+      dash.reduce((s, d) => s + d, 0),
+    );
     dash.forEach((d, i) => g(49, i % 2 ? -d : d));
   }
   g(0, 'ENDTAB');

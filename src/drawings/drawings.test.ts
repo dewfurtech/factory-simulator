@@ -38,7 +38,20 @@ describe('scale choice', () => {
   it('lays a view out at the largest scale whose ink fits the drawing area under its label', () => {
     const box = (w: number, h: number): Drawing => ({
       title: 't',
-      prims: [{ kind: 'poly', pts: [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }], closed: true, weight: 'thin', layer: 'wall' }],
+      prims: [
+        {
+          kind: 'poly',
+          pts: [
+            { x: 0, y: 0 },
+            { x: w, y: 0 },
+            { x: w, y: h },
+            { x: 0, y: h },
+          ],
+          closed: true,
+          weight: 'thin',
+          layer: 'wall',
+        },
+      ],
     });
     expect(layoutViews([box(DRAW_AREA.w * 40, 100)]).scale).toBe(40);
     expect(layoutViews([box(DRAW_AREA.w * 40 + 1, 100)]).scale).toBe(50);
@@ -213,7 +226,10 @@ describe('DXF', () => {
   });
 
   it('writes a line type for dashed lines', () => {
-    const one = drawingsToDxf([{ drawing: { title: 't', prims: [{ kind: 'line', a: { x: 0, y: 0 }, b: { x: 1, y: 1 }, weight: 'thin', style: 'dashed', layer: 'cabinet' }] } }], 20);
+    const one = drawingsToDxf(
+      [{ drawing: { title: 't', prims: [{ kind: 'line', a: { x: 0, y: 0 }, b: { x: 1, y: 1 }, weight: 'thin', style: 'dashed', layer: 'cabinet' }] } }],
+      20,
+    );
     const e = parseDxf(one).entities[0];
     expect(e.codes).toContainEqual([6, 'DASHED']);
   });

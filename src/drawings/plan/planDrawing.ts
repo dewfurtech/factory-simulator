@@ -186,7 +186,8 @@ function inkPoints(prims: Prim[]): Pt[] {
   for (const p of prims) {
     if (p.kind === 'line') pts.push(p.a, p.b);
     else if (p.kind === 'poly') pts.push(...p.pts);
-    else if (p.kind === 'arc') for (let i = 0; i <= 8; i++) pts.push({ x: p.c.x + p.r * Math.cos(p.a0 + ((p.a1 - p.a0) * i) / 8), y: p.c.y + p.r * Math.sin(p.a0 + ((p.a1 - p.a0) * i) / 8) });
+    else if (p.kind === 'arc')
+      for (let i = 0; i <= 8; i++) pts.push({ x: p.c.x + p.r * Math.cos(p.a0 + ((p.a1 - p.a0) * i) / 8), y: p.c.y + p.r * Math.sin(p.a0 + ((p.a1 - p.a0) * i) / 8) });
   }
   return pts;
 }

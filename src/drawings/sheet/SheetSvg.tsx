@@ -32,7 +32,8 @@ function PrimSvg({ p, view, scale }: { p: Prim; view: PlacedView; scale: number 
       const r = p.r / scale;
       let sweep = p.a1 - p.a0;
       while (sweep <= 0) sweep += Math.PI * 2;
-      if (sweep >= Math.PI * 2 - 1e-9) return <circle cx={round(c.x)} cy={round(c.y)} r={round(r)} fill="none" stroke={INK} strokeWidth={PEN[p.weight]} strokeDasharray={dash(p.style)} />;
+      if (sweep >= Math.PI * 2 - 1e-9)
+        return <circle cx={round(c.x)} cy={round(c.y)} r={round(r)} fill="none" stroke={INK} strokeWidth={PEN[p.weight]} strokeDasharray={dash(p.style)} />;
       const a = P({ x: p.c.x + p.r * Math.cos(p.a0), y: p.c.y + p.r * Math.sin(p.a0) });
       const b = P({ x: p.c.x + p.r * Math.cos(p.a0 + sweep), y: p.c.y + p.r * Math.sin(p.a0 + sweep) });
       // Counter-clockwise in the model stays counter-clockwise on paper: SVG sweep flag 0 once y points down.
@@ -97,7 +98,14 @@ export function wrap(text: string, width: number, size: number, maxLines = 3): s
     }
   }
   if (line.trim()) lines.push(line.trim());
-  if (lines.length > maxLines) return [...lines.slice(0, maxLines - 1), lines.slice(maxLines - 1).join(' ').slice(0, max - 1) + '…'];
+  if (lines.length > maxLines)
+    return [
+      ...lines.slice(0, maxLines - 1),
+      lines
+        .slice(maxLines - 1)
+        .join(' ')
+        .slice(0, max - 1) + '…',
+    ];
   return lines;
 }
 
@@ -107,7 +115,27 @@ const TB_H = SHEET_H - 2 * MARGIN;
 const PAD = 2;
 
 /** A title block box: its label (Thai / English) at the top, its value below. */
-function Field({ y, h, label, value, size = 3, bold, x = TB_X, w = TITLE_W, lines = 2 }: { y: number; h: number; label: string; value: string; size?: number; bold?: boolean; x?: number; w?: number; lines?: number }) {
+function Field({
+  y,
+  h,
+  label,
+  value,
+  size = 3,
+  bold,
+  x = TB_X,
+  w = TITLE_W,
+  lines = 2,
+}: {
+  y: number;
+  h: number;
+  label: string;
+  value: string;
+  size?: number;
+  bold?: boolean;
+  x?: number;
+  w?: number;
+  lines?: number;
+}) {
   const rows = value ? wrap(value, w - 2 * PAD, size, lines) : [];
   return (
     <g>
