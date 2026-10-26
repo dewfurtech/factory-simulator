@@ -8,7 +8,7 @@ import { NumberField } from '../panels/fields';
 import { applyEdit, useProject } from '../store/project';
 import { useUi } from '../store/ui';
 import { useImport } from '../store/importProgress';
-import { buildFromVector, scaleFromVector, vectorPlanFor } from './pdfVector';
+import { buildFromVector, hasWallLayers, scaleFromVector, vectorPlanFor } from './pdfVector';
 import { RailButton } from './Toolbar';
 import { traceUnderlay } from './traceUnderlay';
 import { closeLooseEnds, mergeDoubledWalls } from '../model/trace/close';
@@ -81,7 +81,7 @@ export function UnderlayMenu() {
   /** A vector PDF is built from its lines; anything else is traced as a picture. */
   const buildVector = async (from: Underlay, part: 'building' | 'furniture' = 'building') => {
     const drawing = await vectorPlanFor(from.imageId);
-    if (!drawing) return false;
+    if (!drawing || !hasWallLayers(drawing)) return false;
     setStatus({ kind: 'tracing' });
     // Let the busy note paint before the build takes the main thread for a moment.
     await new Promise((r) => setTimeout(r, 30));
