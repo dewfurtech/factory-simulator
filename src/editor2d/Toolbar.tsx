@@ -41,6 +41,7 @@ const PATHS: Record<string, string> = {
   route: 'M6 19a2 2 0 1 0 0-4a2 2 0 1 0 0 4z M18 9a2 2 0 1 0 0-4a2 2 0 1 0 0 4z M8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7',
   cut: 'M4 20h16 M6 20v-8h12v8 M6 12l2-6h8l2 6',
   shadow: 'M12 4a6 6 0 1 0 0 12a6 6 0 1 0 0-12z M4 20h16 M7 20l3-4 M12 20l2-4',
+  realistic: 'M3 7l3-3h12l3 3v10l-3 3H6l-3-3z M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M15 7.5h.01',
   tag: 'M3 12V4h8l10 10-8 8z M7.5 8.5h.01',
   timeline: 'M4 6h10 M4 12h16 M4 18h7 M2 3v18',
   copy: 'M8 8h12v12H8z M4 16V4h12',

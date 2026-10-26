@@ -163,7 +163,7 @@ export class FactoryScene {
     this.dirty = true;
   }
 
-  /** Clay and shadows on or off (look.ts). */
+  /** The look (plain, realistic or clay) and shadows (look.ts). */
   setLook(l: Partial<Look3D>) {
     if (this.look.set(l)) this.dirty = true;
   }
@@ -539,7 +539,8 @@ export class FactoryScene {
       console.error(e);
     }
     this.shadowsStale = false;
-    this.renderer.render(this.scene, this.camera);
+    // The realistic look draws through its own pipeline (ambient occlusion, tone mapping); the others straight.
+    if (!this.look.render(this.camera)) this.renderer.render(this.scene, this.camera);
   }
 
   /** Shrinks names that would overlap on screen so each stays readable; they grow back when zoomed in. */

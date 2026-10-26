@@ -175,4 +175,4 @@ export function buildRenderPrompt(project: Project): string {
 }
 
 /** The Google Flow web app; it has no public API and no link that pre-fills a prompt, so the prompt goes via the clipboard. */
-export const FLOW_URL = 'https://labs.google/fx/tools/flow';
+export const FLOW_URL = 'https://flow.google.com/';

@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Factory Simulator → Google Flow",
+  "version": "0.1.0",
+  "description": "ส่งพรอมต์และภาพอ้างอิงจาก Factory Simulator เข้า Google Flow ในคลิกเดียว แล้วส่งภาพที่ได้กลับมาที่เว็บ",
+  "background": { "service_worker": "background.js" },
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["https://flow.google.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["http://localhost/*", "https://factory-plan-design.dewfurtech.workers.dev/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://flow.google.com/*"],
+      "js": ["flow.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

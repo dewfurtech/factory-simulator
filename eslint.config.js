@@ -26,4 +26,6 @@ export default tseslint.config(
   { files: ['vite.config.ts', 'eslint.config.js'], languageOptions: { globals: globals.node } },
   // The share function runs on Netlify's Node with the web Request/Response and crypto globals.
   { files: ['netlify/**/*.mjs'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
+  // The Chrome extension's scripts run in the browser, with the extension API as `chrome`.
+  { files: ['extension/**/*.js'], languageOptions: { sourceType: 'script', globals: { ...globals.browser, ...globals.webextensions } } },
 );

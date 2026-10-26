@@ -1,14 +1,17 @@
 import * as THREE from 'three';
 import type { Look3D } from '../store/ui';
+import { RealKit, RealPipeline, wearReal } from './realistic';
 
 /**
- * How the 3D view looks on top of what the modules build: shadows from one sun, and the clay look (every surface
- * the same matt warm white, thin grey edges, glass still faintly see-through). Nothing that builds the scene has to
- * know about either: the scene is walked before a frame is drawn, and whatever mesh has turned up since is set up
- * then (walls, floors, ceilings, machines, furniture, cabinets, imported models, and anything added later).
+ * How the 3D view looks on top of what the modules build: shadows from one sun, and one of three looks: plain (as
+ * it has always been), realistic (PBR materials, light from an environment, tone mapping and ambient occlusion;
+ * realistic.ts) or clay (every surface the same matt warm white, thin grey edges, glass still faintly see-through).
+ * Nothing that builds the scene has to know about any of them: the scene is walked before a frame is drawn, and
+ * whatever mesh has turned up since is set up then (walls, floors, ceilings, machines, furniture, cabinets, people,
+ * imported models, and anything added later).
  *
- * A mesh wearing clay keeps its own material in `userData.lookOrig` (which `disposeTree` frees with it) and the
- * clay one in `userData.lookWorn`; taking the clay off puts every original back. Nodes marked `userData.lookSkip`
+ * A dressed mesh (clay or realistic) keeps its own material in `userData.lookOrig` (which `disposeTree` frees with
+ * it) and the worn one in `userData.lookWorn`; taking the look off puts every original back. Nodes marked `userData.lookSkip`
  * (and all under them) are left alone: the selection frames, the drag ghost, the name labels.
  */
 
@@ -23,8 +26,19 @@ const EDGE_MAX_TRIANGLES = 60000;
 /** The direction the sun shines from (toward it), as the plain view's light has always stood. */
 export const SUN_FROM = new THREE.Vector3(30, 60, 20).normalize();
 
-/** The light levels: as they have always been, and with shadows on (more sky, so shaded floors don't go dark). */
-export const LIGHT = { plain: { hemi: 1.7, sun: 1.6 }, shadows: { hemi: 1.9, sun: 1.6 } };
+/**
+ * The light levels: as they have always been, with shadows on (more sky, so shaded floors don't go dark), and in the
+ * realistic look (most of the fill comes from the environment, with or without shadows).
+ */
+export const LIGHT = { plain: { hemi: 1.7, sun: 1.6 }, shadows: { hemi: 1.9, sun: 1.6 }, realistic: { hemi: 0.45, sun: 2.2 } };
+
+/** The realistic look's sky and light colours: a soft grey sky, a warm sun, an earthy bounce from below. */
+const REAL = {
+  sky: new THREE.Color('#d6dde3'),
+  hemi: new THREE.Color('#eef3f8'),
+  ground: new THREE.Color('#8a8578'),
+  sun: new THREE.Color('#fff3e2'),
+};
 
 type Mats = THREE.Material | THREE.Material[];
 const list = (m: Mats): THREE.Material[] => (Array.isArray(m) ? m : [m]);
@@ -206,13 +220,19 @@ export function shadowMapSize(): number {
 }
 
 /**
- * The look of one 3D view. `prepare` runs before each frame is drawn; with clay and shadows both off it does
- * nothing, so the plain view costs what it always has.
+ * The look of one 3D view. `prepare` runs before each frame is drawn and `render` draws it; with every look off
+ * (plain, no shadows) neither does anything, so the plain view costs what it always has.
+ *
+ * Plain, realistic and clay are one choice (clay and realistic never both on); shadows go with any of them.
  */
 export class SceneLook {
   readonly kit = new ClayKit();
-  private state: Look3D = { clay: false, shadows: false };
+  readonly real = new RealKit();
+  private state: Look3D = { clay: false, shadows: false, realistic: false };
   private size = shadowMapSize();
+  private pipeline: RealPipeline | null = null;
+  /** The plain look's sky and light colours, as the view was built with them. */
+  private plain: { sky: THREE.Color | null; fog: THREE.Color | null; hemi: THREE.Color; ground: THREE.Color; sun: THREE.Color; tone: THREE.ToneMapping };
 
   constructor(
     private renderer: THREE.WebGLRenderer,
@@ -226,6 +246,15 @@ export class SceneLook {
     // The map is drawn again only when the scene changed, not each time the camera moves (see `prepare`).
     renderer.shadowMap.autoUpdate = false;
     sun.shadow.mapSize.set(this.size, this.size);
+    const bg = scene.background as THREE.Color | null;
+    this.plain = {
+      sky: bg?.isColor ? bg.clone() : null,
+      fog: scene.fog ? scene.fog.color.clone() : null,
+      hemi: hemi.color.clone(),
+      ground: hemi.groundColor.clone(),
+      sun: sun.color.clone(),
+      tone: renderer.toneMapping,
+    };
   }
 
   get current(): Look3D {
@@ -235,31 +264,58 @@ export class SceneLook {
   /** Changes the look; true when something changed and the view needs drawing again. */
   set(next: Partial<Look3D>): boolean {
     const was = this.state;
-    this.state = { ...was, ...next };
-    if (was.clay && !this.state.clay) takeOffClay(this.scene);
-    if (was.shadows !== this.state.shadows) {
-      const on = this.state.shadows;
-      this.renderer.shadowMap.enabled = on;
-      this.sun.castShadow = on;
-      const l = on ? LIGHT.shadows : LIGHT.plain;
-      this.hemi.intensity = l.hemi;
-      this.sun.intensity = l.sun;
-      // The shaders are built with or without shadows; every material has to be built again.
+    const s = { ...was, ...next };
+    // One of plain, realistic or clay: the one just asked for wins.
+    if (next.clay) s.realistic = false;
+    else if (next.realistic) s.clay = false;
+    this.state = s;
+    // Off with the old dress first, so the new one goes on every mesh at the next frame.
+    if ((was.clay && !s.clay) || (was.realistic && !s.realistic)) takeOffClay(this.scene);
+    if (was.realistic !== s.realistic && !s.realistic && this.pipeline) {
+      this.pipeline.dispose();
+      this.pipeline = null;
+    }
+    if (was.shadows !== s.shadows) {
+      this.renderer.shadowMap.enabled = s.shadows;
+      this.sun.castShadow = s.shadows;
+    }
+    this.light();
+    const changed = was.clay !== s.clay || was.shadows !== s.shadows || was.realistic !== s.realistic;
+    // The shaders are built with or without shadows, tone mapping and the environment: every material is built again.
+    if (changed)
       this.scene.traverse((o) => {
         const m = (o as THREE.Mesh).material as Mats | undefined;
         if (m) for (const x of list(m)) x.needsUpdate = true;
         const orig = o.userData.lookOrig as Mats | undefined;
         if (orig) for (const x of list(orig)) x.needsUpdate = true;
       });
-    }
-    return was.clay !== this.state.clay || was.shadows !== this.state.shadows;
+    return changed;
+  }
+
+  /** The sky, the lights and the tone mapping for the look now. */
+  private light() {
+    const { realistic, shadows } = this.state;
+    const l = realistic ? LIGHT.realistic : shadows ? LIGHT.shadows : LIGHT.plain;
+    this.hemi.intensity = l.hemi;
+    this.sun.intensity = l.sun;
+    const p = this.plain;
+    this.hemi.color.copy(realistic ? REAL.hemi : p.hemi);
+    this.hemi.groundColor.copy(realistic ? REAL.ground : p.ground);
+    this.sun.color.copy(realistic ? REAL.sun : p.sun);
+    if (p.sky) (this.scene.background as THREE.Color).copy(realistic ? REAL.sky : p.sky);
+    if (p.fog && this.scene.fog) this.scene.fog.color.copy(realistic ? REAL.sky : p.fog);
+    this.scene.environment = realistic ? this.real.environment(this.renderer) : null;
+    this.scene.environmentIntensity = realistic ? 0.4 : 1;
+    // The realistic pipeline tone-maps in its last pass (OutputPass reads it from here).
+    this.renderer.toneMapping = realistic ? THREE.NeutralToneMapping : p.tone;
   }
 
   /** Before a frame: dresses whatever is new, and redraws the shadow map when the scene has changed (`changed`). */
   prepare(changed: boolean) {
-    const { clay, shadows } = this.state;
-    if (!clay && !shadows) return;
+    const { clay, shadows, realistic } = this.state;
+    if (!clay && !shadows && !realistic) return;
     if (clay) wearClay(this.scene, this.kit);
+    if (realistic) wearReal(this.scene, this.real);
     if (!shadows) return;
     const fresh = castShadows(this.scene);
     if (changed || fresh) {
@@ -270,9 +326,21 @@ export class SceneLook {
     }
   }
 
+  /** Draws the frame the look's way: true when it did (the realistic look), false to draw it plainly. */
+  render(camera: THREE.PerspectiveCamera): boolean {
+    if (!this.state.realistic) return false;
+    this.pipeline ??= new RealPipeline(this.renderer, this.scene, camera);
+    this.pipeline.render();
+    return true;
+  }
+
   dispose() {
     takeOffClay(this.scene);
+    this.pipeline?.dispose();
+    this.pipeline = null;
+    this.scene.environment = null;
     this.kit.dispose();
+    this.real.dispose();
     this.sun.shadow.map?.dispose();
   }
 }

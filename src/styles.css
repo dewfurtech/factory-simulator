@@ -4250,6 +4250,108 @@ body:has(.home) {
   gap: 6px;
   font-size: 13px;
   cursor: pointer;
+  white-space: nowrap;
+}
+/* A plain checkbox, not the dialog's full-width text box. */
+.dialog .flow-clay input {
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+}
+
+/* Making the picture on the server: the button with its spinner, and how it went. */
+.flow-make .flow-row {
+  align-items: center;
+}
+.flow-make .spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: spin 0.9s linear infinite;
+}
+.flow-make-note {
+  flex: 1;
+  min-width: 200px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.flow-make-error,
+.flow-make-ok {
+  margin: 0;
+  font-size: 12.5px;
+}
+.flow-make-error {
+  color: var(--danger);
+}
+.flow-make-ok {
+  color: var(--ok);
+}
+.flow-thumb figcaption small {
+  color: var(--ink-3);
+}
+/* A button the dialog cannot use yet (no key on the server, a picture on its way) looks it. */
+.flow .btn:disabled:not([aria-busy='true']) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.flow .btn-primary:disabled:hover {
+  background: var(--ink);
+}
+/* Signing in with Google for the AI picture: who is signed in and the project billed. */
+.flow-google {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--line-2);
+}
+.flow-google .flow-row {
+  align-items: center;
+}
+.flow-google-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.flow-google-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.flow-google-project select,
+.flow-google-project input {
+  height: 30px;
+  min-width: 180px;
+  font-size: 12.5px;
+}
+.flow-google p {
+  margin: 0;
+}
+/* What the Flow extension is doing with the job sent to it. */
+.flow-ext-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.flow-make .spinner,
+.flow-ext-status .spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+.flow-ext-status .spinner.dark {
+  border: 2px solid var(--line-2);
+  border-top-color: var(--accent);
 }
 
 /* Dev server only (src/view3d/DevMachineDetail.tsx): how detailed the machines are drawn, bottom left of the 3D view. */

@@ -269,6 +269,15 @@ export default function View3D({ finishes, pieces }: { finishes?: FinishHooks; p
           </button>
         )}
         <button
+          className={`ib sm${look.realistic ? ' on' : ''}`}
+          onClick={() => useUi.getState().setLook(lookKind, { realistic: !look.realistic })}
+          title={look.realistic ? 'โหมดสมจริงอยู่: คลิกเพื่อกลับไปหน้าตาปกติ' : 'สมจริง: แสงจากรอบทิศ วัสดุเหมือนจริง และเงาตามซอก (ใช้เครื่องแรงขึ้น)'}
+          aria-pressed={look.realistic}
+          data-testid="realistic-3d"
+        >
+          <Icon name="realistic" />
+        </button>
+        <button
           className={`ib sm${look.clay ? ' on' : ''}`}
           onClick={() => useUi.getState().setLook(lookKind, { clay: !look.clay })}
           title={look.clay ? 'โหมดดินปั้นอยู่: คลิกเพื่อกลับไปเห็นสีและวัสดุ' : 'ดินปั้น: ดูแค่รูปทรงกับเงา ไม่มีสีและวัสดุ'}

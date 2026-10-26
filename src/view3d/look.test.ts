@@ -4,6 +4,7 @@ import { sampleFactory } from '../model/sample';
 import { buildBuilding } from './building3d';
 import { castShadows, ClayKit, fitSun, takeOffClay, wearClay } from './look';
 import { disposeTree, FLAT, GLASS } from './lowpoly';
+import { RealKit, wearReal } from './realistic';
 
 /** A small scene with every kind of thing the view holds: flat and textured, see-through, multi-material, a label. */
 function scene() {
@@ -146,5 +147,36 @@ describe('shadows', () => {
     }
     // And not much more: the frustum is about the building's size, not a fixed huge box.
     expect(cam.right - cam.left).toBeLessThan(100);
+  });
+});
+
+describe('the realistic look', () => {
+  it('swaps flat materials for shared PBR twins, leaves PBR ones be, and gives every material back', () => {
+    const s = scene();
+    const before = materials(s.root);
+    const kit = new RealKit();
+    wearReal(s.root, kit);
+    expect(s.flat.material).not.toBe(FLAT);
+    expect((s.flat.material as THREE.Material).userData.realTwin).toBe(true);
+    expect((s.flat.material as THREE.Material as THREE.MeshStandardMaterial).isMeshStandardMaterial).toBe(true);
+    // Glass stays see-through; the decal keeps its picture; a material that is PBR already is its own.
+    expect((s.glass.material as THREE.Material).transparent).toBe(true);
+    expect((s.decal.material as THREE.Material as THREE.MeshStandardMaterial).map).toBe(s.tex);
+    expect((s.multi.material as THREE.Material[])[0]).toBe(before[2]);
+    // Walking again (each frame) makes nothing new.
+    const made = kit.size;
+    wearReal(s.root, kit);
+    expect(kit.size).toBe(made);
+    // A second box in the same flat material shares the twin.
+    const twin = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), FLAT);
+    s.root.add(twin);
+    wearReal(s.root, kit);
+    expect(twin.material).toBe(s.flat.material);
+    expect(kit.size).toBe(made);
+    twin.removeFromParent();
+    takeOffClay(s.root);
+    expect(materials(s.root)).toEqual(before);
+    kit.dispose();
+    expect(kit.size).toBe(0);
   });
 });
