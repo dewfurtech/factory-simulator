@@ -24,6 +24,8 @@ function fitLabelTo(s: THREE.Sprite, minSide: Mm): void {
 }
 const WALL_COLOR = '#eceae5';
 const WALL_TOP = '#9aa0a8';
+/** How thick the outline on top of a wall with a material is (mm): a sliver of the wall in WALL_TOP. */
+const TOP_EDGE = 2;
 const DOOR_MARK = '#d97706';
 
 /** Sutherland–Hodgman: the part of poly where dot(p - origin, u) lies within [t0, t1]. */
@@ -109,12 +111,16 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
   const cap = (h: number) => (opts.cutaway === null ? h : Math.min(h, opts.cutaway));
   // Finished surfaces, one mesh per material; a surface whose material is unknown falls back to the plain way.
   const byMaterial = new Map<THREE.Material, THREE.BufferGeometry[]>();
-  const finished = (id: string | undefined, poly: Vec2[], y0: number, y1: number, holes?: Vec2[][]): boolean => {
+  // A wall piece with a material keeps the plain wall's grey top outline: the material stops TOP_EDGE short of the
+  // top, and a sliver in WALL_TOP closes it, so the top reads the same from above.
+  const finished = (id: string | undefined, poly: Vec2[], y0: number, y1: number, holes?: Vec2[][], edge = false): boolean => {
     const f = opts.finishes;
     if (!id || !f) return false;
     const mat = f.material(id, opts.onReady ?? (() => undefined));
     if (!mat) return false;
-    const g = f.prism(poly, y0, y1, holes);
+    const top = edge && y1 - y0 > TOP_EDGE * 2 ? prism(poly, y1 - TOP_EDGE, y1, WALL_TOP) : null;
+    if (top) solid.push(top);
+    const g = f.prism(poly, y0, top ? y1 - TOP_EDGE : y1, holes);
     if (g) {
       let list = byMaterial.get(mat);
       if (!list) byMaterial.set(mat, (list = []));
@@ -227,11 +233,11 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
           [faces.B, -1e6, 0],
         ] as const) {
           const half = clipSlab(piece, a, n, lo, hi);
-          if (finished(face, half, c.y0, y1)) continue;
+          if (finished(face, half, c.y0, y1, undefined, true)) continue;
           const g = prism(half, c.y0, y1, color, WALL_TOP);
           if (g) solid.push(g);
         }
-      } else if (!finished(finish, piece, c.y0, y1)) {
+      } else if (!finished(finish, piece, c.y0, y1, undefined, true)) {
         const g = prism(piece, c.y0, y1, color, WALL_TOP);
         if (g) solid.push(g);
       }

@@ -173,6 +173,32 @@ describe('the two faces of a wall in an interior', () => {
     expect(Math.max(...xsNear(one, 'walnut', 4.5))).toBeLessThanOrEqual(4.5 + 1e-6);
   });
 
+  it('a wall with a material keeps the grey outline on its top, as a plain wall has', () => {
+    const plan = twoRooms();
+    const { left, right } = rooms(plan);
+    left.finish = { wall: 'walnut' };
+    right.finish = { wall: 'tile-white-600' };
+    const g = buildBuilding(plan, {}, { cutaway: null, finishes: hooks() });
+    // Up-facing triangles at the wall's full height (2.8 m) over the shared wall: grey, in the plain wall mesh.
+    const grey = new THREE.Color('#9aa0a8');
+    const tops: { wall: boolean; grey: boolean }[] = [];
+    g.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const geo = o.geometry as THREE.BufferGeometry;
+      const pos = geo.attributes.position;
+      const nor = geo.attributes.normal;
+      const col = geo.attributes.color;
+      for (let i = 0; i + 2 < pos.count; i += 3) {
+        const x = (pos.getX(i) + pos.getX(i + 1) + pos.getX(i + 2)) / 3;
+        const y = (pos.getY(i) + pos.getY(i + 1) + pos.getY(i + 2)) / 3;
+        if (nor.getY(i) < 0.9 || Math.abs(y - 2.8) > 1e-4 || Math.abs(x - 4.5) > 0.2) continue;
+        tops.push({ wall: !!o.userData.wall, grey: !!col && Math.abs(col.getX(i) - grey.r) < 1e-3 && Math.abs(col.getZ(i) - grey.b) < 1e-3 });
+      }
+    });
+    expect(tops.length).toBeGreaterThan(0);
+    expect(tops.every((t) => t.wall && t.grey)).toBe(true);
+  });
+
   it('a factory draws no materials even when walls and rooms carry them', () => {
     const plan = twoRooms();
     rooms(plan).left.finish = { wall: 'walnut' };
