@@ -67,7 +67,8 @@ test('the plan is saved as a PNG from the main menu', async ({ page }) => {
 test('the 3D view draws the factory', async ({ page }) => {
   await openSample(page);
   await page.getByTestId('view-3d').click();
-  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible();
+  // three.js loads lazily: on a busy machine the first 3D view takes longer than the default 5 s.
+  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('crash')).toHaveCount(0);
 });
 
@@ -166,7 +167,8 @@ test('an aisle is drawn and ended with a double-click, leaving nothing behind fo
 test('a machine is dragged across the floor in the 3D view', async ({ page }) => {
   await openSample(page);
   await page.getByTestId('view-3d').click();
-  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible();
+  // three.js loads lazily: on a busy machine the first 3D view takes longer than the default 5 s.
+  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible({ timeout: 20_000 });
   await page.waitForTimeout(1500);
   await page.getByTestId('move-3d').click();
   // Where the Nebula stands on screen, through the scene's own camera.

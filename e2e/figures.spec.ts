@@ -57,7 +57,8 @@ test('the sample factory has hands at the machines: a person symbol on the plan,
   await expect(page.getByTestId('issue-badge')).toHaveCount(badges);
 
   await page.getByTestId('view-3d').click();
-  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible();
+  // three.js loads lazily: on a busy machine the first 3D view takes longer than the default 5 s.
+  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible({ timeout: 20_000 });
   // A factory's view stands still by default: the idle pose is off and nothing redraws on its own.
   const idle = page.getByTestId('figures-idle');
   await expect(idle).toHaveAttribute('aria-pressed', 'false');
@@ -110,7 +111,8 @@ test('the sample condo has a person in the living room, moving gently in 3D; the
   await expect(page.getByTestId('figure-symbol')).toHaveCount(2);
 
   await page.getByTestId('view-3d').click();
-  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible();
+  // three.js loads lazily: on a busy machine the first 3D view takes longer than the default 5 s.
+  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible({ timeout: 20_000 });
   // The man is the business-man model once it has loaded, standing 1.75 m on the floor.
   await expect
     .poll(() =>

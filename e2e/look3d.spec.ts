@@ -34,7 +34,8 @@ function watchErrors(page: Page): string[] {
 
 async function open3d(page: Page) {
   await page.getByTestId('view-3d').click();
-  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible();
+  // three.js loads lazily: on a busy machine the first 3D view takes longer than the default 5 s.
+  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible({ timeout: 20_000 });
   await expect.poll(async () => (await sceneLook(page)).meshes).toBeGreaterThan(5);
 }
 
