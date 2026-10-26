@@ -19,10 +19,12 @@ import { customDialog } from './Dialog';
 export const AI_PICTURES = false;
 
 /**
- * Pictures of the factory from Google Flow. Flow has no API and no link that takes a prompt, so the dialog does the
- * hand-over both ways: it writes a prompt from the plan (editable, kept with the project), gives a reference picture
- * of the plan or the 3D view to upload there, and takes the finished picture back by drop, paste or file, kept with
- * the project beside the plan image.
+ * Pictures of the factory or the room from an image model. Two ways, side by side: the site's own server asks the Gemini API
+ * (POST /api/render, src/server/render.ts) with the same prompt and reference picture and the picture lands in the
+ * gallery by itself, when the server has a key; or Google Flow by hand, which has no API and no link that takes a
+ * prompt, so the dialog does the hand-over both ways: it writes a prompt from the plan (editable, kept with the
+ * project), gives a reference picture of the plan or the 3D view to upload there, and takes the finished picture back
+ * by drop, paste or file. Either way the picture is kept with the project beside the plan image.
  */
 export function openFlowDialog(): Promise<void> {
   return customDialog((close) => <FlowPanel close={close} />, { wide: true });
@@ -49,13 +51,49 @@ const buildPrompt = (p: Project): string => (isInterior(p) ? buildInteriorPrompt
 
 const safeName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'factory';
 
-async function addRender(blob: Blob, prompt: string): Promise<void> {
+async function addRender(blob: Blob, prompt: string, model?: string): Promise<void> {
   const assetId = newId('r');
   await saveAsset(assetId, blob);
-  const r: Render = { id: newId('rn'), assetId, createdAt: Date.now(), prompt };
+  const r: Render = { id: newId('rn'), assetId, createdAt: Date.now(), prompt, ...(model ? { model } : {}) };
   applyEdit((d) => {
     (d.renders ??= []).push(r);
   });
+}
+
+/** What the server says about making pictures itself: a key set or not, and which model it asks. */
+interface RenderStatus {
+  ready: boolean;
+  model: string;
+  error?: string;
+}
+
+const blobToBase64 = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve((r.result as string).split(',', 2)[1] ?? '');
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+
+/** Asks the server for a picture; the answer is the picture, or an error line to show. */
+async function renderOnServer(prompt: string, reference: Blob | null): Promise<{ blob: Blob; model: string } | { error: string }> {
+  const image = reference ? { mimeType: reference.type || 'image/png', data: await blobToBase64(reference) } : undefined;
+  let res: Response;
+  try {
+    res = await fetch('/api/render', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, image, aspectRatio: '16:9' }) });
+  } catch {
+    return { error: 'ติดต่อเซิร์ฟเวอร์ไม่ได้' };
+  }
+  if (!res.ok || !res.headers.get('content-type')?.startsWith('image/')) {
+    let error = `เซิร์ฟเวอร์ตอบ ${res.status}`;
+    try {
+      error = ((await res.json()) as { error?: string }).error ?? error;
+    } catch {
+      /* not JSON: keep the status line */
+    }
+    return { error };
+  }
+  return { blob: await res.blob(), model: res.headers.get('x-render-model') ?? '' };
 }
 
 function FlowPanel({ close }: { close: () => void }) {
@@ -73,6 +111,20 @@ function FlowPanel({ close }: { close: () => void }) {
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const edited = prompt !== (project.renderPrompt ?? buildPrompt(project));
+  // Making the picture here: whether the server can (it has a key), and how the one in progress is going.
+  const [server, setServer] = useState<RenderStatus | null>(null);
+  const [making, setMaking] = useState<{ busy: boolean; error?: string; done?: number }>({ busy: false });
+
+  useEffect(() => {
+    let gone = false;
+    fetch('/api/render')
+      .then((r) => r.json() as Promise<RenderStatus>)
+      .then((s) => !gone && setServer(s))
+      .catch(() => !gone && setServer({ ready: false, model: '', error: 'ติดต่อเซิร์ฟเวอร์ไม่ได้' }));
+    return () => {
+      gone = true;
+    };
+  }, []);
 
   // The reference picture is taken when the dialog opens (the 3D view when it is up, else the plan), and again in
   // the other look when the clay switch changes.
@@ -135,6 +187,16 @@ function FlowPanel({ close }: { close: () => void }) {
     void copy();
   };
 
+  const makeHere = async () => {
+    if (making.busy || !server?.ready) return;
+    keepPrompt();
+    setMaking({ busy: true });
+    const got = await renderOnServer(prompt, ref?.blob ?? null);
+    if ('error' in got) return setMaking({ busy: false, error: got.error });
+    await addRender(got.blob, prompt, got.model || server.model);
+    setMaking({ busy: false, done: Date.now() });
+  };
+
   const takeFiles = (files: FileList | File[]) => {
     for (const f of Array.from(files)) if (f.type.startsWith('image/')) void addRender(f, prompt);
   };
@@ -147,11 +209,11 @@ function FlowPanel({ close }: { close: () => void }) {
   return (
     <div className="flow" data-testid="flow-dialog">
       <h2>
-        <Icon name="image" /> {room ? 'สร้างภาพห้องด้วย Google Flow' : 'สร้างภาพโรงงานด้วย Google Flow'}
+        <Icon name="image" /> {room ? 'สร้างภาพห้องด้วย AI' : 'สร้างภาพโรงงานด้วย AI'}
       </h2>
       <p>
-        Google Flow ยังไม่มี API ให้เว็บนี้สั่งสร้างและรับภาพกลับเองได้ จึงทำเป็น 3 ขั้น: คัดลอกพรอมต์ไปวางใน Flow → อัปโหลดภาพอ้างอิงจากแปลนนี้ให้ Flow ดูตำแหน่ง{what} →
-        ได้ภาพแล้วลากหรือวาง (Ctrl+V) กลับมาที่นี่ ภาพจะเก็บไว้กับโปรเจกต์
+        สองทาง: <b>สร้างในเว็บเลย</b> ให้เซิร์ฟเวอร์ส่งพรอมต์กับภาพอ้างอิงไปที่ Gemini แล้วภาพมาลงแกลเลอรีเอง หรือ <b>Google Flow</b> ซึ่งไม่มี API จึงทำเป็น 3 ขั้น:
+        คัดลอกพรอมต์ไปวางใน Flow → อัปโหลดภาพอ้างอิงจากแปลนนี้ให้ Flow ดูตำแหน่ง{what} → ได้ภาพแล้วลากหรือวาง (Ctrl+V) กลับมาที่นี่ ภาพทั้งสองทางเก็บไว้กับโปรเจกต์
       </p>
 
       <section className="flow-step">
@@ -172,13 +234,36 @@ function FlowPanel({ close }: { close: () => void }) {
         </div>
       </section>
 
+      <section className="flow-step flow-make" data-testid="flow-make">
+        <h3>สร้างในเว็บเลย (Gemini)</h3>
+        <div className="flow-row">
+          <button className="btn btn-primary btn-sm" onClick={() => void makeHere()} disabled={!server?.ready || making.busy || !prompt.trim()} data-testid="flow-make-button">
+            {making.busy ? <span className="spinner" aria-hidden /> : <Icon name="bulb" />} {making.busy ? 'กำลังสร้างภาพ…' : 'สร้างภาพในเว็บเลย'}
+          </button>
+          <span className="flow-make-note">
+            {!server
+              ? 'กำลังถามเซิร์ฟเวอร์…'
+              : !server.ready
+                ? (server.error ?? 'เซิร์ฟเวอร์ยังไม่มีคีย์ Gemini')
+                : `ใช้พรอมต์ข้างบนกับ${ref ? 'ภาพอ้างอิงข้างล่าง' : 'ไม่มีภาพอ้างอิง'} ผ่านรุ่น ${server.model} มีค่าใช้จ่ายต่อภาพ (ดู README) ราว 20–40 วินาที`}
+          </span>
+        </div>
+        {making.error && (
+          <p className="flow-make-error" role="alert" data-testid="flow-make-error">
+            สร้างภาพไม่สำเร็จ: {making.error}
+          </p>
+        )}
+        {making.done && !making.busy && !making.error && <p className="flow-make-ok">ได้ภาพแล้ว อยู่ในแกลเลอรีข้างล่าง</p>}
+      </section>
+
       <section className="flow-step">
         <h3>2. ภาพอ้างอิงให้ Flow</h3>
         <div className="flow-ref">
           {ref ? <img src={ref.url} alt="ภาพอ้างอิงจากแปลน" /> : <div className="flow-ref-empty">{refBusy ? 'กำลังถ่ายภาพ…' : 'ไม่มีมุมมองให้ถ่าย'}</div>}
           <div className="flow-ref-text">
             <p>
-              {has3d ? 'ถ่ายจากมุมมอง 3D ที่เปิดอยู่' : 'ถ่ายจากแปลน 2D'} ดาวน์โหลดแล้วอัปโหลดเป็นภาพอ้างอิง (Ingredients / Frames) ใน Flow เพื่อให้ตำแหน่ง{what}ตรงกับแปลน
+              {has3d ? 'ถ่ายจากมุมมอง 3D ที่เปิดอยู่' : 'ถ่ายจากแปลน 2D'} ปุ่ม "สร้างในเว็บเลย" ส่งภาพนี้ไปด้วย ส่วน Flow
+              ให้ดาวน์โหลดแล้วอัปโหลดเป็นภาพอ้างอิง (Ingredients / Frames) เพื่อให้ตำแหน่ง{what}ตรงกับแปลน
             </p>
             {has3d && (
               <label className="flow-clay" title="ถ่ายมุมเดิมเป็นดินปั้นสีขาวพร้อมเงา ไม่มีสีและวัสดุ ให้ AI ยึดรูปทรงและแสงเงา (หน้าจอไม่เปลี่ยน)">
@@ -193,7 +278,7 @@ function FlowPanel({ close }: { close: () => void }) {
       </section>
 
       <section className="flow-step">
-        <h3>3. ภาพที่ได้กลับมา {renders.length ? `(${renders.length})` : ''}</h3>
+        <h3>3. ภาพที่ได้ {renders.length ? `(${renders.length})` : ''}</h3>
         <div
           className={`flow-drop${dragOver ? ' over' : ''}`}
           onDragOver={(e) => (e.preventDefault(), setDragOver(true))}
@@ -250,16 +335,19 @@ function RenderThumb({ r, name }: { r: Render; name: string }) {
     });
   const when = new Date(r.createdAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' });
   return (
-    <figure className="flow-thumb" title={r.prompt}>
+    <figure className="flow-thumb" title={r.model ? `${r.model}\n${r.prompt ?? ''}` : r.prompt}>
       {url ? (
         <a href={url} target="_blank" rel="noreferrer" title="เปิดภาพเต็มในแท็บใหม่">
-          <img src={url} alt={`ภาพจาก Flow ${when}`} />
+          <img src={url} alt={`ภาพ ${r.model ? 'จาก Gemini' : 'จาก Flow'} ${when}`} />
         </a>
       ) : (
         <div className="flow-ref-empty">…</div>
       )}
       <figcaption>
-        <span>{when}</span>
+        <span>
+          {when}
+          {r.model && <small> · Gemini</small>}
+        </span>
         <button
           className="ib sm"
           disabled={!blob}

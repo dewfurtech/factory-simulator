@@ -316,6 +316,8 @@ export interface Render {
   createdAt: number;
   /** The prompt it was made with, as it stood when the picture was added. */
   prompt?: string;
+  /** The image model the site's server asked for it (e.g. gemini-nano-banana-2.1); absent for a picture brought in by hand. */
+  model?: string;
 }
 
 /** The customer a plan is drawn for. Every field is optional; empty ones are left out. */

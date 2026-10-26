@@ -8,3 +8,7 @@ test-results/
 
 # Cloudflare wrangler local state
 .wrangler/
+
+# Local secrets (GEMINI_API_KEY for the dev server), never committed
+.env.local
+.env.*.local
