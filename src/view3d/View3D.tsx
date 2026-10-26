@@ -8,20 +8,27 @@ import { ASSET_MIME, draggedAssetId } from '../editor2d/PlanEditor';
 import type { Id, Vec2 } from '../model/types';
 import { Icon } from '../editor2d/Toolbar';
 import { FactoryScene } from './scene';
+import type { FinishHooks } from './building3d';
 import { locate } from '../model/locate';
 import { download } from '../editor2d/exportImage';
 import { IssuesChip, useTroubled } from '../panels/IssuesChip';
 import { HelpButton } from '../ui/HelpButton';
 import { Loading3D } from '../ui/Loading3D';
 
-/** The 3D pane: the factory, with the picked object highlighted. */
-export default function View3D() {
+/**
+ * The 3D pane: the factory, with the picked object highlighted. An interior project passes `finishes`, which puts
+ * materials on finished surfaces, ceilings over the rooms, and a button to take the ceilings off.
+ */
+export default function View3D({ finishes }: { finishes?: FinishHooks } = {}) {
   const host = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<FactoryScene | null>(null);
   const project = useProject((s) => s.project!);
   const selection = useUi((s) => s.selection);
-  const cutaway = useUi((s) => s.cutaway);
+  // An interior keeps its own low-walls switch (off at first, so its wall materials show); a factory's stays its own.
+  const cutawayKey = finishes ? 'interiorCutaway' : 'cutaway';
+  const cutaway = useUi((s) => s[cutawayKey]);
   const areas = useUi((s) => !s.areasHidden);
+  const ceilingsHidden = useUi((s) => s.ceilingsHidden);
   const [top, setTop] = useState(false);
   // Move mode: dragging a machine slides it over the floor, as on the plan.
   const moving = useUi((s) => s.move3d);
@@ -90,7 +97,10 @@ export default function View3D() {
   // Things that cannot stand where they are get a red frame in 3D, as they get a red outline on the plan.
   const troubled = useTroubled();
   useEffect(() => sceneRef.current?.markTroubled(troubled.map((t) => t.id)), [troubled, started]);
-  useEffect(() => sceneRef.current?.setOptions({ cutaway, areas }), [cutaway, areas]);
+  useEffect(
+    () => sceneRef.current?.setOptions(finishes ? { cutaway, areas, finishes, ceilings: !ceilingsHidden && !top } : { cutaway, areas }),
+    [cutaway, areas, finishes, ceilingsHidden, top],
+  );
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
 
   const down = useRef<{ x: number; y: number } | null>(null);
@@ -212,7 +222,7 @@ export default function View3D() {
         <span className="view-tools-sep" />
         <button
           className={`ib sm${cutaway ? ' on' : ''}`}
-          onClick={() => useUi.getState().set({ cutaway: !cutaway })}
+          onClick={() => useUi.getState().set({ [cutawayKey]: !cutaway })}
           title="ผนังเตี้ย (เปิด/ปิด): ลดผนังลงเกือบติดพื้น เห็นห้องและประตูชัด"
           aria-pressed={cutaway}
         >
@@ -221,6 +231,17 @@ export default function View3D() {
         <button className={`ib sm${top ? ' on' : ''}`} onClick={() => setTop(!top)} title="มุมมองจากด้านบน (Top view)" aria-pressed={top} data-testid="top-view">
           <Icon name="topView" />
         </button>
+        {finishes && (
+          <button
+            className={`ib sm${ceilingsHidden ? ' on' : ''}`}
+            onClick={() => useUi.getState().set({ ceilingsHidden: !ceilingsHidden })}
+            title={ceilingsHidden ? 'ซ่อนฝ้าอยู่: คลิกเพื่อแสดงฝ้า' : 'ซ่อนฝ้า เพื่อมองเข้าไปในห้องจากด้านบน'}
+            aria-pressed={ceilingsHidden}
+            data-testid="ceilings-hidden"
+          >
+            <Icon name="ceiling" />
+          </button>
+        )}
         <button className="ib sm" onClick={() => sceneRef.current?.frame()} title="มุมมองทั้งโรงงาน">
           <Icon name="fit" />
         </button>

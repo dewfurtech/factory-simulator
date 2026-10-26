@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Editor } from './Editor';
 import type { Id } from './model/types';
 import { ImportOverlay } from './projects/ImportOverlay';
@@ -23,9 +23,13 @@ function routeFromHash(): Route {
 
 const routeKey = (r: Route) => (r ? `${r.kind}:${r.id}` : '');
 
+// The interior editor and its materials load only for an interior project; a factory never fetches them.
+const InteriorEditor = lazy(() => import('./interior/InteriorEditor').then((m) => ({ default: m.InteriorEditor })));
+
 export function App() {
   const [route, setRoute] = useState(routeFromHash);
   const project = useProject((s) => s.project);
+  const interior = useProject((s) => s.project?.kind === 'interior');
   const [problem, setProblem] = useState<string | null>(null);
   const [openKey, setOpenKey] = useState('');
 
@@ -83,13 +87,13 @@ export function App() {
 
   return (
     <>
-      <Screen route={route} problem={problem} ready={openKey === routeKey(route) && !!project} />
+      <Screen route={route} problem={problem} ready={openKey === routeKey(route) && !!project} interior={interior} />
       <ImportOverlay />
     </>
   );
 }
 
-function Screen({ route, problem, ready }: { route: Route; problem: string | null; ready: boolean }) {
+function Screen({ route, problem, ready, interior }: { route: Route; problem: string | null; ready: boolean; interior: boolean }) {
   if (!route) return <ProjectList />;
   if (problem)
     return (
@@ -98,5 +102,12 @@ function Screen({ route, problem, ready }: { route: Route; problem: string | nul
       </div>
     );
   if (!ready) return <div className="empty">{route.kind === 'share' ? 'กำลังโหลดแปลนจากลิงก์…' : 'กำลังโหลด…'}</div>;
+  // The one place the project's kind picks an editor: an interior gets its own, everything else the factory's.
+  if (interior)
+    return (
+      <Suspense fallback={<div className="empty">กำลังโหลด…</div>}>
+        <InteriorEditor />
+      </Suspense>
+    );
   return <Editor />;
 }

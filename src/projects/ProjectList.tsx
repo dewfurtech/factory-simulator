@@ -5,6 +5,7 @@ import { storeUnderlayFile, UNDERLAY_ACCEPT } from '../editor2d/underlayFile';
 import { SentLinks } from './SentLinks';
 import { useImport } from '../store/importProgress';
 import { newProject } from '../model/project';
+import { newInteriorProject } from '../interior/project';
 import type { Id, Project } from '../model/types';
 import { placeUnderlay } from '../model/underlay';
 import { deleteProject, duplicateProject, exportAll, exportProject, importFile, listProjects, loadProject, saveProject, type ProjectSummary } from '../store/persist';
@@ -12,6 +13,7 @@ import { wallFootprints } from '../model/miter';
 import { roomPolygon } from '../model/plan';
 import { bounds } from '../model/vec';
 import { zoneColor } from '../model/zones';
+import { roomFloorColor } from '../interior/materials';
 
 const open = (id: Id) => (location.hash = `#/p/${id}`);
 
@@ -35,7 +37,7 @@ function PlanThumb({ id }: { id: Id }) {
   return (
     <svg className="thumb" viewBox={vb} preserveAspectRatio="xMidYMid meet">
       {Object.values(p.plan.rooms).map((r) => (
-        <polygon key={r.id} points={pts(roomPolygon(p.plan, r))} fill={zoneColor(r)} />
+        <polygon key={r.id} points={pts(roomPolygon(p.plan, r))} fill={r.finish?.floor ? roomFloorColor(r, p) : zoneColor(r)} />
       ))}
       {p.objects.map((o) => (
         <rect
@@ -186,6 +188,15 @@ export function ProjectList() {
               <span>วาดผนังและโซนเอง</span>
             </span>
           </button>
+          <button className="start-blank-btn start-interior-btn" onClick={() => void create(newInteriorProject())} data-testid="new-interior">
+            <span className="start-blank-icon">
+              <Icon name="sofa" />
+            </span>
+            <span className="start-blank-text">
+              <b>ห้องตกแต่งภายใน</b>
+              <span>วาดห้อง เลือกวัสดุ วางเฟอร์นิเจอร์</span>
+            </span>
+          </button>
           <span className="start-templates">
             <span className="muted">หรือลองจากเทมเพลต</span>
             <button className="chip" onClick={() => void import('../model/sample').then((m) => create(m.sampleFactory()))} data-testid="new-sample">
@@ -262,16 +273,25 @@ export function ProjectList() {
                     </span>
                   </div>
                   <div className="card-body">
-                    <b title={p.name}>{p.name}</b>
+                    <b title={p.name}>
+                      {p.name}
+                      {p.kind === 'interior' && (
+                        <span className="card-kind" data-testid="card-kind">
+                          ตกแต่งภายใน
+                        </span>
+                      )}
+                    </b>
                     {(p.company || p.contact) && (
                       <span className="card-client" data-testid="card-client">
                         {[p.company, p.contact].filter(Boolean).join(' · ')}
                       </span>
                     )}
                     <div className="card-meta">
-                      <span title="เครื่องจักร">
-                        <Icon name="machine" /> {p.machines ?? 0}
-                      </span>
+                      {p.kind !== 'interior' && (
+                        <span title="เครื่องจักร">
+                          <Icon name="machine" /> {p.machines ?? 0}
+                        </span>
+                      )}
                       <span title="ห้อง">
                         <Icon name="house" /> {p.rooms ?? 0}
                       </span>

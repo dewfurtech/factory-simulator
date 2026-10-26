@@ -6,9 +6,10 @@ import { obbCorners, objectObb } from '../model/objects';
 import { wallFootprints } from '../model/miter';
 import { openingOffsetAt, roomLabelPoint, roomPolygon, roomStats, setWallLength, wallDir, wallLength } from '../model/plan';
 import { OPENING_PRESETS, openingSymbol, type OpeningSymbol } from '../model/openings';
-import type { Column, Id, PlacedObject, Plan, Project, Underlay, Vec2, Wall } from '../model/types';
+import type { Column, CustomMaterial, Id, PlacedObject, Plan, Project, Underlay, Vec2, Wall } from '../model/types';
 import { add, bounds, lerp, perp, scale, signedArea } from '../model/vec';
 import { zoneColor } from '../model/zones';
+import { roomFloorColor } from '../interior/materials';
 import { fmtArea, fmtLen, fmtSize } from '../format';
 import { editProject, useEditProject, useProject } from '../store/project';
 import { useUi, type Selection, type Tool } from '../store/ui';
@@ -330,7 +331,7 @@ export function PlanEditor() {
           <g mask="url(#outside-rooms)">
             <ObjectLayer objects={objects} outdoor {...shared} />
           </g>
-          <PlanBase {...shared} />
+          <PlanBase {...shared} materials={project.materials} />
           <AisleLayer {...shared} />
           <ObjectLayer objects={objects} outdoor={false} {...shared} />
           <AreaLayer {...shared} />
@@ -401,8 +402,8 @@ interface LayerProps {
 
 const selId = (selection: Selection | null, kind: Selection['kind']) => (selection?.kind === kind ? selection.id : null);
 
-/** Floors, walls and openings. */
-const PlanBase = memo(function PlanBase({ plan, selection, marked, px }: LayerProps) {
+/** Floors, walls and openings. `materials` (interior projects) paints a floor in its material's colour. */
+const PlanBase = memo(function PlanBase({ plan, selection, marked, px, materials }: LayerProps & { materials?: CustomMaterial[] }) {
   const footprints = useMemo(() => wallFootprints(plan), [plan]);
   const sel = (kind: Selection['kind'], id: Id) => selId(selection, kind) === id || marked.has(id);
   return (
@@ -422,7 +423,7 @@ const PlanBase = memo(function PlanBase({ plan, selection, marked, px }: LayerPr
             key={r.id}
             opacity={r.hidden ? 0.15 : undefined}
             points={pts(roomPolygon(plan, r))}
-            fill={zoneColor(r)}
+            fill={r.finish?.floor ? roomFloorColor(r, { materials }) : zoneColor(r)}
             fillOpacity={sel('room', r.id) ? 1 : 0.85}
             stroke={sel('room', r.id) ? 'var(--select)' : 'none'}
             strokeWidth={3 * px}
@@ -1113,7 +1114,7 @@ const HINTS: Record<string, { name: string; tips: string[] }> = {
 };
 
 /** What works whatever the tool. */
-const GENERAL_TIPS = ['Ctrl+Z เลิกทำ • Ctrl+Y ทำซ้ำ', 'Delete ลบที่เลือก', 'Esc ยกเลิกเครื่องมือ', 'ลูกกลิ้งซูม • คลิกขวาลากเลื่อนแปลน', 'กดค้าง \ เพื่อดูแปลนใต้ภาพวาด'];
+const GENERAL_TIPS = ['Ctrl+Z เลิกทำ • Ctrl+Y ทำซ้ำ', 'Delete ลบที่เลือก', 'Esc ยกเลิกเครื่องมือ', 'ลูกกลิ้งซูม • คลิกขวาลากเลื่อนแปลน', 'กดค้าง \\ เพื่อดูแปลนใต้ภาพวาด'];
 
 const NO_TAPES: readonly { a: Vec2; b: Vec2 }[] = [];
 

@@ -22,9 +22,38 @@ export const ZONES: Record<ZoneKind, ZoneInfo> = {
   loading: { label: 'รับ-ส่งสินค้า', color: '#e3e0d6' },
   corridor: { label: 'ทางเดิน', color: '#ecebe8' },
   other: { label: 'อื่น ๆ', color: '#e7e5e1' },
+  // Home rooms (interior projects): offered by src/interior/zones.ts, never by the factory's picker.
+  living: { label: 'นั่งเล่น', color: '#efe6d8' },
+  dining: { label: 'ทานอาหาร', color: '#f1e5cf' },
+  bedroom: { label: 'นอน', color: '#e6e0ee' },
+  kitchen: { label: 'ครัว', color: '#e9e4d4' },
+  bath: { label: 'น้ำ', color: '#d8e7ee' },
+  study: { label: 'ทำงาน', color: '#dfe6dc' },
+  dressing: { label: 'แต่งตัว', color: '#eee0e4' },
+  laundry: { label: 'ซักล้าง', color: '#dde7e6' },
+  balcony: { label: 'ระเบียง', color: '#e3e8d8' },
+  hall: { label: 'โถง / ทางเดิน', color: '#ecebe8' },
+  storeroom: { label: 'เก็บของ', color: '#e5e1d8' },
 };
 
-export const ZONE_IDS = Object.keys(ZONES) as ZoneKind[];
+/** The factory's zones, in the order its picker shows them. Home rooms are listed by the interior module instead. */
+export const ZONE_IDS: ZoneKind[] = [
+  'production',
+  'warehouse',
+  'office',
+  'meeting',
+  'canteen',
+  'break',
+  'toilet',
+  'locker',
+  'reception',
+  'showroom',
+  'maintenance',
+  'qc',
+  'loading',
+  'corridor',
+  'other',
+];
 
 /** Ground outdoors: a yard or car park inside the fence. */
 export const OUTDOOR_COLOR = '#dcd8cf';

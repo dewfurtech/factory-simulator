@@ -7,6 +7,7 @@ import { useUi } from '../store/ui';
 import { ASSET_MIME, setDraggedAsset } from '../editor2d/PlanEditor';
 import { placeObjectAt } from '../editor2d/tools';
 import { Icon } from '../editor2d/Toolbar';
+import { isFurniture } from '../interior/furniture';
 
 function Thumb({ id }: { id: string }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -62,10 +63,13 @@ const readShelf = (): Shelf => {
   }
 };
 
-/** The library of Mastrox machines and built-in factory pieces: click to place, or drag onto the plan. */
-export function CatalogPanel() {
+/**
+ * The library of Mastrox machines and built-in factory pieces: click to place, or drag onto the plan.
+ * An interior project sees no machines: only the built-in furniture and the user's own models.
+ */
+export function CatalogPanel({ interior = false }: { interior?: boolean } = {}) {
   const [q, setQ] = useState('');
-  const [shelf, setShelfState] = useState<Shelf>(readShelf);
+  const [shelf, setShelfState] = useState<Shelf>(() => (interior ? (readShelf() === 'mine' ? 'mine' : 'general') : readShelf()));
   const [group, setGroup] = useState<CatalogGroup | 'all'>('all');
   const [tag, setTag] = useState<string | null>(null);
   const [form, setForm] = useState<{ model?: CustomModel } | null>(null);
@@ -100,7 +104,8 @@ export function CatalogPanel() {
     const needle = q.trim().toLowerCase();
     // A search looks through both shelves (Mastrox first), so nothing hides behind the other tab.
     const mine: CatalogItem[] = models.map((m) => ({ id: m.id, label: m.name, group: 'custom', size: m.size, summary: m.note, custom: m }));
-    const shown = [...CATALOG, ...mine].filter((c) =>
+    const all = interior ? [...CATALOG, ...mine].filter(isFurniture) : [...CATALOG, ...mine];
+    const shown = all.filter((c) =>
       needle
         ? c.label.toLowerCase().includes(needle) ||
           c.id.includes(needle) ||
@@ -109,22 +114,24 @@ export function CatalogPanel() {
         : shelfOf(c) === shelf && (group === 'all' || c.group === group) && (!c.custom || matchesTag(c.custom, tag)),
     );
     return GROUP_ORDER.map((g) => ({ g, items: shown.filter((c) => c.group === g) })).filter((x) => x.items.length);
-  }, [q, shelf, group, tag, models]);
+  }, [q, shelf, group, tag, models, interior]);
   return (
     <div className="dock-body" data-testid="catalog">
       <div className="shelf-tabs" role="tablist">
-        <button
-          role="tab"
-          aria-selected={shelf === 'mastrox'}
-          className={`shelf-tab mastrox${shelf === 'mastrox' ? ' on' : ''}`}
-          onClick={() => setShelf('mastrox')}
-          data-testid="shelf-mastrox"
-        >
-          <span className="mx-word">
-            mas<b>trox</b>
-          </span>
-          <span className="shelf-count">{MASTROX_COUNT}</span>
-        </button>
+        {!interior && (
+          <button
+            role="tab"
+            aria-selected={shelf === 'mastrox'}
+            className={`shelf-tab mastrox${shelf === 'mastrox' ? ' on' : ''}`}
+            onClick={() => setShelf('mastrox')}
+            data-testid="shelf-mastrox"
+          >
+            <span className="mx-word">
+              mas<b>trox</b>
+            </span>
+            <span className="shelf-count">{MASTROX_COUNT}</span>
+          </button>
+        )}
         <button
           role="tab"
           aria-selected={shelf === 'general'}
@@ -132,7 +139,7 @@ export function CatalogPanel() {
           onClick={() => setShelf('general')}
           data-testid="shelf-general"
         >
-          อุปกรณ์
+          {interior ? 'เฟอร์นิเจอร์' : 'อุปกรณ์'}
         </button>
         <button role="tab" aria-selected={shelf === 'mine'} className={`shelf-tab${shelf === 'mine' ? ' on' : ''}`} onClick={() => setShelf('mine')} data-testid="shelf-mine">
           ของฉัน{models.length > 0 && <span className="shelf-count">{models.length}</span>}
@@ -142,7 +149,7 @@ export function CatalogPanel() {
         <div className="search">
           <Icon name="search" />
           <input
-            placeholder={shelf === 'mastrox' ? 'ค้นหาเครื่องจักร Mastrox' : shelf === 'mine' ? 'ค้นหาชื่อหรือ tag' : 'ค้นหาอุปกรณ์'}
+            placeholder={shelf === 'mastrox' ? 'ค้นหาเครื่องจักร Mastrox' : shelf === 'mine' ? 'ค้นหาชื่อหรือ tag' : interior ? 'ค้นหาเฟอร์นิเจอร์' : 'ค้นหาอุปกรณ์'}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -167,7 +174,7 @@ export function CatalogPanel() {
           ))}
         </div>
       )}
-      {!searching && shelf !== 'mine' && (
+      {!searching && shelf !== 'mine' && !interior && (
         <div className="cat-chips">
           {(['all', ...SHELF_GROUPS[shelf]] as const).map((g) => (
             <button key={g} className={`chip${group === g ? ' on' : ''}${shelf === 'mastrox' ? ' mx' : ''}`} onClick={() => setGroup(g)} data-testid={`chip-${g}`}>
@@ -239,7 +246,9 @@ export function CatalogPanel() {
           </section>
         ))}
       </div>
-      <div className="dock-foot muted">คลิกแล้ววางบนแปลน หรือลากไปวาง • ด้านที่มีขีดหนาคือด้านหน้า (จุดที่คนยืนทำงาน)</div>
+      <div className="dock-foot muted">
+        {interior ? 'คลิกแล้ววางบนแปลน หรือลากไปวาง • ด้านที่มีขีดหนาคือด้านหน้า' : 'คลิกแล้ววางบนแปลน หรือลากไปวาง • ด้านที่มีขีดหนาคือด้านหน้า (จุดที่คนยืนทำงาน)'}
+      </div>
       {form && <ModelForm model={form.model} onClose={() => setForm(null)} />}
     </div>
   );

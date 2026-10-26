@@ -1,0 +1,37 @@
+import { expect, test } from '@playwright/test';
+import { freshApp, planCentre, projectState } from './helpers';
+
+test('an interior project opens in its own editor, takes a floor material and sums it up', async ({ page }) => {
+  await freshApp(page);
+  await page.getByTestId('new-interior').click();
+  await expect(page.getByTestId('interior-editor')).toBeVisible();
+  // No columns or aisles on the rail; no Mastrox shelf in the library.
+  await expect(page.getByTestId('group-column')).toHaveCount(0);
+  await expect(page.getByTestId('group-aisle')).toHaveCount(0);
+  await page.getByTestId('dock-catalog').click();
+  await expect(page.getByTestId('shelf-mastrox')).toHaveCount(0);
+  await page.getByTestId('dock-catalog').click();
+
+  await page.getByTestId('tool-drawRoomRect').click();
+  const c = await planCentre(page);
+  await page.mouse.click(c.x - 150, c.y - 100);
+  await page.mouse.click(c.x + 150, c.y + 100);
+  await expect.poll(() => projectState(page)).toMatchObject({ rooms: 1, walls: 4 });
+  await page.keyboard.press('Escape');
+  await page.mouse.click(c.x, c.y);
+  await expect(page.getByTestId('zone-living')).toBeVisible();
+  await page.getByTestId('surface-floor').click();
+  await page.getByTestId('material-oak').click();
+
+  await page.getByTestId('mood-tone').click();
+  await expect(page.getByTestId('mood-materials')).toContainText('ไม้โอ๊คอ่อน');
+  await expect(page.getByTestId('mood-palette')).toContainText('#C9A471');
+});
+
+test('the project list marks an interior project', async ({ page }) => {
+  await freshApp(page);
+  await page.getByTestId('new-interior').click();
+  await expect(page.getByTestId('interior-editor')).toBeVisible();
+  await page.goto('/#/');
+  await expect(page.getByTestId('card-kind')).toHaveText('ตกแต่งภายใน');
+});

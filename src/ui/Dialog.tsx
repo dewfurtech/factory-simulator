@@ -9,7 +9,9 @@ import { create } from 'zustand';
 type Open =
   | { kind: 'confirm'; title: string; message?: string; ok: string; danger?: boolean; resolve: (yes: boolean) => void }
   | { kind: 'prompt'; title: string; label?: string; value: string; ok: string; resolve: (text: string | null) => void }
-  | { kind: 'share'; title: string; message: string; ok: string; sender: string; make: (note: string, sender: string) => Promise<string>; resolve: () => void };
+  | { kind: 'share'; title: string; message: string; ok: string; sender: string; make: (note: string, sender: string) => Promise<string>; resolve: () => void }
+  /** Any content, drawn by the caller; `wide` for a page-like dialog. Closed by the backdrop, Escape, or `closeDialog()`. */
+  | { kind: 'custom'; render: (close: () => void) => React.ReactNode; wide?: boolean; resolve: () => void };
 
 interface DialogState {
   open: Open | null;
@@ -53,14 +55,34 @@ export function shareDialog(opts: { title: string; message: string; ok: string; 
   });
 }
 
+/** A dialog of the caller's own content. Resolves when it closes. */
+export function customDialog(render: (close: () => void) => React.ReactNode, opts: { wide?: boolean } = {}): Promise<void> {
+  return new Promise((resolve) => {
+    useDialog.setState({ open: { kind: 'custom', render, wide: opts.wide, resolve } });
+  });
+}
+
 export function DialogHost() {
   const open = useDialog((s) => s.open);
   if (!open) return null;
+  if (open.kind === 'custom') return <Custom d={open} />;
   if (open.kind === 'share') return <Share d={open} />;
   return open.kind === 'confirm' ? <Confirm d={open} /> : <Prompt d={open} />;
 }
 
-function Backdrop({ onDismiss, children }: { onDismiss: () => void; children: React.ReactNode }) {
+function Custom({ d }: { d: Extract<Open, { kind: 'custom' }> }) {
+  const done = () => {
+    close();
+    d.resolve();
+  };
+  return (
+    <Backdrop onDismiss={done} wide={d.wide}>
+      {d.render(done)}
+    </Backdrop>
+  );
+}
+
+function Backdrop({ onDismiss, wide, children }: { onDismiss: () => void; wide?: boolean; children: React.ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -73,7 +95,7 @@ function Backdrop({ onDismiss, children }: { onDismiss: () => void; children: Re
   }, [onDismiss]);
   return (
     <div className="dialog-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onDismiss()} data-testid="dialog">
-      <div className="dialog glass" role="dialog" aria-modal="true">
+      <div className={`dialog glass${wide ? ' dialog-wide' : ''}`} role="dialog" aria-modal="true">
         {children}
       </div>
     </div>

@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { deg, fmtArea, fmtLen, fmtSize, rad } from '../format';
 import { CATALOG, catalogItem, GROUP_LABEL, GROUP_ORDER, machineFootprint } from '../model/catalog';
 import { DOOR_STYLE_LABEL, isHanded, isSliding } from '../model/openings';
 import { checkClearance, issueText } from '../model/clearance';
 import { moveCorner, roomStats, setWallLength, wallLength } from '../model/plan';
 import { projectFacts } from '../model/project';
-import type { Area, Column, DoorStyle, OpeningKind, PlacedObject, Project, ZoneKind } from '../model/types';
+import type { Area, Column, DoorStyle, OpeningKind, PlacedObject, Project, Room, Wall, ZoneKind } from '../model/types';
 import { ZONE_IDS, ZONES } from '../model/zones';
 import { AREA_COLORS, areaStats } from '../model/areas';
 import { AISLE_KIND_IDS, AISLE_KINDS, aisleLength, isArrow, setAisleKind } from '../model/aisles';
@@ -74,7 +74,14 @@ function MachineModelPicker({ o }: { o: PlacedObject }) {
   );
 }
 
-export function PropertiesPanel() {
+/** What another kind of project (an interior) adds to the panel: its own zone list and extra sections under a room or wall. */
+export interface PanelExtras {
+  zoneIds?: ZoneKind[];
+  roomExtra?: (room: Room) => ReactNode;
+  wallExtra?: (wall: Wall) => ReactNode;
+}
+
+export function PropertiesPanel(extras: PanelExtras = {}) {
   const selection = useUi((s) => s.selection);
   const boxed = useUi((s) => s.boxed);
   const project = useEditProject()!;
@@ -87,7 +94,7 @@ export function PropertiesPanel() {
   }, []);
   return (
     <aside className="side-panel" data-testid="properties" style={armed ? undefined : { pointerEvents: 'none' }}>
-      {boxed.length > 0 ? <Multi count={boxed.length} /> : selection ? <SelectionProps sel={selection} project={project} /> : <ProjectProps project={project} />}
+      {boxed.length > 0 ? <Multi count={boxed.length} /> : selection ? <SelectionProps sel={selection} project={project} extras={extras} /> : <ProjectProps project={project} />}
     </aside>
   );
 }
@@ -134,7 +141,7 @@ function Multi({ count }: { count: number }) {
   );
 }
 
-function SelectionProps({ sel, project }: { sel: Selection; project: Project }) {
+function SelectionProps({ sel, project, extras }: { sel: Selection; project: Project; extras: PanelExtras }) {
   const { plan } = project;
   switch (sel.kind) {
     case 'corner': {
@@ -167,6 +174,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
             <label className="check">
               <input type="checkbox" checked={!!w.glass} onChange={(e) => set((x) => void (x.glass = e.target.checked || undefined))} /> ผนังกระจก
             </label>
+            {extras.wallExtra?.(w)}
             <button className="btn btn-sm" onClick={() => addDoorAt(null, 0, w.id)} data-testid="wall-add-door">
               + ใส่ประตูกลางผนัง
             </button>
@@ -204,7 +212,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
             <TextField label="ชื่อโซน" value={r.name} onChange={(v) => set((x) => void (x.name = v))} />
             <Field label="ประเภทโซน">
               <div className="zone-grid">
-                {ZONE_IDS.map((z: ZoneKind) => (
+                {(extras.zoneIds ?? ZONE_IDS).map((z: ZoneKind) => (
                   <button key={z} className={`zone-chip${r.zone === z ? ' on' : ''}`} onClick={() => set((x) => void ((x.zone = z), delete x.color))} data-testid={`zone-${z}`}>
                     <i style={{ background: ZONES[z].color }} />
                     {ZONES[z].label}
@@ -230,6 +238,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
                 <span>ชิ้นในโซน</span>
               </div>
             </div>
+            {extras.roomExtra?.(r)}
           </div>
         </>
       );
@@ -503,15 +512,16 @@ function ProjectProps({ project }: { project: Project }) {
   const tool = useUi((s) => s.tool);
   const issues = checkClearance(project);
   const troubled = project.objects.filter((o) => issues.has(o.id));
+  const interior = project.kind === 'interior';
   return (
     <>
       <div className="panel-head">
         <div className="panel-icon">
-          <Icon name="factory" />
+          <Icon name={interior ? 'house' : 'factory'} />
         </div>
         <div className="grow">
           <div className="panel-title">{project.name}</div>
-          <div className="panel-sub">ตั้งค่าโรงงาน</div>
+          <div className="panel-sub">{interior ? 'ตั้งค่าโครงการ' : 'ตั้งค่าโรงงาน'}</div>
         </div>
         <button className="ib" onClick={closePanel} title="ปิด (Esc)" aria-label="ปิด">
           <Icon name="close" />
@@ -525,11 +535,11 @@ function ProjectProps({ project }: { project: Project }) {
           </div>
           <div>
             <b>{facts.rooms}</b>
-            <span>โซน</span>
+            <span>{interior ? 'ห้อง' : 'โซน'}</span>
           </div>
           <div>
-            <b>{facts.machines}</b>
-            <span>เครื่องจักร</span>
+            <b>{interior ? project.objects.length : facts.machines}</b>
+            <span>{interior ? 'เฟอร์นิเจอร์' : 'เครื่องจักร'}</span>
           </div>
         </div>
         <TextField label="ชื่อโครงการ" value={project.name} onChange={(v) => applyEdit((d) => void (d.name = v))} />
@@ -562,7 +572,9 @@ function ProjectProps({ project }: { project: Project }) {
             <p className="muted small">ไม่พบของซ้อนทับ ทับผนัง สูงเกินเพดาน หรือเครื่องที่ไม่มีที่ยืนทำงาน</p>
           )}
         </Field>
-        <p className="muted small">คลิกเครื่องจักร โซน ผนัง ประตู หรือเสาบนแปลน เพื่อดูรายละเอียดและแก้ไข</p>
+        <p className="muted small">
+          {interior ? 'คลิกห้อง ผนัง ประตู หรือเฟอร์นิเจอร์บนแปลน เพื่อดูรายละเอียด เลือกวัสดุ และแก้ไข' : 'คลิกเครื่องจักร โซน ผนัง ประตู หรือเสาบนแปลน เพื่อดูรายละเอียดและแก้ไข'}
+        </p>
       </div>
     </>
   );
