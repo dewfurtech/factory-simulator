@@ -236,6 +236,42 @@ export interface Project {
   renders?: Render[];
   /** The prompt as last edited in the render dialog; absent until it is changed from the one built from the plan. */
   renderPrompt?: string;
+  /**
+   * Interior projects: the prices the user typed into the BOQ quote, per BOQ line id. Kept with the project and its
+   * exported file, left out of a share link (as `client` is).
+   */
+  priceBook?: PriceBook;
+  /** Interior projects: the user's own settings for the BOQ take-off and quote. */
+  boqOptions?: BoqOptions;
+}
+
+/** Prices per BOQ line id: per purchase unit, and labour per unit of net quantity. Any field may be empty. */
+export type PriceBook = Record<string, { unitPrice?: number; laborPerUnit?: number }>;
+
+/** How the user counts one material in the BOQ, over the defaults in src/interior/materialUnits.ts. */
+export interface BoqSpecOverride {
+  /** Tile, plank or board size, mm. */
+  pieceW?: Mm;
+  pieceH?: Mm;
+  /** Pieces in a box; set, the purchase is in boxes. */
+  perBox?: number;
+  /** Paint: square metres one unit covers per coat, and how many coats. */
+  coverageM2?: number;
+  coats?: number;
+  /** Roll: width and length of one roll, mm. */
+  rollW?: Mm;
+  rollL?: Mm;
+}
+
+export interface BoqOptions {
+  /** % allowance per BOQ line id, over the default. */
+  wastePct?: Record<string, number>;
+  /** VAT % on the quote; absent means no VAT. */
+  vatPct?: number;
+  /** Per material id. */
+  specs?: Record<MaterialId, BoqSpecOverride>;
+  /** Skirting along every room's walls, less its doors: named by the user, in lengths of `pieceLengthMm` when given. */
+  skirting?: { name: string; pieceLengthMm?: Mm };
 }
 
 export type ProjectKind = 'factory' | 'interior';
