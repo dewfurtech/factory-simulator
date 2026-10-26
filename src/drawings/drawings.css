@@ -1,0 +1,194 @@
+/*
+ * The construction drawing set (DrawingsPage.tsx): a sheet list and one A3 sheet to zoom and move, full screen.
+ * Every rule is under .drawings-* names, and the print rules act only while <html> has .drawings-printing (set by
+ * the page's print button), so the BOQ's A4 print and the presentation's A3 print keep their own rules.
+ */
+
+/* The top bar button: an icon only (its title names it), the interior bar being full already. */
+.editor.interior [data-testid='drawings-open'] span {
+  display: none;
+}
+.editor.interior [data-testid='drawings-open'] {
+  padding: 0 7px;
+}
+/* Narrower, the bar has no room left for it: the main menu's "แบบก่อสร้าง (A3)" opens the set instead. */
+@media (max-width: 1500px) {
+  .editor.interior [data-testid='drawings-open'] {
+    display: none;
+  }
+}
+
+.drawings-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.drawings-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 10px 16px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.drawings-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.drawings-title b {
+  font-size: 16px;
+}
+.drawings-title .muted {
+  font-size: 12.5px;
+}
+.drawings-zoom {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.drawings-zoom-pct {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+.drawings-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.drawings-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.drawings-list {
+  width: 230px;
+  flex: none;
+  overflow: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--card);
+  border-right: 1px solid var(--line);
+}
+.drawings-list button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.drawings-list button:hover {
+  background: var(--bg);
+}
+.drawings-list button.on {
+  border-color: var(--accent);
+  background: var(--bg);
+}
+.drawings-list b {
+  font-size: 13.5px;
+}
+.drawings-list span {
+  font-size: 12.5px;
+}
+.drawings-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: #dfe3e8;
+  cursor: grab;
+  touch-action: none;
+}
+.drawings-stage:active {
+  cursor: grabbing;
+}
+.drawings-paper {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  box-shadow: 0 2px 14px rgba(15, 23, 42, 0.22);
+  line-height: 0;
+}
+.drawings-paper svg {
+  display: block;
+}
+.drawings-print {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .drawings-bar {
+    padding: 8px 10px;
+    gap: 6px 10px;
+  }
+  .drawings-body {
+    flex-direction: column;
+  }
+  .drawings-list {
+    width: auto;
+    flex-direction: row;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 6px;
+  }
+  .drawings-list button {
+    flex: none;
+  }
+}
+
+/* ---------- Print: the sheets alone, one A3 landscape page each, edge to edge ---------- */
+
+@page drawings-a3 {
+  size: A3 landscape;
+  margin: 0;
+}
+@media print {
+  html.drawings-printing body > *:not(.drawings-root) {
+    display: none !important;
+  }
+  html.drawings-printing body > .drawings-root {
+    display: block !important;
+    position: static;
+    background: #fff;
+  }
+  html.drawings-printing .drawings-bar,
+  html.drawings-printing .drawings-body {
+    display: none !important;
+  }
+  html.drawings-printing .drawings-print {
+    display: block;
+  }
+  html.drawings-printing .drawings-print-sheet {
+    page: drawings-a3;
+    display: block;
+    width: 420mm;
+    height: 297mm;
+    overflow: hidden;
+    break-after: page;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  html.drawings-printing .drawings-print-sheet svg {
+    display: block;
+  }
+  html.drawings-printing .drawings-print-sheet:last-child {
+    break-after: auto;
+  }
+}

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { inflateSync } from 'node:zlib';
 import { freshApp, planCentre, projectState } from './helpers';
 
 /** The start page with the interior mode switched on, as `?interior` does on the live site. */
@@ -505,4 +506,97 @@ test('the sample condo opens from the start page furnished, without placement pr
   await expect(page.getByTestId('boq-line-oak')).toBeVisible();
   await expect(page.getByTestId('boq-line-tile-grey-600')).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+/**
+ * How wide, in points, each page of a printed drawing set draws the sheet frame (`10 10 400 277 re` in sheet mm):
+ * the page's own scale times the scale set just before the frame, read off the inflated content streams.
+ */
+function pdfFrameWidths(pdf: Buffer): number[] {
+  const text = pdf.toString('latin1');
+  const widths: number[] = [];
+  for (const m of text.matchAll(/stream\r?\n/g)) {
+    const start = m.index! + m[0].length;
+    let body: string;
+    try {
+      body = inflateSync(pdf.subarray(start, text.indexOf('endstream', start))).toString('latin1');
+    } catch {
+      continue;
+    }
+    const frame = body.indexOf('10 10 400 277 re');
+    if (frame < 0) continue;
+    const scales = [...body.slice(0, frame).matchAll(/([\d.]+) 0 0 -?[\d.]+ [-\d.]+ [-\d.]+ cm/g)].map((s) => Number(s[1]));
+    widths.push(400 * scales[0] * scales[scales.length - 1]);
+  }
+  return widths;
+}
+
+test('the construction drawings of the sample condo: a cover and a dimensioned plan, printed A3 and saved as DXF', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => void (m.type() === 'error' && errors.push(m.text())));
+  // Wide enough for the top bar button; narrower, it is only in the main menu.
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await interiorApp(page);
+  await page.getByTestId('new-sample-condo').click();
+  await expect(page.getByTestId('interior-editor')).toBeVisible();
+
+  await page.getByTestId('drawings-open').click();
+  await expect(page.getByTestId('drawings')).toBeVisible();
+  const sheet = page.getByTestId('drawing-sheet');
+  // The cover first: the project's name and the index of every sheet.
+  await expect(sheet).toHaveAttribute('data-sheet', 'ID-00-01');
+  await expect(sheet.getByTestId('cover')).toContainText('ห้องตัวอย่าง: คอนโด 1 ห้องนอน');
+  await expect(sheet.getByTestId('cover-index-row')).toHaveCount(2);
+  await expect(sheet.getByTestId('cover')).toContainText('FLOOR PLAN / แปลนพื้น');
+
+  // The plan: overall dimensions over the outer faces, 7000 + 200 by 5500 + 200, its number in the title block.
+  await page.getByTestId('drawings-item-ID-04-01').click();
+  await expect(sheet).toHaveAttribute('data-sheet', 'ID-04-01');
+  await expect(sheet.locator('[data-dim="7200"]')).toHaveCount(1);
+  await expect(sheet.locator('[data-dim="5700"]')).toHaveCount(1);
+  await expect(sheet.getByTestId('title-block')).toContainText('ID-04-01');
+  await expect(sheet.getByTestId('title-block')).toContainText('หน่วย มม. · ตรวจระยะหน้างาน');
+  await expect(sheet).toContainText('ห้องนอน');
+  await expect(sheet).toContainText(/SCALE 1:\d+/);
+
+  const zoom = await page.getByTestId('drawings-zoom').textContent();
+  await page.getByTestId('drawings-zoom-in').click();
+  await expect(page.getByTestId('drawings-zoom')).not.toHaveText(zoom!);
+
+  // DXF of the plan, at full size in mm.
+  const [dxf] = await Promise.all([page.waitForEvent('download'), page.getByTestId('drawings-dxf').click()]);
+  expect(dxf.suggestedFilename()).toMatch(/ID-04-01\.dxf$/);
+  const { readFile } = await import('node:fs/promises');
+  const text = await readFile((await dxf.path())!, 'utf8');
+  expect(text).toContain('AC1009');
+  expect(text).toMatch(/\r\n7200\r\n/);
+
+  // Printed, one A3 landscape page a sheet.
+  await page.evaluate(() => document.documentElement.classList.add('drawings-printing'));
+  const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+  expect(pdfPages(pdf)).toEqual(Array(2).fill({ w: 1191, h: 842 }));
+  // At full size, not shrunk to fit: the sheet's 400 mm frame is drawn 400 mm (1133.9 pt) wide.
+  expect(pdfFrameWidths(pdf).map(Math.round)).toEqual([1134, 1134]);
+  await page.evaluate(() => document.documentElement.classList.remove('drawings-printing'));
+
+  await page.getByTestId('drawings-close').click();
+  await expect(page.getByTestId('drawings')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test.describe('construction drawings on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('the drawings open from the main menu', async ({ page }) => {
+    await interiorApp(page);
+    await page.getByTestId('new-sample-condo').click();
+    await expect(page.getByTestId('interior-editor')).toBeVisible();
+    await expect(page.getByTestId('drawings-open')).toBeHidden();
+    await page.getByTestId('main-menu').click();
+    await page.getByTestId('menu-drawings').click();
+    await expect(page.getByTestId('drawing-sheet')).toBeVisible();
+    await page.getByTestId('drawings-item-ID-04-01').click();
+    await expect(page.getByTestId('drawing-sheet').locator('[data-dim="7200"]')).toHaveCount(1);
+  });
 });
