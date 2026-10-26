@@ -3,7 +3,9 @@ import { addPolygon, DEFAULT_WALL } from '../model/plan';
 import type { Id, Project } from '../model/types';
 import { withoutPrivate } from '../store/private';
 import { quote } from './boq';
-import { boqSurfaces, lineUses, projectBoq, rectSize, SKIRTING_ID } from './boqSurfaces';
+import { boardId, boqSurfaces, lineUses, projectBoq, rectSize, SKIRTING_ID } from './boqSurfaces';
+import { cabinetParts } from './cabinet/parts';
+import { normalizeSpec, type CabinetSpec } from './cabinet/spec';
 import { defaultUnit, materialSpec } from './materialUnits';
 import { MATERIALS } from './materials';
 import { newInteriorProject } from './project';
@@ -129,5 +131,61 @@ describe('prices stay out of a share link', () => {
     expect(q.subtotal).toBe(6300);
     expect(q.total).toBe(6741);
     expect(q.unpricedItems).toEqual(['สีขาว']);
+  });
+});
+
+describe('built-in cabinets in the BOQ', () => {
+  /** The hand room with a base cabinet 1200 wide in two bays, a wall cabinet, and a sofa. */
+  function withCabinets(): Project {
+    const p = handRoom();
+    const place = (id: string, assetId: string, name: string, cabinet?: CabinetSpec) => {
+      const size = cabinet ? { w: cabinet.width, d: cabinet.depth, h: cabinet.height } : { w: 1600, d: 850, h: 800 };
+      p.objects.push({ id: id as Id, assetId, name, x: 2000, y: 2500, z: 0, rotation: 0, size, ...(cabinet && { cabinet }) });
+    };
+    place(
+      'o1',
+      'cab-base',
+      'ตู้ล่าง',
+      normalizeSpec({
+        kind: 'base',
+        width: 1200,
+        bays: [
+          { front: { kind: 'door', hinge: 'left' }, shelves: 1 },
+          { front: { kind: 'drawers', tiers: 3 }, shelves: 0 },
+        ],
+      }),
+    );
+    place('o2', 'cab-wall', 'ตู้แขวน', normalizeSpec({ kind: 'wall' }));
+    place('o3', 'home-sofa-2', 'โซฟา 2 ที่นั่ง');
+    return p;
+  }
+
+  it('counts each cabinet by its boards, from its own parts list, and not as a piece', () => {
+    const p = withCabinets();
+    const { lines } = projectBoq(p);
+    expect(lines.map((l) => l.item)).not.toContain('ตู้ล่าง');
+    expect(lines.map((l) => l.item)).toContain('โซฟา 2 ที่นั่ง');
+    // Every square metre of every cabinet's parts list is on a board line, and every metre of edging on an edge line.
+    const want = p.objects.filter((o) => o.cabinet).map((o) => cabinetParts(o.cabinet!));
+    const area = want.reduce((s, c) => s + Object.values(c.areaByMaterial).reduce((a, b) => a + (b ?? 0), 0), 0);
+    const edge = want.reduce((s, c) => s + c.edgeBandTotal, 0) / 1000;
+    const boards = lines.filter((l) => l.category === 'cabinet' && !l.id.endsWith(':edge'));
+    const edges = lines.filter((l) => l.category === 'cabinet' && l.id.endsWith(':edge'));
+    expect(boards.reduce((s, l) => s + l.net, 0)).toBeCloseTo(area, 1);
+    expect(edges.reduce((s, l) => s + l.net, 0)).toBeCloseTo(edge, 1);
+    // The 18 mm particle board of both cabinets is one line, named by material and thickness, used by both.
+    const carcass = lines.find((l) => l.id === boardId('particle', 18))!;
+    expect(carcass.item).toBe('ปาร์ติเกิลบอร์ด 18 มม.');
+    expect(carcass.rooms).toEqual(['ตู้ล่าง', 'ตู้แขวน']);
+    expect(carcass.purchase.unit).toBe('ตร.ม.');
+  });
+
+  it('a sheet size typed for a board counts it in sheets', () => {
+    const p = withCabinets();
+    p.boqOptions = { specs: { [boardId('particle', 18)]: { pieceW: 1220, pieceH: 2440 } } };
+    const carcass = projectBoq(p).lines.find((l) => l.id === boardId('particle', 18))!;
+    expect(carcass.purchase.unit).toBe('แผ่น');
+    expect(carcass.purchase.qty).toBeGreaterThan(0);
+    expect(carcass.purchase.qty).toBe(Math.ceil((carcass.net / (1.22 * 2.44)) * (1 + carcass.wastePct / 100) - 1e-9));
   });
 });

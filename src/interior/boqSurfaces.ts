@@ -1,7 +1,9 @@
 import { roomPolygon, roomStats, roomWalls, wallLength } from '../model/plan';
 import type { Plan, Project, Room } from '../model/types';
 import { dist, sub } from '../model/vec';
-import { skirtingSurface, takeOff, type BoqLine, type MaterialSpec, type Opening as BoqOpening, type Surface } from './boq';
+import { skirtingSurface, takeOff, type BoqLine, type CabinetPartSummary, type MaterialSpec, type Opening as BoqOpening, type Surface } from './boq';
+import { cabinetParts } from './cabinet/parts';
+import { BOARD_MATERIAL_TH, type BoardMaterial } from './cabinet/spec';
 import { SURFACE_LABEL, type Surface as SurfaceKind } from './materials';
 import { materialSpec } from './materialUnits';
 import { moodSummary, plansOf, roomSurfaces, wallFaceHeight } from './summary';
@@ -91,7 +93,43 @@ export interface ProjectBoq {
   lines: BoqLine[];
 }
 
-/** The project's whole take-off: its surfaces, the skirting when asked for, and the furniture placed. */
+/** The BOQ line id of one board of the cabinets: its material and thickness. */
+export const boardId = (material: BoardMaterial, thickness: number) => `board-${material}-${thickness}`;
+
+/**
+ * The boards the built-in cabinets are cut from, from each cabinet's own parts list (src/interior/cabinet/parts.ts):
+ * the area of every board by material and thickness, and the edge banding on it. Boards come in sizes that differ
+ * from maker to maker, so each is counted in square metres until the user gives a sheet size in the BOQ page.
+ */
+export function cabinetBoards(project: Project): { parts: CabinetPartSummary[]; specs: MaterialSpec[] } {
+  const parts: CabinetPartSummary[] = [];
+  const specs = new Map<string, MaterialSpec>();
+  for (const o of project.objects) {
+    if (o.hidden || !o.cabinet) continue;
+    const boards = new Map<string, CabinetPartSummary>();
+    for (const l of cabinetParts(o.cabinet).lines) {
+      const id = boardId(l.material, l.t);
+      const b = boards.get(id) ?? { material: id, areaM2: 0, edgeBandM: 0, label: o.name };
+      b.areaM2 += (l.w * l.l * l.qty) / 1e6;
+      b.edgeBandM += l.edgeBand / 1000;
+      boards.set(id, b);
+      if (!specs.has(id)) {
+        const s = project.boqOptions?.specs?.[id];
+        const sheet = s?.pieceW && s.pieceH ? { w: s.pieceW, h: s.pieceH } : null;
+        specs.set(id, {
+          id,
+          name: `${BOARD_MATERIAL_TH[l.material]} ${l.t} มม.`,
+          unit: sheet ? { kind: 'sheet', sheetMm: sheet } : { kind: 'area' },
+          ...(sheet && s?.perBox ? { perBox: s.perBox } : {}),
+        });
+      }
+    }
+    parts.push(...boards.values());
+  }
+  return { parts, specs: [...specs.values()] };
+}
+
+/** The project's whole take-off: its surfaces, the skirting when asked for, the furniture placed and the cabinets' boards. */
 export function projectBoq(project: Project): ProjectBoq {
   const opts = project.boqOptions ?? {};
   const surfaces = boqSurfaces(project);
@@ -105,7 +143,11 @@ export function projectBoq(project: Project): ProjectBoq {
       unit: { kind: 'linear', ...(opts.skirting.pieceLengthMm && { pieceLengthMm: opts.skirting.pieceLengthMm }) },
     });
   }
-  const furniture = moodSummary(project).furniture.map((f) => ({ name: f.name, qty: f.count, sizeMm: f.size }));
-  const lines = takeOff(surfaces, specs, { wastePct: opts.wastePct, furniture });
+  // A built-in cabinet is counted by its boards below, not as a piece of furniture.
+  const loose = { ...project, objects: project.objects.filter((o) => !o.cabinet) };
+  const furniture = moodSummary(loose).furniture.map((f) => ({ name: f.name, qty: f.count, sizeMm: f.size }));
+  const boards = cabinetBoards(project);
+  specs.push(...boards.specs);
+  const lines = takeOff(surfaces, specs, { wastePct: opts.wastePct, furniture, cabinetParts: boards.parts });
   return { surfaces, specs, lines };
 }
