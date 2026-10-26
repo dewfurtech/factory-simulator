@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import '../src/styles.css';
 import './cabinet.css';
+import { ModelImport } from './ModelImport';
 import { buildCabinet, disposeCabinet, isCabinet, setOpen } from '../src/interior/cabinet/cabinet3d';
 import { FURNITURE_SHAPES } from '../src/interior/cabinet/furnitureShapes';
 import { cabinetParts, MATERIAL_GROUP_TH } from '../src/interior/cabinet/parts';
@@ -46,7 +47,10 @@ const SAMPLES: Array<{ spec: CabinetSpec; x: number; y: number }> = [
 const SKY = '#e9edf1';
 const GROUND = '#d5dbd2';
 
-function Scene({ spec, open }: { spec: CabinetSpec; open: number }) {
+/** Where a dropped model stands: in front of the main cabinet, where the camera looks first. */
+const IMPORT_AT = new THREE.Vector3(0.4, 0, 1.4);
+
+function Scene({ spec, open, imported }: { spec: CabinetSpec; open: number; imported: THREE.Group | null }) {
   const host = useRef<HTMLDivElement>(null);
   const world = useRef<{ scene: THREE.Scene; main: THREE.Group | null } | null>(null);
 
@@ -133,6 +137,25 @@ function Scene({ spec, open }: { spec: CabinetSpec; open: number }) {
       if (isCabinet(o)) setOpen(o, open);
     });
   }, [open, spec]);
+
+  useEffect(() => {
+    const w = world.current;
+    if (!w || !imported) return;
+    imported.position.copy(IMPORT_AT);
+    w.scene.add(imported);
+    return () => {
+      w.scene.remove(imported);
+      imported.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        m.geometry.dispose();
+        for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
+          (mat as THREE.MeshStandardMaterial).map?.dispose();
+          mat.dispose();
+        }
+      });
+    };
+  }, [imported]);
 
   return <div className="cab-view" ref={host} />;
 }
@@ -244,6 +267,7 @@ const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
 function App() {
   const [spec, setSpec] = useState<CabinetSpec>(START);
   const [open, setOpenFraction] = useState(0);
+  const [imported, setImported] = useState<THREE.Group | null>(null);
   const parts = useMemo(() => cabinetParts(spec), [spec]);
   const patch = (p: Partial<CabinetSpec>) => setSpec(normalizeSpec({ ...spec, ...p }));
   const setBay = (i: number, b: Bay) => patch({ bays: spec.bays.map((x, k) => (k === i ? b : x)) });
@@ -275,7 +299,7 @@ function App() {
       </header>
 
       <main className="cab-main">
-        <Scene spec={spec} open={open} />
+        <Scene spec={spec} open={open} imported={imported} />
         <div className="cab-hint glass">ลากเพื่อหมุน · ล้อเมาส์ซูม · คลิกขวาเลื่อน</div>
         <div className="cab-open glass">
           <b>เปิดบาน</b>
@@ -380,6 +404,9 @@ function App() {
               ))}
               <FragmentRow label="ปิดขอบ" value={`${(parts.edgeBandTotal / 1000).toFixed(2)} ม.`} />
             </div>
+
+            <h5>นำเข้าโมเดลจาก SketchUp</h5>
+            <ModelImport onModel={setImported} />
           </div>
         </aside>
       </main>
@@ -396,4 +423,6 @@ function FragmentRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-createRoot(document.getElementById('root')!).render(<App />);
+// One root for the page's life: a hot reload of this module renders into it again rather than making another.
+const holder = window as unknown as { __cabinetRoot?: Root };
+(holder.__cabinetRoot ??= createRoot(document.getElementById('root')!)).render(<App />);
