@@ -535,6 +535,8 @@ test('the construction drawings of the sample condo: a cover and a dimensioned p
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => void (m.type() === 'error' && errors.push(m.text())));
+  // Wide enough for the top bar button; narrower, it is only in the main menu.
+  await page.setViewportSize({ width: 1600, height: 900 });
   await interiorApp(page);
   await page.getByTestId('new-sample-condo').click();
   await expect(page.getByTestId('interior-editor')).toBeVisible();

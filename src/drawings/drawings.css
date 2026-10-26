@@ -4,13 +4,17 @@
  * the page's print button), so the BOQ's A4 print and the presentation's A3 print keep their own rules.
  */
 
-/* The top bar button: icon only below 1640px, like the interior bar's other wide labels (its title names it). */
-@media (max-width: 1640px) {
-  .editor.interior [data-testid='drawings-open'] span {
-    display: none;
-  }
+/* The top bar button: an icon only (its title names it), the interior bar being full already. */
+.editor.interior [data-testid='drawings-open'] span {
+  display: none;
+}
+.editor.interior [data-testid='drawings-open'] {
+  padding: 0 7px;
+}
+/* Narrower, the bar has no room left for it: the main menu's "แบบก่อสร้าง (A3)" opens the set instead. */
+@media (max-width: 1500px) {
   .editor.interior [data-testid='drawings-open'] {
-    padding: 0 7px;
+    display: none;
   }
 }
 
