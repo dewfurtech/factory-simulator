@@ -192,10 +192,25 @@ async function fetchShare(id: string): Promise<{ bundle: Bundle; meta: ShareMeta
 const copyKey = (id: string) => `factory:share:${id}`;
 
 /**
- * Opens a shared link: the local copy made the first time it was opened in this browser (with any moves made since),
- * or a fresh import of the share.
+ * Opens being worked on, by share id. Two opens of the same link at once (React's StrictMode runs the opening effect
+ * twice in development) would each find no local copy yet and import the share twice: the second waits for the first.
  */
-export async function openShare(id: string): Promise<{ project: Project; copy: SharedCopy }> {
+const opening = new Map<string, Promise<{ project: Project; copy: SharedCopy }>>();
+
+/**
+ * Opens a shared link: the local copy made the first time it was opened in this browser (with any moves made since),
+ * or a fresh import of the share. Opening it again never adds a second copy while the first is still in the list.
+ */
+export function openShare(id: string): Promise<{ project: Project; copy: SharedCopy }> {
+  let p = opening.get(id);
+  if (!p) {
+    p = openShareOnce(id).finally(() => opening.delete(id));
+    opening.set(id, p);
+  }
+  return p;
+}
+
+async function openShareOnce(id: string): Promise<{ project: Project; copy: SharedCopy }> {
   const copy = await get<SharedCopy>(copyKey(id));
   if (copy) {
     const project = await loadProject(copy.projectId);
