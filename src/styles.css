@@ -3909,3 +3909,49 @@ body:has(.home) {
     grid-template-columns: 1fr;
   }
 }
+
+/* Interior: a built-in cabinet's panel (src/interior/CabinetPanel.tsx). */
+.cabinet-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cab-bay {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 8px;
+  align-items: end;
+}
+.cab-parts summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.cab-parts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 6px 0;
+}
+.cab-parts-table th {
+  text-align: left;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.cab-parts-table td,
+.cab-parts-table th {
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  vertical-align: top;
+}
+.cab-parts-table .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.mf-check > span:last-child {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+}

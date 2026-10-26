@@ -1,3 +1,5 @@
+import type { CabinetSpec } from '../interior/cabinet/spec';
+
 export type Id = string & { __brand: 'Id' };
 export type Mm = number;
 
@@ -190,6 +192,15 @@ export interface PlacedObject extends LayerFlags {
   breakdownsPerDay?: number;
   /** Machines only: where the work goes in and out as the user set it, over what the catalog says. */
   flow?: FlowOverride;
+  /** Interior projects: a built-in cabinet made to this spec; its width, depth and height are the object's size. */
+  cabinet?: CabinetSpec;
+  /** Interior projects: what a cabinet's doors and carcass wear, each a material id or a '#rrggbb' colour. */
+  colors?: PieceColors;
+}
+
+export interface PieceColors {
+  front?: string;
+  carcass?: string;
 }
 
 /** A side of a machine in its own frame: front is where the operator stands (plan local +y), right is plan local +x. */
