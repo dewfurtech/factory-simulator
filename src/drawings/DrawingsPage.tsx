@@ -58,6 +58,9 @@ interface ViewState {
 function DrawingsPage({ close }: { close: () => void }) {
   const project = useProject((s) => s.project!);
   const [openedAt] = useState(() => Date.now());
+  const [menu, setMenu] = useState(false);
+  const menuOpen = useRef(menu);
+  menuOpen.current = menu;
   const [unit, pickUnit] = useState<LengthUnit>(savedUnit);
   const setUnit = (u: LengthUnit) => {
     pickUnit(u);
@@ -95,11 +98,12 @@ function DrawingsPage({ close }: { close: () => void }) {
   }, [fit]);
 
   useEffect(() => {
+    // Escape puts the gear menu away first, then closes the set.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        close();
-      }
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      if (menuOpen.current) setMenu(false);
+      else close();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
@@ -172,13 +176,6 @@ function DrawingsPage({ close }: { close: () => void }) {
           <b>แบบก่อสร้าง</b>
           <span className="muted">A3 แนวนอน · {pages} แผ่น</span>
         </div>
-        <div className="seg drawings-unit" role="radiogroup" aria-label="หน่วยของตัวเลขมิติ" title="หน่วยของตัวเลขมิติบนแบบ (เส้นและมาตราส่วนเท่าเดิม)">
-          {LENGTH_UNITS.map((u) => (
-            <button key={u} type="button" role="radio" aria-checked={unit === u} className={unit === u ? 'on' : ''} onClick={() => setUnit(u)} data-testid={`drawings-unit-${u}`}>
-              {UNIT_TH[u]}
-            </button>
-          ))}
-        </div>
         <div className="drawings-zoom" role="group" aria-label="ซูม">
           <button type="button" className="ib" onClick={() => zoomBy(1 / 1.25)} title="ซูมออก" aria-label="ซูมออก" data-testid="drawings-zoom-out">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
@@ -196,6 +193,7 @@ function DrawingsPage({ close }: { close: () => void }) {
           </button>
         </div>
         <div className="drawings-actions">
+          <SettingsMenu open={menu} setOpen={setMenu} unit={unit} setUnit={setUnit} />
           <button
             type="button"
             className="btn"
@@ -251,6 +249,51 @@ function DrawingsPage({ close }: { close: () => void }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The gear on the bar: settings of how the set is written, in a small menu (for now the unit of the dimension
+ * numbers). Closes on a pick outside it; Escape is handled by the page.
+ */
+function SettingsMenu({ open, setOpen, unit, setUnit }: { open: boolean; setOpen: (o: boolean) => void; unit: LengthUnit; setUnit: (u: LengthUnit) => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [open, setOpen]);
+  return (
+    <div className="drawings-settings" ref={box}>
+      <button
+        type="button"
+        className={`ib${open ? ' on' : ''}`}
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        title="ตั้งค่าแบบ"
+        aria-label="ตั้งค่าแบบ"
+        data-testid="drawings-settings"
+      >
+        <Icon name="settings" />
+      </button>
+      {open && (
+        <div className="drawings-settings-menu" role="dialog" aria-label="ตั้งค่าแบบ" data-testid="drawings-settings-menu">
+          <div className="drawings-settings-label">หน่วยของตัวเลขมิติ</div>
+          <div className="seg" role="radiogroup" aria-label="หน่วยของตัวเลขมิติ">
+            {LENGTH_UNITS.map((u) => (
+              <button key={u} type="button" role="radio" aria-checked={unit === u} className={unit === u ? 'on' : ''} onClick={() => setUnit(u)} data-testid={`drawings-unit-${u}`}>
+                {UNIT_TH[u]}
+              </button>
+            ))}
+          </div>
+          <p className="muted">เปลี่ยนเฉพาะตัวเลขบนเส้นมิติและหมายเหตุในกรอบชื่อแบบ เส้น มาตราส่วน และพิกัด DXF เป็น มม. ขนาดจริงเสมอ</p>
+        </div>
+      )}
     </div>
   );
 }

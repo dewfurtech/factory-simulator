@@ -561,6 +561,8 @@ test('the construction drawings of the sample condo: a cover and a dimensioned p
   await expect(sheet).toContainText(/SCALE 1:\d+/);
 
   // The numbers in cm or m: the same plan, the title block says which unit.
+  await expect(page.getByTestId('drawings-unit-cm')).toHaveCount(0);
+  await page.getByTestId('drawings-settings').click();
   await page.getByTestId('drawings-unit-cm').click();
   await expect(sheet.locator('[data-dim="720"]')).toHaveCount(1);
   await expect(sheet.locator('[data-dim="7200"]')).toHaveCount(0);
@@ -570,6 +572,10 @@ test('the construction drawings of the sample condo: a cover and a dimensioned p
   await expect(sheet.getByTestId('title-block')).toContainText('หน่วย ม.');
   await page.getByTestId('drawings-unit-mm').click();
   await expect(sheet.locator('[data-dim="7200"]')).toHaveCount(1);
+  // Escape puts the gear menu away and leaves the drawings open.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('drawings-settings-menu')).toHaveCount(0);
+  await expect(page.getByTestId('drawings')).toBeVisible();
 
   const zoom = await page.getByTestId('drawings-zoom').textContent();
   await page.getByTestId('drawings-zoom-in').click();
