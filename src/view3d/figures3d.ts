@@ -3,6 +3,7 @@ import { catalogItem } from '../model/catalog';
 import { figureKind, headsTall, type FigureKind } from '../model/figures';
 import type { PlacedObject, Size3 } from '../model/types';
 import { FLAT, Parts } from './lowpoly';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 /**
  * Life-size people for scale (src/model/figures.ts), built in code in the same low-poly look as the machines: no
@@ -195,20 +196,135 @@ export function buildFigure(kind: FigureKind, size: Size3): THREE.Group {
   return root;
 }
 
-/** The figure a placed person is, or null for anything else. */
-export function figureObject(o: Pick<PlacedObject, 'assetId' | 'size' | 'id'>): THREE.Group | null {
+/**
+ * The man is a real model rather than code: "Business Man - Low Polygon game character" by manoeldarochadeoliveira
+ * (Sketchfab, CC-BY-4.0), cut down to its idle animation and smaller textures by scripts/figure-model.mjs. It is
+ * fetched the first time a man is shown; until it arrives, or if it cannot be read, the man is built in code like the
+ * others.
+ */
+const MODEL_URL: Partial<Record<FigureKind, string>> = { man: `${import.meta.env.BASE_URL}models/business-man.glb` };
+
+interface FigureModel {
+  scene: THREE.Group;
+  clip: THREE.AnimationClip;
+  /** Height and lowest point at rest (the clip's first frame), in the model's own units. */
+  height: number;
+  floor: number;
+}
+interface ModelPose {
+  mixer: THREE.AnimationMixer;
+  duration: number;
+}
+
+const modelLoads = new Map<FigureKind, Promise<FigureModel | null>>();
+const loadedModels = new Map<FigureKind, FigureModel>();
+/** Kinds whose load has ended, in or failed: nothing more to wait for. */
+const settledModels = new Set<FigureKind>();
+
+/** The model of a kind of figure, loading once; null for kinds built in code. */
+function loadModel(kind: FigureKind): Promise<FigureModel | null> | null {
+  const url = MODEL_URL[kind];
+  if (!url) return null;
+  let p = modelLoads.get(kind);
+  if (!p) {
+    p = (async () => {
+      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+      const gltf = await new GLTFLoader().loadAsync(url);
+      const clip = gltf.animations[0];
+      if (!clip) return null;
+      // Every placed copy shares the geometry, materials and pictures: the scene must not free them when one goes.
+      gltf.scene.traverse((x) => {
+        const mesh = x as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry.userData.shared = true;
+        for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) mat.userData.shared = true;
+      });
+      const mixer = new THREE.AnimationMixer(gltf.scene);
+      mixer.clipAction(clip).play();
+      mixer.setTime(0);
+      gltf.scene.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(gltf.scene, true);
+      mixer.stopAllAction();
+      mixer.uncacheRoot(gltf.scene);
+      const m: FigureModel = { scene: gltf.scene, clip, height: box.max.y - box.min.y, floor: box.min.y };
+      loadedModels.set(kind, m);
+      return m;
+    })()
+      .catch(() => null)
+      .then((m) => {
+        settledModels.add(kind);
+        return m;
+      });
+    modelLoads.set(kind, p);
+  }
+  return p;
+}
+
+/** Puts a copy of the model in place of the code-built body in `g`, scaled to `h` metres tall, standing on y = 0. */
+function wearModel(g: THREE.Group, m: FigureModel, h: number): void {
+  for (const c of [...g.children]) {
+    g.remove(c);
+    c.traverse((x) => (x as THREE.Mesh).geometry?.dispose());
+  }
+  delete g.userData.joints;
+  const body = cloneSkinned(m.scene) as THREE.Group;
+  const k = h / m.height;
+  body.scale.setScalar(k);
+  body.position.y = -m.floor * k;
+  g.add(body);
+  const mixer = new THREE.AnimationMixer(body);
+  mixer.clipAction(m.clip).play();
+  g.userData.model = { mixer, duration: m.clip.duration } satisfies ModelPose;
+  poseFigure(g, null);
+  // A click on the model picks the placed figure, as on the rest.
+  const id = g.userData.objectId as string | undefined;
+  if (id) g.traverse((x) => (x.userData.objectId = id));
+}
+
+/**
+ * The figure a placed person is, or null for anything else. A kind with a model starts as the code-built body and
+ * puts the model on when it has loaded, calling `onReady` so the view draws it.
+ */
+export function figureObject(o: Pick<PlacedObject, 'assetId' | 'size' | 'id'>, onReady?: () => void): THREE.Group | null {
   const kind = figureKind(o.assetId);
   if (!kind) return null;
   const g = buildFigure(kind, o.size);
   g.userData.phase = phaseOf(o.id);
+  g.userData.objectId = o.id;
+  const h = o.size.h * M;
+  const ready = loadedModels.get(kind);
+  if (ready) wearModel(g, ready, h);
+  else
+    void loadModel(kind)?.then((m) => {
+      // Gone from the view by then (deleted, or the view closed): nothing to put on.
+      if (!m || !inScene(g)) return;
+      wearModel(g, m, h);
+      onReady?.();
+    });
   return g;
 }
 
-/** A library picture of a figure, for src/view3d/thumbs.ts. */
+/** A library picture of a figure, for src/view3d/thumbs.ts: the model once it is in, otherwise the code-built body. */
 export function figureThumb(id: string): THREE.Object3D | null {
   const kind = figureKind(id);
   const item = catalogItem(id);
-  return kind && item ? buildFigure(kind, item.size) : null;
+  if (!kind || !item) return null;
+  const g = buildFigure(kind, item.size);
+  const m = loadedModels.get(kind);
+  if (m) {
+    wearModel(g, m, item.size.h * M);
+    // The picture is framed on the bounds: a skinned mesh's come from its bones, so pose them before measuring.
+    g.updateMatrixWorld(true);
+    g.traverse((x) => (x as THREE.SkinnedMesh).isSkinnedMesh && (x as THREE.SkinnedMesh).computeBoundingBox());
+  }
+  return g;
+}
+
+/** For the library: a promise to wait on before drawing this figure's picture, while its model is still loading. */
+export function figureModelPending(id: string): Promise<unknown> | null {
+  const kind = figureKind(id);
+  if (!kind || settledModels.has(kind)) return null;
+  return loadModel(kind);
 }
 
 /** A fixed start in the cycle for each figure, from its id, so no two sway together. */
@@ -227,9 +343,15 @@ export const IDLE_PERIODS = { breath: 4.2, weight: 5.8, arms: 5.0, head: 6.0 } a
  * above the hips turn; the legs and feet stay as they stand.
  */
 export function poseFigure(root: THREE.Object3D, t: number | null): void {
+  const phase = (root.userData.phase as number | undefined) ?? 0;
+  const model = root.userData.model as ModelPose | undefined;
+  if (model) {
+    // A model plays its own idle clip, each figure from its own point in it; at rest, its first frame.
+    model.mixer.setTime(t === null ? 0 : (t + phase * model.duration) % model.duration);
+    return;
+  }
   const j = root.userData.joints as FigureJoints | undefined;
   if (!j) return;
-  const phase = (root.userData.phase as number | undefined) ?? 0;
   const at = (period: number, shift = 0) => (t === null ? 0 : Math.sin(TAU * ((t + phase * period * 3) / period + shift)));
   const breath = t === null ? 0 : (at(IDLE_PERIODS.breath) + 1) / 2;
   const weight = at(IDLE_PERIODS.weight);
@@ -267,8 +389,8 @@ export class FigureRig {
   private covered = false;
 
   /** A placed figure, built and kept for the idle pose; null when `o` is not a person. */
-  build(o: Pick<PlacedObject, 'assetId' | 'size' | 'id'>): THREE.Group | null {
-    const g = figureObject(o);
+  build(o: Pick<PlacedObject, 'assetId' | 'size' | 'id'>, onReady?: () => void): THREE.Group | null {
+    const g = figureObject(o, onReady);
     if (g) this.live.add(g);
     return g;
   }

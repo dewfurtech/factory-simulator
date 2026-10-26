@@ -325,7 +325,7 @@ export class FactoryScene {
     const holder = new THREE.Group();
     holder.userData.objectId = o.id;
     const custom = catalogItem(o.assetId)?.custom;
-    const own = isFigure(o) ? this.figures.build(o) : isMachine(o) ? null : this.opts.pieces?.build(o, () => (this.dirty = true));
+    const own = isFigure(o) ? this.figures.build(o, () => (this.dirty = true)) : isMachine(o) ? null : this.opts.pieces?.build(o, () => (this.dirty = true));
     if (own) holder.add(own);
     else if (isMachine(o)) {
       const blocky = machineObject(o.assetId, o.options);

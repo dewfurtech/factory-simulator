@@ -29,7 +29,8 @@ const headTurn = (page: Page) =>
     (
       window as unknown as { __scene: { scene: { traverse(f: (o: { name: string; userData: { joints?: { head: { rotation: { y: number } } } } }) => void): void } } }
     ).__scene.scene.traverse((o) => {
-      if (turn === null && o.name === 'figure') turn = o.userData.joints!.head.rotation.y;
+      // The code-built figures; the man is a model with no joints of ours.
+      if (turn === null && o.name === 'figure' && o.userData.joints) turn = o.userData.joints.head.rotation.y;
     });
     return turn;
   });
@@ -110,6 +111,27 @@ test('the sample condo has a person in the living room, moving gently in 3D; the
 
   await page.getByTestId('view-3d').click();
   await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible();
+  // The man is the business-man model once it has loaded, standing 1.75 m on the floor.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        type Box = { min: { y: number }; max: { y: number }; clone(): Box; applyMatrix4(m: unknown): Box };
+        type Node = { isSkinnedMesh?: boolean; boundingBox: Box; matrixWorld: unknown; computeBoundingBox(): void; updateMatrixWorld(f: boolean): void };
+        const scene = (window as unknown as { __scene: { scene: Node & { traverse(f: (o: Node) => void): void } } }).__scene.scene;
+        scene.updateMatrixWorld(true);
+        let lo = Infinity;
+        let hi = -Infinity;
+        scene.traverse((o) => {
+          if (!o.isSkinnedMesh) return;
+          o.computeBoundingBox();
+          const b = o.boundingBox.clone().applyMatrix4(o.matrixWorld);
+          lo = Math.min(lo, b.min.y);
+          hi = Math.max(hi, b.max.y);
+        });
+        return hi > lo ? [Math.round(lo * 100) / 100, Math.round(hi * 100) / 100] : null;
+      }),
+    )
+    .toEqual([0, 1.75]);
   // An interior's people move by default.
   await expect(page.getByTestId('figures-idle')).toHaveAttribute('aria-pressed', 'true');
   expect(await framesIn(page, 500)).toBeGreaterThan(3);
