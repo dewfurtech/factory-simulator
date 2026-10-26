@@ -158,10 +158,10 @@ describe('the realistic look', () => {
     wearReal(s.root, kit);
     expect(s.flat.material).not.toBe(FLAT);
     expect((s.flat.material as THREE.Material).userData.realTwin).toBe(true);
-    expect((s.flat.material as THREE.MeshStandardMaterial).isMeshStandardMaterial).toBe(true);
+    expect((s.flat.material as THREE.Material as THREE.MeshStandardMaterial).isMeshStandardMaterial).toBe(true);
     // Glass stays see-through; the decal keeps its picture; a material that is PBR already is its own.
     expect((s.glass.material as THREE.Material).transparent).toBe(true);
-    expect((s.decal.material as THREE.MeshStandardMaterial).map).toBe(s.tex);
+    expect((s.decal.material as THREE.Material as THREE.MeshStandardMaterial).map).toBe(s.tex);
     expect((s.multi.material as THREE.Material[])[0]).toBe(before[2]);
     // Walking again (each frame) makes nothing new.
     const made = kit.size;
