@@ -4284,3 +4284,11 @@ body:has(.home) {
 .flow-thumb figcaption small {
   color: var(--ink-3);
 }
+/* A button the dialog cannot use yet (no key on the server, a picture on its way) looks it. */
+.flow .btn:disabled:not([aria-busy='true']) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.flow .btn-primary:disabled:hover {
+  background: var(--ink);
+}

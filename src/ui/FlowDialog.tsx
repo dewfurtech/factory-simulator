@@ -237,7 +237,13 @@ function FlowPanel({ close }: { close: () => void }) {
       <section className="flow-step flow-make" data-testid="flow-make">
         <h3>สร้างในเว็บเลย (Gemini)</h3>
         <div className="flow-row">
-          <button className="btn btn-primary btn-sm" onClick={() => void makeHere()} disabled={!server?.ready || making.busy || !prompt.trim()} data-testid="flow-make-button">
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => void makeHere()}
+            aria-busy={making.busy}
+            disabled={!server?.ready || making.busy || !prompt.trim()}
+            data-testid="flow-make-button"
+          >
             {making.busy ? <span className="spinner" aria-hidden /> : <Icon name="bulb" />} {making.busy ? 'กำลังสร้างภาพ…' : 'สร้างภาพในเว็บเลย'}
           </button>
           <span className="flow-make-note">
