@@ -34,6 +34,18 @@ export interface Wall extends LayerFlags {
   glass?: boolean;
   /** Plain color of both faces; absent means the default wall color. */
   color?: string;
+  /** Interior projects: the material on this wall, over whatever its room has (see src/interior). */
+  finish?: MaterialId;
+}
+
+/** A material from the interior library (src/interior/materials.ts), or one the user uploaded (`Project.materials`). */
+export type MaterialId = string;
+
+/** Interior projects: what the surfaces of a room are finished with; each surface absent means plain. */
+export interface RoomFinish {
+  floor?: MaterialId;
+  wall?: MaterialId;
+  ceiling?: MaterialId;
 }
 
 /** What a closed area of the plan is used for; drives its floor color and what people go there for. */
@@ -52,7 +64,19 @@ export type ZoneKind =
   | 'qc'
   | 'loading'
   | 'corridor'
-  | 'other';
+  | 'other'
+  // Home rooms, for interior projects: src/interior/zones.ts lists them; the factory's zone picker leaves them out.
+  | 'living'
+  | 'dining'
+  | 'bedroom'
+  | 'kitchen'
+  | 'bath'
+  | 'study'
+  | 'dressing'
+  | 'laundry'
+  | 'balcony'
+  | 'hall'
+  | 'storeroom';
 
 export interface Room extends LayerFlags {
   id: Id;
@@ -65,6 +89,8 @@ export interface Room extends LayerFlags {
   color?: string;
   /** A yard or car park closed off only by a fence: outdoors, so not counted as a room or in the floor area. */
   outdoor?: true;
+  /** Interior projects: the materials on its floor, walls and ceiling. */
+  finish?: RoomFinish;
 }
 
 export type OpeningKind = 'door' | 'window' | 'opening';
@@ -182,6 +208,8 @@ export interface Underlay {
 export interface Project {
   id: Id;
   name: string;
+  /** What the project is: a factory layout (absent on every file saved before interiors existed) or an interior design. */
+  kind?: ProjectKind;
   updatedAt: number;
   plan: Plan;
   columns: Record<Id, Column>;
@@ -193,6 +221,22 @@ export interface Project {
   tapes?: Tape[];
   /** Who the plan is for: kept with the project, shown on its card, and searched by. */
   client?: Client;
+  /** Interior projects: materials the user uploaded, each a picture kept in the asset store. */
+  materials?: CustomMaterial[];
+}
+
+export type ProjectKind = 'factory' | 'interior';
+
+/** A material of the user's own: a photo or swatch they uploaded, tiled at a real-world size. */
+export interface CustomMaterial {
+  id: MaterialId;
+  name: string;
+  /** Average color of the picture, for the plan and the palette. */
+  color: string;
+  /** The picture in the asset store (shrunk, as plan images are). */
+  imageId: Id;
+  /** Real-world width one repeat of the picture covers, mm. */
+  scale: Mm;
 }
 
 /** The customer a plan is drawn for. Every field is optional; empty ones are left out. */
