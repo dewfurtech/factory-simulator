@@ -1,6 +1,8 @@
 // Runs on Google Flow (flow.google.com). When the background worker has a job for this tab, it does what a person would:
-// New project → drop the reference picture on the project → type the prompt into the agent's box → Start generation,
-// then waits for the pictures and sends them back. Every element is found the way Flow's page marks it (class names and
+// New project → drop the reference picture on the project → attach it to the prompt → type the prompt into the agent's
+// box. Then the person presses Start generation themselves: Flow only acts on a real click there (a script's click or
+// Enter is ignored, and the page runs reCAPTCHA), so the extension leaves that one click to them on purpose rather than
+// working around it. After that it waits for the new pictures in the project, downloads them and sends them back. Every element is found the way Flow's page marks it (class names and
 // aria-labels read from the live page on 2026-10-26); when Flow changes its page, these are the lines to update.
 //
 // Two things are left to the person on purpose: Flow's "Rights to use this image" agreement (accepting terms is theirs
@@ -12,6 +14,8 @@ const SEL = {
   prompt: '.ProseMirror[contenteditable="true"]',
   send: 'button[aria-label="Start generation"]',
   dialog: 'mat-dialog-container',
+  // Every picture in the project is a tile; one still being made shows its progress as "40%".
+  tile: 'flow-image-tile',
   // The "+" by the prompt opens a picker of the project's media; each item shows its file name, and picking one shows
   // a detail pane with "Add to prompt".
   addIngredient: 'button[aria-label="Add ingredients to the prompt box"]',
@@ -129,12 +133,71 @@ async function run(job) {
     15_000,
     'ปุ่ม Start generation',
   );
-  send.click();
-  await progress('sent', 'ส่งพรอมต์ให้ Flow แล้ว รอ Flow สร้างภาพ');
 
-  // 4. The finished pictures: not written yet. Flow's agent answer and where its pictures appear have to be read from a
-  // real generation first.
-  throw new Error('ส่วนขยายรุ่นนี้ยังรับภาพกลับจาก Flow ไม่ได้ ภาพจะอยู่ในแท็บ Flow ให้ลากกลับมาเองก่อน');
+  // 4. The person's one click. Pictures already in the project (the reference among them) are not the answer.
+  const before = new Set(tileSources());
+  send.style.outline = '3px solid #f97316';
+  send.style.outlineOffset = '3px';
+  send.scrollIntoView({ block: 'nearest' });
+  await progress('your-turn', 'พร้อมแล้ว กดปุ่มลูกศร (Start generation) ที่มีกรอบสีส้มในแท็บ Flow หนึ่งครั้ง');
+  await waitFor(() => !document.querySelector(SEL.prompt)?.innerText.trim() || newTiles(before).length > 0, 30 * 60_000, 'การกดส่ง (รอนานเกิน 30 นาที)');
+  send.style.outline = '';
+  await progress('generating', 'Flow กำลังสร้างภาพ (ถ้า Flow ถามยืนยัน ให้ตอบในแท็บ Flow)');
+
+  // 5. The new pictures, once every one of them is finished and nothing more has come for a few seconds.
+  const done = await waitForNewPictures(before, 15 * 60_000);
+  await progress('downloading', `ได้ภาพ ${done.length} ภาพ กำลังส่งกลับ`);
+  const images = [];
+  for (const src of done) images.push(await toDataUrl(src));
+  await chrome.runtime.sendMessage({ type: 'done', images });
+}
+
+/** The source of every finished picture tile in the project. */
+function tileSources() {
+  return [...document.querySelectorAll(`${SEL.tile} img`)].map((i) => i.src).filter(Boolean);
+}
+
+/** Tiles not in `before`: { src, finished }. */
+function newTiles(before) {
+  return [...document.querySelectorAll(SEL.tile)]
+    .map((t) => {
+      const img = t.querySelector('img');
+      const busy = /d+%/.test(t.innerText);
+      return { src: img?.src ?? '', finished: !busy && Boolean(img?.src) && img.naturalWidth > 0 };
+    })
+    .filter((t) => !t.src || !before.has(t.src));
+}
+
+async function waitForNewPictures(before, ms) {
+  const until = Date.now() + ms;
+  let last = '';
+  let steadySince = 0;
+  for (;;) {
+    const fresh = newTiles(before);
+    const allDone = fresh.length > 0 && fresh.every((t) => t.finished);
+    const key = fresh.map((t) => t.src).join('|');
+    if (allDone && key === last) {
+      if (Date.now() - steadySince > 4000) return fresh.map((t) => t.src);
+    } else {
+      last = key;
+      steadySince = Date.now();
+    }
+    if (Date.now() > until) throw new Error('Flow ยังสร้างภาพไม่เสร็จหลังรอ 15 นาที ภาพที่ได้จะอยู่ในแท็บ Flow');
+    await sleep(1000);
+  }
+}
+
+/** Downloads a picture Flow serves from its own site (with the person's sign-in) as a data: URL. */
+async function toDataUrl(src) {
+  const res = await fetch(src, { credentials: 'include' });
+  if (!res.ok) throw new Error(`ดาวน์โหลดภาพจาก Flow ไม่ได้ (${res.status})`);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
 }
 
 (async () => {

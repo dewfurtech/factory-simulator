@@ -32,6 +32,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     if (msg.type === 'progress') await tellSite(entry, { type: 'progress', step: msg.step, text: msg.text });
     if (msg.type === 'done' || msg.type === 'error') {
       await tellSite(entry, msg.type === 'done' ? { type: 'done', images: msg.images } : { type: 'error', error: msg.error });
+      // Back to the plan, where the pictures now are.
+      if (msg.type === 'done') chrome.tabs.update(entry.siteTab, { active: true }).catch(() => {});
       await chrome.storage.session.remove(key(flowTab));
     }
     reply({ ok: true });
