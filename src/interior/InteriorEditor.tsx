@@ -10,7 +10,10 @@ import { ProjectInfo } from '../panels/ProjectInfo';
 import { useProject } from '../store/project';
 import { useUi } from '../store/ui';
 import { Loading3D } from '../ui/Loading3D';
+import { CabinetPanel } from './CabinetPanel';
+import './catalog';
 import { INTERIOR_FINISHES } from './interior3d';
+import { INTERIOR_PIECES } from './objects3d';
 import { RoomMaterials, WallMaterial } from './MaterialPicker';
 import { openMoodBoard } from './MoodBoard';
 import { HOME_ZONE_IDS } from './zones';
@@ -150,13 +153,20 @@ export function InteriorEditor() {
           {view !== '2d' && (
             <div className="pane">
               <Suspense fallback={<Loading3D />}>
-                <View3D finishes={INTERIOR_FINISHES} />
+                <View3D finishes={INTERIOR_FINISHES} pieces={INTERIOR_PIECES} />
               </Suspense>
             </div>
           )}
         </div>
       </main>
-      {showPanel && <PropertiesPanel zoneIds={HOME_ZONE_IDS} roomExtra={(r) => <RoomMaterials room={r} />} wallExtra={(w) => <WallMaterial wall={w} />} />}
+      {showPanel && (
+        <PropertiesPanel
+          zoneIds={HOME_ZONE_IDS}
+          roomExtra={(r) => <RoomMaterials room={r} />}
+          wallExtra={(w) => <WallMaterial wall={w} />}
+          objectExtra={(o) => o.cabinet && <CabinetPanel o={o} />}
+        />
+      )}
     </div>
   );
 }
