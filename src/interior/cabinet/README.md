@@ -1,7 +1,7 @@
 # เครื่องยนต์ตู้บิ้วอินและเฟอร์นิเจอร์ (เฟส 2)
 
 โมดูลแยกสำหรับโหมดตกแต่งภายใน (`docs/interior-plan.md` เฟส 2) ยังไม่ถูกต่อเข้าแอป ไม่แตะไฟล์อื่นของโปรเจกต์
-หน้าทดสอบด้วยตา: `npm run dev` แล้วเปิด `http://localhost:<พอร์ต>/dev/cabinet.html` (ใช้ธีมเดียวกับแอปจาก `src/styles.css`)
+หน้าทดสอบด้วยตา: `npm run dev` แล้วเปิด `http://localhost:<พอร์ต>/sandbox/cabinet.html` (ใช้ธีมเดียวกับแอปจาก `src/styles.css`)
 
 ## ไฟล์
 
@@ -72,7 +72,7 @@ spec และ parts ใช้ มม. 3D ใช้เมตร (มม. × 0.00
 
 1. เก็บตู้ในโปรเจกต์เป็นวัตถุชนิดใหม่ที่มี `spec: CabinetSpec` (บันทึกแค่ spec ส่วนอื่นคำนวณใหม่ได้เสมอ) ขนาดในแปลน 2D คือ `spec.width × spec.depth`
 2. ในฉาก 3D ของ interior: `buildCabinet(spec, { colors: { front: สีจาก Mood & Tone } })` แทนเรขาคณิตของวัตถุนั้น ปุ่ม "เปิดตู้" เรียก `setOpen(group, 1)` / `setOpen(group, 0)` บนทุก group ที่ `isCabinet(o)`
-3. แผงแก้ไขใช้ฟอร์มแบบเดียวกับ `dev/cabinet.tsx` แล้ว `normalizeSpec({ ...spec, ...แก้ไข })`
+3. แผงแก้ไขใช้ฟอร์มแบบเดียวกับ `sandbox/cabinet.tsx` แล้ว `normalizeSpec({ ...spec, ...แก้ไข })`
 4. BOQ (เฟส 3) อ่าน `cabinetParts(spec).areaByMaterial` และ `edgeBandTotal` รวมทุกตู้ แล้วแปลงเป็นจำนวนแผ่นตามขนาดแผ่นและเปอร์เซ็นต์เผื่อตัดที่ผู้ใช้ตั้งเอง
 5. เฟอร์นิเจอร์รูปทรงอื่น: `FURNITURE_SHAPES[id].build(size, color)` ใช้กับแท็บ "ของฉัน" ได้ตรง ๆ
 6. โมเดลจาก SketchUp: เก็บไฟล์ต้นฉบับไว้ใน IndexedDB เหมือนภาพแปลน แล้วเรียก `importModelFile` ใหม่ตอนเปิดโปรเจกต์ ขนาดในแปลน 2D ใช้ `sizeMm` ถ้า `unitSure` เป็น false ให้ถามผู้ใช้ยืนยันหน่วยก่อนวาง

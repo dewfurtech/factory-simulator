@@ -24,7 +24,7 @@ import {
 /**
  * A page to look at the cabinet engine by eye: the cabinet from the form at the front, the other cabinet kinds
  * beside it, every furniture shape in a row behind, all on one slider that opens the fronts.
- * Served by the dev server at /dev/cabinet.html; not part of the app. Styled with the app's own src/styles.css.
+ * Served by the dev server at /sandbox/cabinet.html; not part of the app. Styled with the app's own src/styles.css.
  */
 
 const START: CabinetSpec = normalizeSpec({
