@@ -102,6 +102,8 @@ const PATHS: Record<string, string> = {
   sofa: 'M5 11V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3 M3 13a2 2 0 0 1 4 0v4h10v-4a2 2 0 0 1 4 0v5H3z M5 21v-3 M19 21v-3',
   ceiling: 'M4 6h16 M4 6v3h16V6 M8 9v3 M16 9v3 M12 9v2',
   cabinetOpen: 'M4 4h8v16H4z M12 4l7 3v12l-7 1 M9 12h1 M14 12h1',
+  person: 'M12 3a2.2 2.2 0 1 0 0 4.4a2.2 2.2 0 1 0 0-4.4z M8.5 21v-6.5L7.5 10h9l-1 4.5V21 M12 15v6',
+  personIdle: 'M12 4a2 2 0 1 0 0 4a2 2 0 1 0 0-4z M10 21v-6l-1-4h6l-1 4v6 M5 8c-1.5 2-1.5 5 0 7 M19 8c1.5 2 1.5 5 0 7',
   swatch: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z M6 6l3 3 M15 6l3 3 M6 15l3 3 M15 15l3 3',
 };
 
