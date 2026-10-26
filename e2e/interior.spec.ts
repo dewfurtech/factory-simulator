@@ -352,3 +352,121 @@ test('a wall between two rooms takes a material on one face only, and Ctrl+Z put
   await page.keyboard.press('Control+z');
   await expect.poll(sideOfWall).toEqual(['paint-sage:both']);
 });
+
+/** The page size of each page in a PDF, in points, read off its MediaBox entries. */
+const pdfPages = (pdf: Buffer) =>
+  [...pdf.toString('latin1').matchAll(/\/MediaBox\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]/g)].map((m) => ({
+    w: Math.round(Number(m[3]) - Number(m[1])),
+    h: Math.round(Number(m[4]) - Number(m[2])),
+  }));
+
+test('the client presentation puts cover, plan, Mood & Tone and furniture on A3 sheets, and prints them A3 while the BOQ still prints A4', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => void (m.type() === 'error' && errors.push(m.text())));
+
+  await interiorApp(page);
+  await page.getByTestId('new-interior').click();
+  await page.getByTestId('tool-drawRoomRect').click();
+  const c = await planCentre(page);
+  await page.mouse.click(c.x - 150, c.y - 100);
+  await page.mouse.click(c.x + 150, c.y + 100);
+  await expect.poll(() => projectState(page)).toMatchObject({ rooms: 1 });
+  await page.keyboard.press('Escape');
+  await page.mouse.click(c.x, c.y);
+  await page.getByTestId('surface-floor').click();
+  await page.getByTestId('material-oak').click();
+  await page.getByTestId('properties').getByRole('button', { name: 'ปิด', exact: true }).click();
+  await page.getByTestId('dock-catalog').click();
+  await page.getByTestId('shelf-general').click();
+  await page.getByTestId('cat-home-sofa-l').click();
+  await page.mouse.click(c.x - 60, c.y);
+  await page.getByTestId('cat-cab-base').click();
+  await page.mouse.click(c.x + 90, c.y - 60);
+  await expect.poll(async () => (await objects(page)).map((o) => o.assetId).sort()).toEqual(['cab-base', 'home-sofa-l']);
+  await page.getByTestId('present-open').click();
+  await expect(page.getByTestId('present')).toBeVisible();
+  for (const s of ['cover', 'plan', 'mood', 'furniture']) await expect(page.getByTestId(`sheet-${s}`)).toHaveCount(1);
+  // No pictures yet: no picture sheet, and its tick is off.
+  await expect(page.getByTestId('sheet-images')).toHaveCount(0);
+  await expect(page.getByTestId('present-pick-images')).toBeDisabled();
+  await expect(page.getByTestId('cover-title')).toHaveText('ห้องใหม่');
+  await expect(page.getByTestId('cover-client')).toHaveCount(0);
+  await expect(page.getByTestId('plan-picture')).toBeVisible();
+  await expect(page.getByTestId('sheet-plan')).toContainText('ม²');
+  await expect(page.getByTestId('sheet-mood')).toContainText('ไม้โอ๊คอ่อน');
+  await expect(page.getByTestId('present-palette')).toContainText('#C9A471');
+  await expect(page.getByTestId('sheet-furniture')).toContainText('โซฟาตัว L');
+  await expect(page.getByTestId('sheet-furniture')).toContainText('ตู้ล่าง');
+  await expect(page.getByTestId('sheet-furniture')).toContainText('18 มม.');
+  await expect(page.getByTestId('sheet-cover')).toContainText('หน้า 1/4');
+  await expect(page.getByTestId('present-print')).toBeEnabled();
+
+  // A section ticked off leaves the count and the page numbers.
+  await page.getByTestId('present-pick-mood').uncheck();
+  await expect(page.getByTestId('sheet-mood')).toHaveCount(0);
+  await expect(page.getByTestId('sheet-furniture')).toContainText('หน้า 3/3');
+  await page.getByTestId('present-pick-mood').check();
+
+  // Printed, each sheet is one A3 landscape page (842 × 1191 pt).
+  await page.evaluate(() => document.documentElement.classList.add('present-printing'));
+  const a3 = pdfPages(await page.pdf({ preferCSSPageSize: true, printBackground: true }));
+  expect(a3).toEqual(Array(4).fill({ w: 1191, h: 842 }));
+  await page.evaluate(() => document.documentElement.classList.remove('present-printing'));
+
+  await page.getByTestId('present-close').click();
+  await expect(page.getByTestId('present')).toHaveCount(0);
+  await page.getByTestId('boq-open').click();
+  const a4 = pdfPages(await page.pdf({ preferCSSPageSize: true }));
+  expect(a4.length).toBeGreaterThan(0);
+  for (const p of a4) expect(p).toEqual({ w: 595, h: 842 });
+  expect(errors).toEqual([]);
+});
+
+test('a 3D view kept with "add this view" makes a picture sheet, and can be taken out again', async ({ page }) => {
+  await roomWithLibrary(page);
+  await page.getByTestId('dock-catalog').click();
+  await page.getByTestId('view-3d').click();
+  await expect(page.getByTestId('view3d')).toBeVisible();
+  await page.getByTestId('present-open').click();
+  await expect(page.getByTestId('sheet-images')).toHaveCount(0);
+  await page.getByTestId('present-keep-view').click();
+  await expect(page.getByTestId('present-image-shot')).toHaveCount(1);
+  await expect(page.getByTestId('sheet-images')).toContainText('มุมมอง 3D');
+  const shots = () =>
+    page.evaluate(
+      () => (window as unknown as { __factory: { project: { getState(): { project: { shots?: unknown[] } } } } }).__factory.project.getState().project.shots?.length ?? 0,
+    );
+  expect(await shots()).toBe(1);
+  await page.getByTestId('present-image-shot').getByRole('button', { name: 'ลบมุมนี้' }).click();
+  await expect(page.getByTestId('sheet-images')).toHaveCount(0);
+  expect(await shots()).toBe(0);
+});
+
+test.describe('interior on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('the interior top bar fits without buttons on top of each other; the presentation is in the main menu', async ({ page }) => {
+    await interiorApp(page);
+    await page.getByTestId('new-interior').click();
+    await expect(page.getByTestId('interior-editor')).toBeVisible();
+    const boxes = await page.locator('header.topbar button:visible, header.topbar a:visible').evaluateAll((els) =>
+      els.map((e) => {
+        const r = e.getBoundingClientRect();
+        return { l: r.left, r: r.right, t: r.top, b: r.bottom };
+      }),
+    );
+    for (let i = 0; i < boxes.length; i++)
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i];
+        const b = boxes[j];
+        const overlap = Math.min(a.r, b.r) - Math.max(a.l, b.l) > 2 && Math.min(a.b, b.b) - Math.max(a.t, b.t) > 2;
+        expect(overlap, `top bar buttons ${i} and ${j} overlap`).toBe(false);
+      }
+    for (const b of boxes) expect(b.r).toBeLessThanOrEqual(391);
+    await expect(page.getByTestId('present-open')).toBeHidden();
+    await page.getByTestId('main-menu').click();
+    await page.getByTestId('menu-present').click();
+    await expect(page.getByTestId('sheet-cover')).toBeVisible();
+  });
+});

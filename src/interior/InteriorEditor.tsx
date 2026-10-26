@@ -17,6 +17,7 @@ import { INTERIOR_PIECES } from './objects3d';
 import { RoomMaterials, WallMaterial } from './MaterialPicker';
 import { openBoq } from './BoqPage';
 import { openMoodBoard } from './MoodBoard';
+import { openPresentation, PresentButton } from './present/PresentPage';
 import { HOME_ZONE_IDS } from './zones';
 
 const View3D = lazy(() => import('../view3d/View3D'));
@@ -43,7 +44,14 @@ export function InteriorEditor() {
     <div className={`editor interior${dock ? ' with-dock' : ''}`} data-testid="interior-editor">
       <header className="topbar">
         <div className="tb-group tb-left">
-          <MainMenu back="กลับไปรายการโปรเจกต์" />
+          <MainMenu
+            back="กลับไปรายการโปรเจกต์"
+            extra={(close) => (
+              <button role="menuitem" onClick={() => (close(), openPresentation())} data-testid="menu-present">
+                <Icon name="image" /> นำเสนอลูกค้า (A3)
+              </button>
+            )}
+          />
           <div className="brand tb-desk">
             <Icon name="sofa" />
           </div>
@@ -101,6 +109,7 @@ export function InteriorEditor() {
               BOQ<span className="tb-wide"> / ใบเสนอราคา</span>
             </span>
           </button>
+          <PresentButton />
           <button
             className="tb-toggle tb-accent"
             onClick={() => void shareProject()}

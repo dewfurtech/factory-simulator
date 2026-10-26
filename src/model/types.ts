@@ -253,6 +253,8 @@ export interface Project {
   materials?: CustomMaterial[];
   /** Pictures of the factory made by an image model (Google Flow) from this plan, brought back in by the person. */
   renders?: Render[];
+  /** Interior projects: views of the 3D model kept for the client presentation ("เพิ่มมุมนี้"), each an asset like a render. */
+  shots?: Render[];
   /** The prompt as last edited in the render dialog; absent until it is changed from the one built from the plan. */
   renderPrompt?: string;
   /**

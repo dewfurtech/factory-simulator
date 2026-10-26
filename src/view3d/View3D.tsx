@@ -59,7 +59,7 @@ export default function View3D({ finishes, pieces }: { finishes?: FinishHooks; p
         const r = s.renderer.domElement.getBoundingClientRect();
         return s.floorPoint(r.left + r.width / 2, r.top + r.height / 2);
       },
-      snapshot3d: () => s.snapshot(),
+      snapshot3d: (longSide?: number) => s.snapshot(longSide),
     });
     const start = setTimeout(() => setStarted(true), 40);
     return () => {

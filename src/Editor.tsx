@@ -181,7 +181,8 @@ export function ShareBanner() {
 }
 
 /** The menu behind the top-left button; `back` is the list it goes back to (the factory list by default). */
-export function MainMenu({ back = 'กลับไปรายการโรงงาน' }: { back?: string } = {}) {
+/** The main menu; `extra` adds items of the caller's own at its end (each gets a `close` to call when picked). */
+export function MainMenu({ back = 'กลับไปรายการโรงงาน', extra }: { back?: string; extra?: (close: () => void) => React.ReactNode } = {}) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -250,6 +251,7 @@ export function MainMenu({ back = 'กลับไปรายการโรง
               <Icon name="bulb" /> สร้างภาพโรงงานด้วย Google Flow
             </button>
           )}
+          {extra?.(() => setOpen(false))}
         </div>
       )}
     </div>
