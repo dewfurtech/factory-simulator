@@ -10,12 +10,16 @@ async function interiorApp(page: Page) {
 test('the interior start button is hidden until ?interior turns it on, and ?interior=0 hides it again', async ({ page }) => {
   await freshApp(page);
   await expect(page.getByTestId('new-interior')).toHaveCount(0);
+  // With interiors off the list keeps its factory words; with them on it speaks of projects.
+  await expect(page.locator('.list-head h2')).toHaveText(/^โรงงานของฉัน/);
   await interiorApp(page);
+  await expect(page.locator('.list-head h2')).toHaveText(/^โปรเจกต์ของฉัน/);
   await page.goto('/');
   await expect(page.getByTestId('new-interior')).toBeVisible();
   await page.goto('/?interior=0');
   await expect(page.getByTestId('new-sample')).toBeVisible();
   await expect(page.getByTestId('new-interior')).toHaveCount(0);
+  await expect(page.locator('.list-head h2')).toHaveText(/^โรงงานของฉัน/);
 });
 
 test('an interior project opens in its own editor, takes a floor material and sums it up', async ({ page }) => {

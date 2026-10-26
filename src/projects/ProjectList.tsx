@@ -90,6 +90,8 @@ export function ProjectList() {
   const [query, setQuery] = useState('');
   /** The interior start button stays hidden on the live site until `?interior` switches it on (src/interior/flag.ts). */
   const [showInterior] = useState(() => interiorEnabled());
+  // With interiors on, the list holds rooms as well as factories: it speaks of projects.
+  const search = showInterior ? 'ค้นหาชื่อโปรเจกต์หรือลูกค้า' : 'ค้นหาชื่อโรงงานหรือลูกค้า';
   /** The plan file being read while a project is started from one: a large PDF takes a while. */
   const [reading, setReading] = useState<string | null>(null);
   /** A file is held over the page, about to be dropped. */
@@ -236,7 +238,7 @@ export function ProjectList() {
       <section className="home-list">
         <div className="list-head">
           <h2>
-            โรงงานของฉัน
+            {showInterior ? 'โปรเจกต์ของฉัน' : 'โรงงานของฉัน'}
             {list && list.length > 0 && <span className="count">{list.length}</span>}
           </h2>
           <div className="list-actions">
@@ -256,7 +258,7 @@ export function ProjectList() {
           {list && list.length > 3 && (
             <label className="search list-search">
               <Icon name="search" />
-              <input type="search" placeholder="ค้นหาชื่อโรงงานหรือลูกค้า" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="ค้นหาชื่อโรงงานหรือลูกค้า" />
+              <input type="search" placeholder={search} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={search} />
             </label>
           )}
         </div>
