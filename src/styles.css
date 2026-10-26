@@ -4325,3 +4325,23 @@ body:has(.home) {
 .flow-google p {
   margin: 0;
 }
+/* What the Flow extension is doing with the job sent to it. */
+.flow-ext-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.flow-make .spinner,
+.flow-ext-status .spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+.flow-ext-status .spinner.dark {
+  border: 2px solid var(--line-2);
+  border-top-color: var(--accent);
+}

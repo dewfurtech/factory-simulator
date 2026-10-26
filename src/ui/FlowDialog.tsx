@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RenderError } from '../ai/gemini';
+import { dataUrlToBlob, sendToFlow, useFlowExtension } from '../ai/flowExtension';
 import { chooseProject, GOOGLE_CLIENT_ID, prepareGoogle, renderAsUser, signedIn, signInWithGoogle, signOutOfGoogle, useGoogle } from '../ai/googleAccount';
 import { download, planPicture, shownScale, toPng } from '../editor2d/exportImage';
 import { Icon } from '../editor2d/Toolbar';
@@ -206,6 +207,26 @@ function FlowPanel({ close }: { close: () => void }) {
     setMaking({ busy: false, done: Date.now() });
   };
 
+  // One click into Flow through the Chrome extension: it opens Flow, fills a new project and sends the pictures back.
+  const extension = useFlowExtension();
+  const [flowJob, setFlowJob] = useState<{ busy: boolean; text?: string; error?: string; got?: number }>({ busy: false });
+  const sendViaExtension = async () => {
+    if (flowJob.busy || !extension) return;
+    keepPrompt();
+    setFlowJob({ busy: true, text: 'กำลังส่งให้ส่วนขยาย…' });
+    const image = ref ? { mimeType: ref.blob.type || 'image/png', data: await blobToBase64(ref.blob) } : undefined;
+    const sentPrompt = prompt;
+    sendToFlow({ id: newId('fj'), prompt: sentPrompt, image }, (e) => {
+      if (e.type === 'progress') setFlowJob({ busy: true, text: e.text });
+      else if (e.type === 'error') setFlowJob({ busy: false, error: e.error });
+      else
+        void (async () => {
+          for (const url of e.images) await addRender(await dataUrlToBlob(url), sentPrompt, FLOW_MODEL);
+          setFlowJob({ busy: false, got: e.images.length });
+        })();
+    });
+  };
+
   const takeFiles = (files: FileList | File[]) => {
     for (const f of Array.from(files)) if (f.type.startsWith('image/')) void addRender(f, prompt);
   };
@@ -330,14 +351,34 @@ function FlowPanel({ close }: { close: () => void }) {
         )}
       </section>
 
+      {(flowJob.busy || flowJob.error || flowJob.got !== undefined) && (
+        <p className={`flow-ext-status${flowJob.error ? ' flow-make-error' : ''}`} role="status" data-testid="flow-ext-status">
+          {flowJob.busy && <span className="spinner dark" aria-hidden />}
+          {flowJob.error ? `ส่งเข้า Flow ไม่สำเร็จ: ${flowJob.error}` : flowJob.busy ? flowJob.text : `ได้ภาพจาก Flow ${flowJob.got} ภาพ อยู่ในแกลเลอรีข้างบน`}
+        </p>
+      )}
       <div className="dialog-actions">
         <button className="btn" onClick={done}>
           ปิด
         </button>
-        <button className="btn btn-primary" onClick={openFlow} data-testid="flow-open">
+        <button className={`btn${extension ? '' : ' btn-primary'}`} onClick={openFlow} data-testid="flow-open">
           <Icon name="forward" /> คัดลอกพรอมต์แล้วเปิด Google Flow
         </button>
+        {extension && (
+          <button
+            className="btn btn-primary"
+            onClick={() => void sendViaExtension()}
+            disabled={flowJob.busy || !prompt.trim()}
+            aria-busy={flowJob.busy}
+            data-testid="flow-ext-send"
+          >
+            <Icon name="forward" /> ส่งเข้า Flow ให้เลย
+          </button>
+        )}
       </div>
+      {!extension && (
+        <p className="flow-make-note">ติดตั้งส่วนขยาย Chrome "Factory Simulator → Google Flow" (ดู README) แล้วจะมีปุ่มส่งเข้า Flow ในคลิกเดียว และภาพกลับมาที่นี่เอง</p>
+      )}
     </div>
   );
 }
@@ -426,6 +467,10 @@ function GoogleMark() {
   );
 }
 
+/** The model a picture records when the extension brought it back from Flow. */
+const FLOW_MODEL = 'google-flow';
+const sourceLabel = (r: Render) => (!r.model || r.model === FLOW_MODEL ? 'Flow' : 'Gemini');
+
 function RenderThumb({ r, name }: { r: Render; name: string }) {
   const [url, setUrl] = useState<string | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
@@ -450,7 +495,7 @@ function RenderThumb({ r, name }: { r: Render; name: string }) {
     <figure className="flow-thumb" title={r.model ? `${r.model}\n${r.prompt ?? ''}` : r.prompt}>
       {url ? (
         <a href={url} target="_blank" rel="noreferrer" title="เปิดภาพเต็มในแท็บใหม่">
-          <img src={url} alt={`ภาพ ${r.model ? 'จาก Gemini' : 'จาก Flow'} ${when}`} />
+          <img src={url} alt={`ภาพจาก ${sourceLabel(r)} ${when}`} />
         </a>
       ) : (
         <div className="flow-ref-empty">…</div>
@@ -458,7 +503,7 @@ function RenderThumb({ r, name }: { r: Render; name: string }) {
       <figcaption>
         <span>
           {when}
-          {r.model && <small> · Gemini</small>}
+          {r.model && <small> · {sourceLabel(r)}</small>}
         </span>
         <button
           className="ib sm"
