@@ -1,6 +1,6 @@
 import type { BuiltSheet, CoverSheet, TitleInfo, ViewsSheet } from '../sheets';
 import type { LineStyle, Prim, Pt } from '../types';
-import { DASH, dimParts, PEN, POCHE, scaleLabel, textWidth } from './geometry';
+import { DASH, dimParts, PEN, POCHE, scaleLabel, textWidth, UNIT_TH, type LengthUnit } from './geometry';
 import { DRAW_AREA, MARGIN, SHEET_H, SHEET_W, TITLE_W, toPaper, type PlacedView } from './layout';
 
 /**
@@ -15,7 +15,7 @@ const dash = (style?: LineStyle) => (style && DASH[style] ? DASH[style]!.join(' 
 const pts = (ps: Pt[]) => ps.map((p) => `${round(p.x)},${round(p.y)}`).join(' ');
 const round = (v: number) => Math.round(v * 1000) / 1000;
 
-function PrimSvg({ p, view, scale }: { p: Prim; view: PlacedView; scale: number }) {
+function PrimSvg({ p, view, scale, unit }: { p: Prim; view: PlacedView; scale: number; unit: LengthUnit }) {
   const P = (q: Pt) => toPaper(view, scale, q);
   switch (p.kind) {
     case 'line': {
@@ -43,7 +43,7 @@ function PrimSvg({ p, view, scale }: { p: Prim; view: PlacedView; scale: number 
     case 'text':
       return <Words at={P(p.at)} text={p.text} size={p.size} anchor={p.anchor} rotate={p.rotate} />;
     case 'dim': {
-      const parts = dimParts(p, scale);
+      const parts = dimParts(p, scale, unit);
       return (
         <g data-dim={parts.text.text}>
           {parts.lines.map(([a, b], i) => {
@@ -180,7 +180,7 @@ function TitleBlock({ sheet, info, page, pages }: { sheet: BuiltSheet; info: Tit
         <Words at={{ x: cols[2] + 1.2, y: rev.y + 9 + revRow - 1.6 }} text="DRAFT" size={2.4} />
         <line x1={TB_X} y1={rev.y + rev.h} x2={TB_X + TITLE_W} y2={rev.y + rev.h} stroke={INK} strokeWidth={PEN.medium} />
       </g>
-      <Field y={TB_Y + 144} h={22} label="หมายเหตุ / NOTES" value="หน่วย มม. · ตรวจระยะหน้างาน" size={2.6} />
+      <Field y={TB_Y + 144} h={22} label="หมายเหตุ / NOTES" value={`หน่วย ${UNIT_TH[info.unit]} · ตรวจระยะหน้างาน`} size={2.6} />
       <g>
         <line x1={TB_X} y1={TB_Y + 196} x2={TB_X + TITLE_W} y2={TB_Y + 196} stroke={INK} strokeWidth={PEN.medium} />
         <Words at={{ x: TB_X + PAD, y: TB_Y + 169.4 }} text="ชื่อแผ่น / SHEET TITLE" size={1.9} />
@@ -199,7 +199,7 @@ function TitleBlock({ sheet, info, page, pages }: { sheet: BuiltSheet; info: Tit
   );
 }
 
-function Views({ sheet }: { sheet: ViewsSheet }) {
+function Views({ sheet, unit }: { sheet: ViewsSheet; unit: LengthUnit }) {
   return (
     <g>
       {sheet.views.map((v, i) => {
@@ -209,7 +209,7 @@ function Views({ sheet }: { sheet: ViewsSheet }) {
         return (
           <g key={i} data-testid="sheet-view">
             {v.drawing.prims.map((p, j) => (
-              <PrimSvg key={j} p={p} view={v} scale={sheet.scale} />
+              <PrimSvg key={j} p={p} view={v} scale={sheet.scale} unit={unit} />
             ))}
             <Words at={v.label} text={head} size={4} weight={700} anchor="middle" />
             <line x1={v.label.x - w / 2} y1={v.label.y + 1.4} x2={v.label.x + w / 2} y2={v.label.y + 1.4} stroke={INK} strokeWidth={PEN.thick} />
@@ -272,7 +272,7 @@ export function SheetSvg({ sheet, info, page, pages, className }: { sheet: Built
     >
       <rect x={0} y={0} width={SHEET_W} height={SHEET_H} fill="#fff" />
       <rect x={MARGIN} y={MARGIN} width={SHEET_W - 2 * MARGIN} height={SHEET_H - 2 * MARGIN} fill="none" stroke={INK} strokeWidth={PEN.cut} />
-      {sheet.kind === 'cover' ? <Cover sheet={sheet} info={info} /> : <Views sheet={sheet} />}
+      {sheet.kind === 'cover' ? <Cover sheet={sheet} info={info} /> : <Views sheet={sheet} unit={info.unit} />}
       <TitleBlock sheet={sheet} info={info} page={page} pages={pages} />
     </svg>
   );

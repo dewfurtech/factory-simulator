@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { download } from '../editor2d/exportImage';
 import { Icon } from '../editor2d/Toolbar';
 import { useProject } from '../store/project';
-import { scaleLabel } from './sheet/geometry';
+import { LENGTH_UNITS, scaleLabel, UNIT_TH, type LengthUnit } from './sheet/geometry';
 import { SHEET_H, SHEET_W } from './sheet/layout';
 import { SheetSvg } from './sheet/SheetSvg';
 import { buildDrawingSet, sheetDxf, type ViewsSheet } from './sheets';
@@ -29,6 +29,17 @@ export function DrawingsButton() {
   );
 }
 
+/** The unit of the dimension numbers, remembered in this browser. */
+const UNIT_KEY = 'drawings-unit';
+function savedUnit(): LengthUnit {
+  try {
+    const u = localStorage.getItem(UNIT_KEY);
+    return LENGTH_UNITS.includes(u as LengthUnit) ? (u as LengthUnit) : 'mm';
+  } catch {
+    return 'mm';
+  }
+}
+
 /** A sheet on screen at 96 px to the inch, before zoom. */
 const PX_PER_MM = 96 / 25.4;
 const SHEET_PX = { w: SHEET_W * PX_PER_MM, h: SHEET_H * PX_PER_MM };
@@ -47,7 +58,19 @@ interface ViewState {
 function DrawingsPage({ close }: { close: () => void }) {
   const project = useProject((s) => s.project!);
   const [openedAt] = useState(() => Date.now());
-  const set = useMemo(() => buildDrawingSet(project, openedAt), [project, openedAt]);
+  const [menu, setMenu] = useState(false);
+  const menuOpen = useRef(menu);
+  menuOpen.current = menu;
+  const [unit, pickUnit] = useState<LengthUnit>(savedUnit);
+  const setUnit = (u: LengthUnit) => {
+    pickUnit(u);
+    try {
+      localStorage.setItem(UNIT_KEY, u);
+    } catch {
+      // Storage off: the choice lasts while the page is open.
+    }
+  };
+  const set = useMemo(() => buildDrawingSet(project, openedAt, unit), [project, openedAt, unit]);
   const [current, setCurrent] = useState(0);
   const sheet = set.sheets[Math.min(current, set.sheets.length - 1)];
   const stage = useRef<HTMLDivElement>(null);
@@ -75,11 +98,12 @@ function DrawingsPage({ close }: { close: () => void }) {
   }, [fit]);
 
   useEffect(() => {
+    // Escape puts the gear menu away first, then closes the set.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        close();
-      }
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      if (menuOpen.current) setMenu(false);
+      else close();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
@@ -141,7 +165,7 @@ function DrawingsPage({ close }: { close: () => void }) {
   const exportDxf = () => {
     if (!dxfSheet) return;
     const name = `${project.name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'drawing'} ${dxfSheet.id}.dxf`;
-    download(new Blob([sheetDxf(dxfSheet)], { type: 'application/dxf' }), name);
+    download(new Blob([sheetDxf(dxfSheet, unit)], { type: 'application/dxf' }), name);
   };
 
   const pages = set.sheets.length;
@@ -169,12 +193,13 @@ function DrawingsPage({ close }: { close: () => void }) {
           </button>
         </div>
         <div className="drawings-actions">
+          <SettingsMenu open={menu} setOpen={setMenu} unit={unit} setUnit={setUnit} />
           <button
             type="button"
             className="btn"
             onClick={exportDxf}
             disabled={!dxfSheet}
-            title={dxfSheet ? `บันทึกแผ่น ${dxfSheet.id} เป็นไฟล์ DXF ขนาดจริง หน่วย มม. แยก layer` : 'ไม่มีแผ่นที่ส่งออก DXF ได้'}
+            title={dxfSheet ? `บันทึกแผ่น ${dxfSheet.id} เป็นไฟล์ DXF ขนาดจริง (พิกัดหน่วย มม. ตัวเลขมิติหน่วย ${UNIT_TH[unit]}) แยก layer` : 'ไม่มีแผ่นที่ส่งออก DXF ได้'}
             data-testid="drawings-dxf"
           >
             <Icon name="download" /> ส่งออก DXF
@@ -224,6 +249,51 @@ function DrawingsPage({ close }: { close: () => void }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The gear on the bar: settings of how the set is written, in a small menu (for now the unit of the dimension
+ * numbers). Closes on a pick outside it; Escape is handled by the page.
+ */
+function SettingsMenu({ open, setOpen, unit, setUnit }: { open: boolean; setOpen: (o: boolean) => void; unit: LengthUnit; setUnit: (u: LengthUnit) => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [open, setOpen]);
+  return (
+    <div className="drawings-settings" ref={box}>
+      <button
+        type="button"
+        className={`ib${open ? ' on' : ''}`}
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        title="ตั้งค่าแบบ"
+        aria-label="ตั้งค่าแบบ"
+        data-testid="drawings-settings"
+      >
+        <Icon name="settings" />
+      </button>
+      {open && (
+        <div className="drawings-settings-menu" role="dialog" aria-label="ตั้งค่าแบบ" data-testid="drawings-settings-menu">
+          <div className="drawings-settings-label">หน่วยของตัวเลขมิติ</div>
+          <div className="seg" role="radiogroup" aria-label="หน่วยของตัวเลขมิติ">
+            {LENGTH_UNITS.map((u) => (
+              <button key={u} type="button" role="radio" aria-checked={unit === u} className={unit === u ? 'on' : ''} onClick={() => setUnit(u)} data-testid={`drawings-unit-${u}`}>
+                {UNIT_TH[u]}
+              </button>
+            ))}
+          </div>
+          <p className="muted">เปลี่ยนเฉพาะตัวเลขบนเส้นมิติและหมายเหตุในกรอบชื่อแบบ เส้น มาตราส่วน และพิกัด DXF เป็น มม. ขนาดจริงเสมอ</p>
+        </div>
+      )}
     </div>
   );
 }
