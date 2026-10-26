@@ -12,8 +12,14 @@ const condo = () => sampleCondo();
 const roomOf = (els: Elevation[], name: string) => els.filter((e) => e.roomName === name);
 const dims = (e: Elevation) => e.drawing.prims.filter((p): p is Extract<Prim, { kind: 'dim' }> => p.kind === 'dim');
 /** Vertical dimensions: their lengths. */
-const heights = (e: Elevation) => dims(e).filter((d) => Math.abs(d.a.x - d.b.x) < 1e-6).map((d) => Math.abs(d.b.y - d.a.y));
-const widths = (e: Elevation) => dims(e).filter((d) => Math.abs(d.a.y - d.b.y) < 1e-6).map((d) => Math.abs(d.b.x - d.a.x));
+const heights = (e: Elevation) =>
+  dims(e)
+    .filter((d) => Math.abs(d.a.x - d.b.x) < 1e-6)
+    .map((d) => Math.abs(d.b.y - d.a.y));
+const widths = (e: Elevation) =>
+  dims(e)
+    .filter((d) => Math.abs(d.a.y - d.b.y) < 1e-6)
+    .map((d) => Math.abs(d.b.x - d.a.x));
 
 /** A 4 × 3 m room, walls 150 thick, a 900 door in the south wall 1000 from the west corner and a window in the north. */
 function boxRoom(): Project {
@@ -103,6 +109,20 @@ describe('the sample condo', () => {
     expect(heights(east)).toEqual(expect.arrayContaining([850, 2600]));
   });
 
+  it('draws the TV console on the bedroom wall from the living room, its open middle bay showing its shelf', () => {
+    const west = roomOf(els, 'นั่งเล่น / ครัว').filter((e) => e.looking === 270);
+    const face = west.find((e) => e.cabinets.some((c) => c.name === 'ตู้วางทีวี'))!;
+    expect(face.cabinets.find((c) => c.name === 'ตู้วางทีวี')).toMatchObject({ view: 'front', doors: 0, drawers: 4, y0: 0, y1: 500 });
+    // Thin rectangles of the cabinet layer: the open bay's opening and its one shelf, nothing behind the drawer fronts.
+    const thin = face.drawing.prims.filter((p) => p.kind === 'poly' && p.layer === 'cabinet' && p.weight === 'thin');
+    expect(thin).toHaveLength(2);
+  });
+
+  it('hides the wardrobe shelf behind its doors', () => {
+    const south = roomOf(els, 'ห้องนอน').find((e) => e.looking === 180)!;
+    expect(south.drawing.prims.filter((p) => p.kind === 'poly' && p.layer === 'cabinet' && p.weight === 'thin' && !p.style)).toHaveLength(1); // the plinth board
+  });
+
   it('hangs the kitchen wall cabinet at z 1450', () => {
     const east = roomOf(els, 'นั่งเล่น / ครัว').find((e) => e.looking === 90)!;
     const wall = east.cabinets.find((c) => c.name === 'ตู้ครัวแขวน')!;
@@ -151,6 +171,10 @@ describe('the sample condo', () => {
   it('draws only the objects of the floor asked for', () => {
     const p = condo();
     p.objects.push({ id: newId('obj'), assetId: 'home-chair', name: 'ชั้นบน', x: 3000, y: 200, z: 3200, rotation: 0, size: { w: 450, d: 480, h: 900 } });
-    expect(elevations(p).flatMap((e) => e.furniture).some((f) => f.name === 'ชั้นบน')).toBe(false);
+    expect(
+      elevations(p)
+        .flatMap((e) => e.furniture)
+        .some((f) => f.name === 'ชั้นบน'),
+    ).toBe(false);
   });
 });

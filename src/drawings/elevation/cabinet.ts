@@ -57,11 +57,19 @@ export function cabinetFront(spec: CabinetSpec, at: Pt): CabinetFront {
   // The carcass box as one outline: sides, top and bottom all lie inside it.
   prims.push(rect(X(-spec.width / 2), Y(f.boxY0), X(spec.width / 2), Y(f.boxY0 + f.boxHeight), 'medium'));
 
+  // A front hides what is behind it up to the gaps round it: a shelf whose middle falls between two leaves is hidden too.
+  const g = spec.gap + 1e-6;
   const fronts = pieces.filter((p) => p.role === 'door' || p.role === 'drawerFront').map(faceOf);
   const covered = (p: Piece) => {
     const [x, y] = p.center;
-    return fronts.some((r) => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1);
+    return fronts.some((r) => x >= r.x0 - g && x <= r.x1 + g && y >= r.y0 - g && y <= r.y1 + g);
   };
+  // A bay with no front shows its opening: the inside of the box between its sides (or dividers), top and bottom.
+  spec.bays.forEach((bay, i) => {
+    if (bay.front.kind !== 'open') return;
+    const x0 = f.bayX0[i];
+    prims.push(rect(X(x0), Y(f.boxY0 + f.t), X(x0 + f.bayWidth), Y(f.boxY0 + f.boxHeight - f.t), 'thin'));
+  });
 
   let doors = 0;
   let drawers = 0;
@@ -91,9 +99,18 @@ export function cabinetFront(spec: CabinetSpec, at: Pt): CabinetFront {
         const hx = hingeLeft ? r.x0 : r.x1;
         const fx = hingeLeft ? r.x1 : r.x0;
         const mid = (r.y0 + r.y1) / 2;
-        prims.push(
-          { kind: 'poly', pts: [{ x: X(fx), y: Y(r.y1) }, { x: X(hx), y: Y(mid) }, { x: X(fx), y: Y(r.y0) }], closed: false, weight: 'thin', style: 'dashed', layer: LAYER },
-        );
+        prims.push({
+          kind: 'poly',
+          pts: [
+            { x: X(fx), y: Y(r.y1) },
+            { x: X(hx), y: Y(mid) },
+            { x: X(fx), y: Y(r.y0) },
+          ],
+          closed: false,
+          weight: 'thin',
+          style: 'dashed',
+          layer: LAYER,
+        });
         break;
       }
       default:

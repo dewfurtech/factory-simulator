@@ -155,16 +155,7 @@ function footprint(o: PlacedObject): Vec2[] {
   ].map(([i, j]) => add(c, add(scale(ax, (i * o.size.w) / 2), scale(ay, (j * o.size.d) / 2))));
 }
 
-function faceElevation(
-  project: Project,
-  plan: Plan,
-  room: Room,
-  face: Face,
-  label: string,
-  objects: PlacedObject[],
-  floorZ: Mm,
-  opts: typeof DEFAULTS,
-): Elevation {
+function faceElevation(project: Project, plan: Plan, room: Room, face: Face, label: string, objects: PlacedObject[], floorZ: Mm, opts: typeof DEFAULTS): Elevation {
   const W = face.width;
   const segH = face.segments.map((s) => wallFaceHeight(room, s.wall));
   const H = Math.max(0, ...segH);
@@ -221,6 +212,7 @@ function faceElevation(
   // --- Cabinets built against the face, and loose pieces in front of it.
   const cabinets: ElevationCabinet[] = [];
   const furniture: ElevationPiece[] = [];
+  const names: { box: ElevationBox; text: string; layer: string }[] = [];
   for (const o of objects) {
     const ax = fromAngle(o.rotation);
     const front = perp(ax);
@@ -242,20 +234,24 @@ function faceElevation(
     }
     if (!square || near < -opts.cabinetReach || near > opts.furnitureReach) continue;
     if (o.cabinet) {
-      prims.push(rect(box, 'medium', 'cabinet'), nameIn(box, o.name, 'cabinet'));
+      prims.push(rect(box, 'medium', 'cabinet'));
+      names.push({ box, text: o.name, layer: 'cabinet' });
       cabinets.push({ objectId: o.id, name: o.name, view: 'outline', doors: 0, drawers: 0, ...box });
       continue;
     }
     prims.push(rect(box, 'thin', 'furniture'));
-    prims.push(nameIn(box, o.name, 'furniture'));
+    names.push({ box, text: o.name, layer: 'furniture' });
     furniture.push({ objectId: o.id, name: o.name, ...box });
   }
+  prims.push(...placeNames(names, opts.scale));
   cabinets.sort((p, q) => p.x0 - q.x0);
   furniture.sort((p, q) => p.x0 - q.x0);
 
   // --- Dimensions. Along the bottom: wall end to openings to cabinets to wall end, then the whole width.
   const s = opts.scale;
-  const xStops = uniq([0, W, ...openings.flatMap((b) => [b.x0, b.x1]), ...cabinets.filter((c) => c.view === 'front').flatMap((c) => [c.x0, c.x1])].filter((x) => x >= -0.5 && x <= W + 0.5));
+  const xStops = uniq(
+    [0, W, ...openings.flatMap((b) => [b.x0, b.x1]), ...cabinets.filter((c) => c.view === 'front').flatMap((c) => [c.x0, c.x1])].filter((x) => x >= -0.5 && x <= W + 0.5),
+  );
   const bottomRows = xStops.length > 2 ? 2 : 1;
   if (xStops.length > 2) for (let i = 0; i + 1 < xStops.length; i++) prims.push({ kind: 'dim', a: pt(xStops[i], 0), b: pt(xStops[i + 1], 0), offset: -8, layer: 'dim' });
   prims.push({ kind: 'dim', a: pt(0, 0), b: pt(W, 0), offset: -8 * bottomRows, layer: 'dim' });
@@ -361,7 +357,11 @@ function openingPrims(o: Opening, b: ElevationBox, hingeX: number, towardViewer:
     poly([pt(fx, inner.y1), pt(hx, (inner.y0 + inner.y1) / 2), pt(fx, inner.y0)], false, 'thin', L, towardViewer ? {} : { style: 'dashed' });
   const arrow = (from: number, to: number, y: number): Prim[] => {
     const head = Math.min(120, Math.abs(to - from) / 2) * Math.sign(to - from);
-    return [line(pt(from, y), pt(to, y), 'thin', L), line(pt(to, y), pt(to - head, y + Math.abs(head) / 2), 'thin', L), line(pt(to, y), pt(to - head, y - Math.abs(head) / 2), 'thin', L)];
+    return [
+      line(pt(from, y), pt(to, y), 'thin', L),
+      line(pt(to, y), pt(to - head, y + Math.abs(head) / 2), 'thin', L),
+      line(pt(to, y), pt(to - head, y - Math.abs(head) / 2), 'thin', L),
+    ];
   };
   const midY = (inner.y0 + inner.y1) / 2;
   if (style === 'swing') {
@@ -385,15 +385,27 @@ function openingPrims(o: Opening, b: ElevationBox, hingeX: number, towardViewer:
   return out;
 }
 
-/** A piece's name, small, low in its outline. */
-const nameIn = (b: ElevationBox, text: string, layer: string): Prim => ({
-  kind: 'text',
-  at: pt((b.x0 + b.x1) / 2, b.y0 + Math.min(150, (b.y1 - b.y0) / 2)),
-  text,
-  size: 1.8,
-  anchor: 'middle',
-  layer,
-});
+/** Paper size of a piece's name, mm. */
+const NAME_SIZE = 1.8;
 
+/**
+ * Each piece's name, small, low in its outline; a name that would run into one already placed goes up a line, so
+ * pieces standing in front of each other stay readable.
+ */
+function placeNames(names: { box: ElevationBox; text: string; layer: string }[], scale: number): Prim[] {
+  const step = NAME_SIZE * 1.6 * scale;
+  const placed: { x0: number; x1: number; y: number }[] = [];
+  return [...names]
+    .sort((p, q) => p.box.x0 - q.box.x0)
+    .map(({ box, text, layer }) => {
+      const x = (box.x0 + box.x1) / 2;
+      // Thai and Latin letters run about half their height wide.
+      const half = (text.length * NAME_SIZE * 0.55 * scale) / 2;
+      let y = box.y0 + Math.min(150, (box.y1 - box.y0) / 2);
+      while (placed.some((p) => p.x0 < x + half && p.x1 > x - half && Math.abs(p.y - y) < step)) y += step;
+      placed.push({ x0: x - half, x1: x + half, y });
+      return { kind: 'text', at: pt(x, y), text, size: NAME_SIZE, anchor: 'middle', layer };
+    });
+}
 /** A copy of a plan point without negative zeros. */
 const clean = (p: Vec2): Pt => ({ x: p.x + 0, y: p.y + 0 });
