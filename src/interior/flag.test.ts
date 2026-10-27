@@ -13,18 +13,15 @@ beforeEach(() => {
 
 describe('interiorEnabled', () => {
   it('is off on the live site until asked for', () => {
-    expect(interiorEnabled('', false)).toBe(false);
+    expect(interiorEnabled('')).toBe(false);
   });
   it('turns on with ?interior and stays on without it', () => {
-    expect(interiorEnabled('?interior', false)).toBe(true);
-    expect(interiorEnabled('', false)).toBe(true);
+    expect(interiorEnabled('?interior')).toBe(true);
+    expect(interiorEnabled('')).toBe(true);
   });
   it('turns off again with ?interior=0', () => {
-    interiorEnabled('?interior=1', false);
-    expect(interiorEnabled('?interior=0', false)).toBe(false);
-    expect(interiorEnabled('', false)).toBe(false);
-  });
-  it('is always on in the dev server', () => {
-    expect(interiorEnabled('', true)).toBe(true);
+    interiorEnabled('?interior=1');
+    expect(interiorEnabled('?interior=0')).toBe(false);
+    expect(interiorEnabled('')).toBe(false);
   });
 });
