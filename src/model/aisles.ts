@@ -10,29 +10,23 @@ export const LINE_COLOR = '#eab308';
 export interface AisleKindInfo {
   label: string;
   short: string;
-  /** Floor tint between the lines, or the arrow's colour. */
+  /** Floor tint between the lines. */
   fill: string;
   /** Width a new one starts at. */
   width: Mm;
-  /** A line with an arrowhead showing the way the work goes, rather than a strip people or trucks keep clear. */
-  arrow?: true;
 }
 
 export const AISLE_KINDS: Record<AisleKind, AisleKindInfo> = {
-  walk: { label: 'ทางเดินคน', short: 'คนเดิน', fill: '#16a34a', width: 1200 },
-  forklift: { label: 'ทางรถโฟล์คลิฟท์', short: 'ทางรถ', fill: '#2563eb', width: 3000 },
-  flow: { label: 'ลูกศรทิศทางงาน (วัตถุดิบ → ผลิต → ออก)', short: 'ทิศทางงาน', fill: '#dc2626', width: 300, arrow: true },
+  walk: { label: 'ทางเดิน', short: 'ทางเดิน', fill: '#16a34a', width: 1200 },
 };
 
 export const AISLE_KIND_IDS = Object.keys(AISLE_KINDS) as AisleKind[];
 
-export const isArrow = (kind: AisleKind): boolean => !!AISLE_KINDS[kind].arrow;
-
 /** The width a new aisle of this kind starts at. */
 export const defaultWidth = (kind: AisleKind): Mm => AISLE_KINDS[kind].width;
 
-/** Aisles saved by older versions had two more truck kinds; they are truck aisles now. */
-export const migrateAisle = (a: Aisle): Aisle => (AISLE_KINDS[a.kind] ? a : { ...a, kind: 'forklift' });
+/** Aisles saved by older versions could be truck aisles or flow arrows; they are all walkways now, at their width. */
+export const migrateAisle = (a: Aisle): Aisle => (AISLE_KINDS[a.kind] ? a : { ...a, kind: 'walk', width: Math.max(a.width, 600) });
 
 export const planAisles = (plan: Plan): Aisle[] => Object.values(plan.aisles ?? {});
 
@@ -140,11 +134,4 @@ export function moveAisle(plan: Plan, id: Id, by: Vec2): void {
   const a = plan.aisles?.[id];
   if (!a) return;
   a.points = a.points.map((p) => ({ x: p.x + by.x, y: p.y + by.y }));
-}
-
-/** A new kind brings its own usual width along, unless the user had set one of the same sort (strip or arrow). */
-export function setAisleKind(a: Aisle, kind: AisleKind): void {
-  const wasArrow = isArrow(a.kind);
-  a.kind = kind;
-  if (wasArrow !== isArrow(kind)) a.width = defaultWidth(kind);
 }

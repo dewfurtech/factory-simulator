@@ -1,7 +1,7 @@
 {
  "id": "pmvf0p0yh1tezzn",
  "name": "Mastrox Layout",
- "updatedAt": 1792400755829,
+ "updatedAt": 1793079225218,
  "plan": {
   "corners": {
    "cmvf0p0yh5lcgjm": {
@@ -854,8 +854,8 @@
    "id": "objmvf0p0yl2e3ro9x",
    "assetId": "moon-40",
    "name": "Moon 40",
-   "x": 1550,
-   "y": 17100,
+   "x": 2485,
+   "y": 18400,
    "z": 0,
    "rotation": -1.5707963267948966,
    "size": {
@@ -868,8 +868,8 @@
    "id": "objmvf0p0yl2fl987v",
    "assetId": "moon-10",
    "name": "Moon 10",
-   "x": 4250,
-   "y": 17100,
+   "x": 6700,
+   "y": 21070,
    "z": 0,
    "rotation": 1.5707963267948966,
    "size": {
@@ -882,7 +882,7 @@
    "id": "objmvf0p0yl2gjqqey",
    "assetId": "rakete-3500ant",
    "name": "Rakete 3500Ant",
-   "x": 12900,
+   "x": 11000,
    "y": 14900,
    "z": 0,
    "rotation": 0,
@@ -896,7 +896,7 @@
    "id": "objmvf0p0yl2hj8phv",
    "assetId": "rakete-4800ant",
    "name": "Rakete 4800Ant",
-   "x": 25600,
+   "x": 23750,
    "y": 14950,
    "z": 0,
    "rotation": 0,
@@ -910,7 +910,7 @@
    "id": "objmvf0p0yl2itzstj",
    "assetId": "aurora-slide",
    "name": "Aurora SlideShell",
-   "x": 15100,
+   "x": 15200,
    "y": 32500,
    "z": 0,
    "rotation": 3.141592653589793,
@@ -938,8 +938,8 @@
    "id": "objmvf0p0yl2ktkoxf",
    "assetId": "booster-e10",
    "name": "Booster e10",
-   "x": 3900,
-   "y": 33950,
+   "x": 4700,
+   "y": 32380,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -952,10 +952,10 @@
    "id": "objmvf0p0yl2lszg9m",
    "assetId": "booster-e7",
    "name": "Booster e7",
-   "x": 3900,
-   "y": 36300,
+   "x": 4700,
+   "y": 35675,
    "z": 0,
-   "rotation": 0,
+   "rotation": 3.141592653589793,
    "size": {
     "w": 3570,
     "d": 720,
@@ -966,8 +966,8 @@
    "id": "objmvf0p0yl2mou8zk",
    "assetId": "booster-e6",
    "name": "Booster e6",
-   "x": 3900,
-   "y": 38800,
+   "x": 4700,
+   "y": 38002,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -981,7 +981,7 @@
    "assetId": "nova-xs",
    "name": "Nova XS",
    "x": 29550,
-   "y": 33512.78923269937,
+   "y": 33513,
    "z": 0,
    "rotation": 1.5707963267948966,
    "size": {
@@ -994,8 +994,8 @@
    "id": "objmvf0p0yl2o0r5zj",
    "assetId": "vair-10",
    "name": "VAir ปั๊มลม",
-   "x": 32137.5,
-   "y": 17456.71726602152,
+   "x": 35100,
+   "y": 17457,
    "z": 0,
    "rotation": 1.5707963267948966,
    "size": {
@@ -1008,7 +1008,7 @@
    "id": "objmvf0p0yl2pml696",
    "assetId": "cold-presso",
    "name": "Cold Presso 60T",
-   "x": 25500,
+   "x": 25800,
    "y": 21500,
    "z": 0,
    "rotation": 0,
@@ -1023,7 +1023,7 @@
    "assetId": "nebula",
    "name": "Nebula",
    "x": 6500,
-   "y": 26500,
+   "y": 27760,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -1033,67 +1033,11 @@
    }
   },
   {
-   "id": "objmvf0p0yl3acwfqt",
-   "assetId": "meeting-table",
-   "name": "โต๊ะประชุม 6 ที่",
-   "x": 20520,
-   "y": 42450,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 4800,
-    "d": 2400,
-    "h": 750
-   }
-  },
-  {
-   "id": "objmvf0p0yl3b1h4xg",
-   "assetId": "meeting-table",
-   "name": "โต๊ะประชุม 6 ที่",
-   "x": 20520,
-   "y": 46750,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 4800,
-    "d": 2400,
-    "h": 750
-   }
-  },
-  {
-   "id": "objmvf0p0yl3cdz64h",
-   "assetId": "meeting-table",
-   "name": "โต๊ะประชุมย่อย",
-   "x": 14750,
-   "y": 26650,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 4800,
-    "d": 2400,
-    "h": 750
-   }
-  },
-  {
-   "id": "objmvf0p0yl3d7xviw",
-   "assetId": "plant",
-   "name": "ต้นไม้",
-   "x": 20300,
-   "y": 24950,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 600,
-    "d": 600,
-    "h": 1300
-   }
-  },
-  {
    "id": "objmvf0utt555g9u9g",
    "assetId": "moon-10",
    "name": "Moon 10",
-   "x": 39682.204030514724,
-   "y": 14792.21083261003,
+   "x": 39450,
+   "y": 17400,
    "z": 0,
    "rotation": 1.5707963267948966,
    "size": {
@@ -1106,8 +1050,8 @@
    "id": "objmvf0v50756fgmuf",
    "assetId": "moon-80",
    "name": "Moon 80",
-   "x": 39682.20403051471,
-   "y": 22649.67066786642,
+   "x": 39450,
+   "y": 25900,
    "z": 0,
    "rotation": 1.5707963267948966,
    "size": {
@@ -1120,8 +1064,8 @@
    "id": "objmvf0v6ts57l6h5m",
    "assetId": "moon-80",
    "name": "Moon 80",
-   "x": 39682.20403051471,
-   "y": 29518.67066786642,
+   "x": 39450,
+   "y": 35400,
    "z": 0,
    "rotation": 1.5707963267948966,
    "size": {
@@ -1134,8 +1078,8 @@
    "id": "objmvf0v7t958rf4oj",
    "assetId": "moon-80",
    "name": "Moon 80",
-   "x": 33810,
-   "y": 31925.329473628164,
+   "x": 29790,
+   "y": 25650,
    "z": 0,
    "rotation": -1.5707963267948966,
    "size": {
@@ -1148,8 +1092,8 @@
    "id": "objmvf0vko159pkb8v",
    "assetId": "moon-40",
    "name": "Moon 40",
-   "x": 9656.270358630096,
-   "y": 2529.7112032525765,
+   "x": 10100,
+   "y": 2530,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -1162,8 +1106,8 @@
    "id": "objmvf0vm645ammbyo",
    "assetId": "moon-40",
    "name": "Moon 40",
-   "x": 20658.1391849695,
-   "y": 2529.7112032525747,
+   "x": 19600,
+   "y": 2530,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -1176,8 +1120,8 @@
    "id": "objmvf0vnjn5b9cvxp",
    "assetId": "moon-40",
    "name": "Moon 40",
-   "x": 34582.3794183053,
-   "y": 2644.3140035269425,
+   "x": 35720,
+   "y": 2530,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -1190,8 +1134,8 @@
    "id": "objmvf0vrb85ciw56p",
    "assetId": "rakete-3500a",
    "name": "Rakete 3500A",
-   "x": 36416.024222695196,
-   "y": 5623.986810660534,
+   "x": 36800,
+   "y": 7650,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -1204,8 +1148,8 @@
    "id": "objmvf0vsih5dya2vh",
    "assetId": "rakete-3500a",
    "name": "Rakete 3500A",
-   "x": 36817.13402365549,
-   "y": 9176.673619165964,
+   "x": 30100,
+   "y": 7650,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -1218,8 +1162,8 @@
    "id": "objmvf0vtmf5evv9t2",
    "assetId": "rakete-3500a",
    "name": "Rakete 3500A",
-   "x": 28279.225403215016,
-   "y": 5681.288210797717,
+   "x": 27650,
+   "y": 2500,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -1232,8 +1176,8 @@
    "id": "objmvf0vukl5fucwew",
    "assetId": "rakete-3500a",
    "name": "Rakete 3500A",
-   "x": 28623.03380403812,
-   "y": 9348.577819577518,
+   "x": 23500,
+   "y": 7650,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -1246,8 +1190,8 @@
    "id": "objmvf0vwg75g9ajnm",
    "assetId": "rakete-3500a",
    "name": "Rakete 3500A",
-   "x": 16647.041175366587,
-   "y": 5910.493811346454,
+   "x": 16900,
+   "y": 7650,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -1260,10 +1204,10 @@
    "id": "objmvf0vxbd5hu7420",
    "assetId": "rakete-3500a",
    "name": "Rakete 3500A",
-   "x": 16818.945375778138,
-   "y": 10093.496021360916,
+   "x": 19800,
+   "y": 19903,
    "z": 0,
-   "rotation": 0,
+   "rotation": 3.141592653589793,
    "size": {
     "w": 3601,
     "d": 2042,
@@ -1274,8 +1218,8 @@
    "id": "objmvf0vz0x5ispkz2",
    "assetId": "rakete-3500a",
    "name": "Rakete 3500A",
-   "x": 9770.87315890446,
-   "y": 5795.891011072086,
+   "x": 10300,
+   "y": 7650,
    "z": 0,
    "rotation": 0,
    "size": {
@@ -1288,294 +1232,14 @@
    "id": "objmvf0w02p5j8i4pb",
    "assetId": "rakete-3500a",
    "name": "Rakete 3500A",
-   "x": 10286.585760139118,
-   "y": 8947.468018617226,
+   "x": 13200,
+   "y": 19903,
    "z": 0,
-   "rotation": 0,
+   "rotation": 3.141592653589793,
    "size": {
     "w": 3601,
     "d": 2042,
     "h": 2285
-   }
-  },
-  {
-   "id": "objmvf0xskj5myjemk",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 24562.983600192634,
-   "y": 47650,
-   "z": 0,
-   "rotation": -3.141592653589793,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf0xuai5niqyaa",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 24596.15815059009,
-   "y": 46215.47589779829,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf0xvyy5oryh5g",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 24689.34619361583,
-   "y": 43769.289768372626,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf0xx255pqjgyu",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 24642.75217210296,
-   "y": 42464.65716601226,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf0xyjg5qejth0",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 30923.067536699386,
-   "y": 47650,
-   "z": 0,
-   "rotation": -3.141592653589793,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf0xyzo5riyhws",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 30992.95856896869,
-   "y": 46168.88187628542,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf0xzgj5sk3isp",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 30946.364547455818,
-   "y": 43722.69574685975,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf0xzvl5th06gq",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 30969.661558212258,
-   "y": 42464.657166012264,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf0y1ko5ub6ra6",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 36840.50826883387,
-   "y": 47650,
-   "z": 0,
-   "rotation": -3.141592653589793,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf0y2bi5vnrbwj",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 36817.21125807744,
-   "y": 46192.17888704186,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf0y34k5wqucve",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 36863.80527959031,
-   "y": 43699.39873610331,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf0y3gq5xp2uo2",
-   "assetId": "rack",
-   "name": "ชั้นวางพาเลท",
-   "x": 36887.10229034675,
-   "y": 42464.65716601225,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 2700,
-    "d": 1100,
-    "h": 3000
-   }
-  },
-  {
-   "id": "objmvf13f7w63ylehu",
-   "assetId": "desk",
-   "name": "โต๊ะทำงาน + เก้าอี้",
-   "x": 7269.323778058548,
-   "y": 42397.90578979515,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 1400,
-    "d": 1300,
-    "h": 750
-   }
-  },
-  {
-   "id": "objmvf1464f647r2c9",
-   "assetId": "shelf",
-   "name": "ชั้นวางของ",
-   "x": 8967.615625670796,
-   "y": 41275,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 1800,
-    "d": 600,
-    "h": 2000
-   }
-  },
-  {
-   "id": "objmvf1492y65udkps",
-   "assetId": "shelf",
-   "name": "ชั้นวางของ",
-   "x": 10767.615625670796,
-   "y": 41275,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 1800,
-    "d": 600,
-    "h": 2000
-   }
-  },
-  {
-   "id": "objmvf14ayd66sxj6q",
-   "assetId": "shelf",
-   "name": "ชั้นวางของ",
-   "x": 12567.615625670796,
-   "y": 41275,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 1800,
-    "d": 600,
-    "h": 2000
-   }
-  },
-  {
-   "id": "objmvf14h7c67es3rk",
-   "assetId": "shelf",
-   "name": "ชั้นวางของ",
-   "x": 8993.606954376113,
-   "y": 43065,
-   "z": 0,
-   "rotation": -3.141592653589793,
-   "size": {
-    "w": 1800,
-    "d": 600,
-    "h": 2000
-   }
-  },
-  {
-   "id": "objmvf14j39688bwl3",
-   "assetId": "shelf",
-   "name": "ชั้นวางของ",
-   "x": 10793.606954376113,
-   "y": 43065,
-   "z": 0,
-   "rotation": -3.141592653589793,
-   "size": {
-    "w": 1800,
-    "d": 600,
-    "h": 2000
-   }
-  },
-  {
-   "id": "objmvf14ke369pwlxu",
-   "assetId": "shelf",
-   "name": "ชั้นวางของ",
-   "x": 12593.606954376113,
-   "y": 43065,
-   "z": 0,
-   "rotation": -3.141592653589793,
-   "size": {
-    "w": 1800,
-    "d": 600,
-    "h": 2000
-   }
-  },
-  {
-   "id": "objmvf14qk56a0yc6u",
-   "assetId": "forklift",
-   "name": "รถโฟล์คลิฟท์ (จอด)",
-   "x": 27953.201365713925,
-   "y": 44383.78104488818,
-   "z": 0,
-   "rotation": 0,
-   "size": {
-    "w": 2300,
-    "d": 1100,
-    "h": 2100
    }
   }
  ],

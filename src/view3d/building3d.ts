@@ -5,7 +5,7 @@ import { roomLabelPoint, roomPolygon, wallDir } from '../model/plan';
 import type { Column, Id, Plan, Project, Vec2, Mm } from '../model/types';
 import { bounds, dot, pointInPolygon, signedArea, sub } from '../model/vec';
 import { planAreas } from '../model/areas';
-import { AISLE_KINDS, aisleLabel, aisleOutline, arrowHead, isArrow, LINE_COLOR, LINE_WIDTH, offsetLine, planAisles } from '../model/aisles';
+import { AISLE_KINDS, aisleLabel, aisleOutline, LINE_COLOR, LINE_WIDTH, offsetLine, planAisles } from '../model/aisles';
 import { fmtLen } from '../format';
 import { zoneColor } from '../model/zones';
 import { GLASS, paint, textSprite } from './lowpoly';
@@ -95,17 +95,10 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
     if (g) floors.push(g);
   }
 
-  // Aisles painted on the floor: a tint between two yellow edge lines. A flow arrow is a red line with an arrowhead.
+  // Walkways painted on the floor: a tint between two yellow edge lines.
   const base = new THREE.Color(zoneColor({ zone: 'production' }));
   for (const a of planAisles(plan)) {
     if (a.hidden || a.points.length < 2) continue;
-    if (isArrow(a.kind)) {
-      const line = prism(aisleOutline(a), 0, 8, AISLE_KINDS[a.kind].fill);
-      if (line) floors.push(line);
-      const head = prism(arrowHead(a), 0, 8, AISLE_KINDS[a.kind].fill);
-      if (head) floors.push(head);
-      continue;
-    }
     const tint = base.clone().lerp(new THREE.Color(AISLE_KINDS[a.kind].fill), 0.55);
     const fill = prism(aisleOutline(a), 0, 3, `#${tint.getHexString()}`);
     if (fill) floors.push(fill);
@@ -251,7 +244,7 @@ export function buildAreas(plan: Plan): THREE.Group {
     if (a.hidden || a.points.length < 2) continue;
     const at = aisleLabel(a);
     if (at.length < 2500) continue;
-    const s = textSprite(isArrow(a.kind) ? a.name : `${AISLE_KINDS[a.kind].short} · ${fmtLen(a.width)}`, { height: 0.5, color: '#ffffff', bg: AISLE_KINDS[a.kind].fill });
+    const s = textSprite(`${AISLE_KINDS[a.kind].short} · ${fmtLen(a.width)}`, { height: 0.5, color: '#ffffff', bg: AISLE_KINDS[a.kind].fill });
     fitLabelTo(s, at.length);
     s.position.set(at.at.x * M, 0.3, at.at.y * M);
     s.userData.baseScale = s.scale.clone();

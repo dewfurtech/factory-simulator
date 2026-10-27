@@ -15,7 +15,7 @@ type Group = 'room' | 'aisle' | 'area' | 'wall' | 'opening' | 'column' | 'machin
 
 const GROUP_LABEL: Record<Group, string> = {
   room: 'ห้อง / โซน',
-  aisle: 'ทางเดิน / ทางรถ',
+  aisle: 'ทางเดิน (วาดเอง)',
   area: 'พื้นที่',
   wall: 'ผนัง',
   opening: 'ประตู / หน้าต่าง',

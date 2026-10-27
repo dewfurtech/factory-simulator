@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLibrary } from '../store/library';
 import { useProject } from '../store/project';
-import { useUi } from '../store/ui';
+import { SNAP_REACH, useUi } from '../store/ui';
 import { moveWithStack, snapObject } from '../model/objects';
 import { objectAt, placeObjectAt, rotateObject } from '../editor2d/tools';
 import { ASSET_MIME, draggedAssetId } from '../editor2d/PlanEditor';
@@ -13,6 +13,7 @@ import { download } from '../editor2d/exportImage';
 import { IssuesChip, useTroubled } from '../panels/IssuesChip';
 import { HelpButton } from '../ui/HelpButton';
 import { Loading3D } from '../ui/Loading3D';
+import { ObjectActions } from '../editor2d/ObjectActions';
 
 /** The 3D pane: the factory, with the picked object highlighted. */
 export default function View3D() {
@@ -21,6 +22,9 @@ export default function View3D() {
   const project = useProject((s) => s.project!);
   const selection = useUi((s) => s.selection);
   const cutaway = useUi((s) => s.cutaway);
+  const dock = useUi((s) => s.dock);
+  const panelOpen = useUi((s) => s.panelOpen);
+  const customer = useUi((s) => !!s.customer);
   const areas = useUi((s) => !s.areasHidden);
   const [top, setTop] = useState(false);
   // Move mode: dragging a machine slides it over the floor, as on the plan.
@@ -148,7 +152,10 @@ export default function View3D() {
       const o = p.objects.find((x) => x.id === d.id);
       if (!o) return;
       // Snaps flush to walls and neighbours the way the plan does, unless snapping is off or Alt is held.
-      const pose = useUi.getState().snapOn && !e.altKey ? snapObject(p.plan, p.objects, o, target, 250) : { ...target, z: o.z, rotation: o.rotation, guides: [] };
+      const pose =
+        useUi.getState().snapOn && !e.altKey
+          ? snapObject(p.plan, p.objects, o, target, 250 * SNAP_REACH[useUi.getState().snapReach].factor)
+          : { ...target, z: o.z, rotation: o.rotation, guides: [] };
       moveWithStack(p.objects, d.id, pose);
     });
   };
@@ -232,7 +239,41 @@ export default function View3D() {
         >
           <Icon name="image" />
         </button>
+        {/* Phones only: the panel toggles from the top bar sit here, so the bottom is one row of buttons. */}
+        <span className="view-tools-sep tb-phone" />
+        <button
+          className={`ib sm tb-phone${dock === 'catalog' ? ' on' : ''}`}
+          onClick={() => useUi.getState().toggleDock('catalog')}
+          title="คลังโมเดล"
+          aria-pressed={dock === 'catalog'}
+          data-testid="dock-catalog-3d"
+        >
+          <Icon name="machine" />
+        </button>
+        {!customer && (
+          <button
+            className={`ib sm tb-phone${dock === 'layers' ? ' on' : ''}`}
+            onClick={() => useUi.getState().toggleDock('layers')}
+            title="เลเยอร์"
+            aria-pressed={dock === 'layers'}
+            data-testid="dock-layers-3d"
+          >
+            <Icon name="layers" />
+          </button>
+        )}
+        <button
+          className={`ib sm tb-phone${panelOpen ? ' on' : ''}`}
+          onClick={() => useUi.getState().set({ panelOpen: !panelOpen })}
+          title="รายละเอียด / ตั้งค่าโรงงาน"
+          aria-pressed={panelOpen}
+          data-testid="panel-toggle-3d"
+        >
+          <Icon name="props" />
+        </button>
       </div>
+      {started && selection?.kind === 'object' && sceneRef.current && (
+        <Actions3D key={selection.id} scene={sceneRef.current} id={selection.id} moving={moving} onMove={() => setMoving(!moving)} />
+      )}
       <IssuesChip />
       <HelpButton
         className="view-help"
@@ -247,4 +288,30 @@ export default function View3D() {
       />
     </div>
   );
+}
+
+/** The round move / turn / delete buttons over the picked machine, kept over it as the view turns. */
+function Actions3D({ scene, id, moving, onMove }: { scene: FactoryScene; id: Id; moving: boolean; onMove: () => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  // The machine itself moves and turns too, so the buttons follow every drawn frame.
+  const rotation = useProject((s) => s.project?.objects.find((o) => o.id === id)?.rotation);
+  useEffect(() => {
+    const place = () => {
+      const el = box.current;
+      if (!el) return;
+      const p = scene.screenOf(id);
+      el.style.visibility = p ? 'visible' : 'hidden';
+      if (p) {
+        el.style.left = `${p.x}px`;
+        el.style.top = `${Math.max(28, p.y - 28)}px`;
+      }
+    };
+    scene.onFrame = place;
+    scene.redraw();
+    place();
+    return () => {
+      if (scene.onFrame === place) scene.onFrame = null;
+    };
+  }, [scene, id, rotation]);
+  return <ObjectActions id={id} onMove={onMove} moving={moving} className="rot-ctl in3d" style={{ visibility: 'hidden' }} testId="actions-3d" boxRef={box} />;
 }

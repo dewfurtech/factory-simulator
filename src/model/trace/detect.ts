@@ -1,6 +1,6 @@
 import type { Mm, Vec2 } from '../types';
 import { dist } from '../vec';
-import { close, components, dilate, inkMask, inkNear, lineMask, minus, open, union, type Gray, type Mask } from './raster';
+import { close, components, dilate, emptyMask, inkMask, inkNear, lineMask, minus, open, union, type Gray, type Mask } from './raster';
 import { paintRuns, sketchRuns } from './sketch';
 
 /** A standard door leaf, and the opening it hangs in with its frame: what traced doors are sized to and the scale is read from. */
@@ -28,6 +28,11 @@ export interface TraceOptions {
   bridge?: number;
   /** Search unbroken walls for swing doors drawn on them (see wallDoors). Off while the scale is searched for. */
   wallDoors?: boolean;
+  /**
+   * Walls drawn as single thin lines (a CAD print of a hall, a survey drawing): read off the contrast mask, where faint
+   * lines come out whole, with no lower bound on their thickness; two lines up to hollowGap apart are one wall.
+   */
+  thin?: boolean;
 }
 
 export interface TracedWall {
@@ -84,6 +89,17 @@ export function detectPlan(gray: Gray, o: TraceOptions): TracedPlan {
     // Pencil: the firm strokes are the walls, each about a standard wall thick whatever the hand drew.
     runs = sketchRuns(ink, { minLen: o.minLen, bridge: o.bridge, t: o.minThick * 1.5 });
     walls = paintRuns(ink, runs);
+  } else if (o.thin) {
+    // Thin lines: the threshold mask drops half the pixels of a faint line, so the contrast mask is read too; skips of a
+    // pixel or two along a line are bridged, and the two lines of a wall drawn double are filled into one band.
+    const src = union(ink, lines);
+    const half = Math.floor(o.minLen / 2);
+    const g = Math.ceil(o.hollowGap / 2);
+    const hWalls = open(close(src, 1, g), half, 0);
+    const vWalls = open(close(src, g, 1), 0, half);
+    const t = { ...o, minThick: 1 };
+    runs = [...axisRuns(hWalls, 'h', t), ...axisRuns(vWalls, 'v', t)].filter((w) => clearFace(src, w));
+    walls = union(hWalls, vWalls);
   } else {
     const r = Math.max(1, Math.floor((o.minThick - 1) / 2));
     const half = Math.floor(o.minLen / 2);
@@ -94,9 +110,12 @@ export function detectPlan(gray: Gray, o: TraceOptions): TracedPlan {
     runs = [...axisRuns(hWalls, 'h', o), ...axisRuns(vWalls, 'v', o)].filter((w) => clearFace(ink, w));
     walls = union(hWalls, vWalls);
   }
+  runs = dropSheetBorder(runs, gray.w, gray.h);
   // Door swings and window lines are thin strokes; ink that belongs to walls would read as either.
   const thin = minus(lines, dilate(walls, 1, 1));
-  const { runs: joined, openings } = joinGaps(runs, thin, o);
+  const { runs: found, openings } = joinGaps(runs, thin, o);
+  // Read off thin lines, grid and dimension lines come out as walls too: they go once the walls' gaps are bridged.
+  const joined = o.thin ? thinWalls(found, o, gray.w, gray.h) : found;
   snapEnds(joined, o.minOpening / 2);
   // Strays go before loose ends are carried on, or a wall would be run out to a tree.
   const network = building(joined, o.maxOpening * 0.6);
@@ -112,9 +131,11 @@ export function detectPlan(gray: Gray, o: TraceOptions): TracedPlan {
   }
   // After the doors: a door hung where no wall was drawn closes its gap better than a span read from the lines would.
   openings.push(...sideSpans(kept, thin, union(ink, lines), o, openings));
+  // A border drawn thin between heavier corners is only whole now, its thin stretches read as window spans.
+  const final = dropSheetBorder(kept, gray.w, gray.h);
   return {
-    walls: kept.map((w) => ({ a: pt(w.axis, w.s0, w.c), b: pt(w.axis, w.s1, w.c), thickness: w.t })),
-    openings: openings.filter((op) => kept.some((w) => touches(w, op.at, 0))),
+    walls: final.map((w) => ({ a: pt(w.axis, w.s0, w.c), b: pt(w.axis, w.s1, w.c), thickness: w.t })),
+    openings: openings.filter((op) => final.some((w) => touches(w, op.at, 0))),
   };
 }
 
@@ -136,6 +157,8 @@ function axisRuns(m: Mask, axis: Axis, o: TraceOptions): Run[] {
     const filled = [...width.keys()].filter((k) => width[k] > 0);
     const t = median(filled.map((k) => width[k]));
     if (t < o.minThick * 0.8 || t > o.maxThick) return [];
+    // A block about as long as it is thick is a column, not a wall.
+    if (len < t * COLUMN) return [];
     // Bumps where a column or frame touches the wall are fine; a tree or a car is wide and narrow by turns.
     const steady = filled.filter((k) => width[k] >= t * 0.6 && width[k] <= t * 1.6);
     if (steady.length < len * STEADY[0]) return [];
@@ -153,6 +176,229 @@ function axisRuns(m: Mask, axis: Axis, o: TraceOptions): Run[] {
 
 /** Share of a wall run that must be its own width: at least the first, and the second unless it runs straight through the rest. */
 const STEADY: [number, number] = [0.45, 0.6];
+/** A run shorter than this many times its thickness is a column. */
+const COLUMN = 2;
+
+/** Share of the image a run must span to be taken for a line of the sheet's border. */
+const FRAME_SPAN = 0.7;
+/** How far in from the border a title block's inner edge may run, as a share of the border's size. */
+const FRAME_STRIP = 0.15;
+/** Margin the drawing must leave inside the border on at least two sides, as a share of the border's size. */
+const FRAME_MARGIN = 0.03;
+/** How far short of a corner a border's line may stop, as a share of the image's short side. */
+const FRAME_TOL = 0.03;
+/** Share of a border line's length that must have been read as wall: the rest is where lettering or a thin stretch broke it. */
+const FRAME_INKED = 0.25;
+
+/** Runs grouped by the line they lie on: one axis, centred within a thickness of each other. */
+function collinear(runs: Run[]): Run[][] {
+  const groups: Run[][] = [];
+  for (const r of [...runs].sort((p, q) => (p.axis === q.axis ? p.c - q.c : p.axis < q.axis ? -1 : 1))) {
+    const g = groups[groups.length - 1];
+    const last = g?.[g.length - 1];
+    if (last && last.axis === r.axis && Math.abs(last.c - r.c) <= Math.max(last.t, r.t)) g.push(r);
+    else groups.push([r]);
+  }
+  return groups;
+}
+
+/** Lines crossed through by this many others are grid, dimension or section lines, not walls. */
+const CROSSINGS = 2;
+/** How far a line must reach out the far side of another to cross it, in mm: an extension line's tick does. */
+const THROUGH: Mm = 150;
+/** How far past a loose end a wall carrying on its line may stand and still close the room between them, in doorways. */
+const BRIDGE = 2;
+
+/**
+ * Walls among the lines read as thin: not the lines that cross others through and through (a grid line through the
+ * building, a dimension line across its extension lines), taken away most-crossed first, and not the lines with the
+ * outdoors on both sides (dimension lines, lettering, a key), each wall cut back to the stretch that bounds a room.
+ * The outdoors is what paper joins to the image's edge once gaps between walls' ends are bridged: a doorway, or a
+ * roller shutter wider than one.
+ */
+function thinWalls(runs: Run[], o: TraceOptions, w: number, h: number): Run[] {
+  const over = o.minLen;
+  // q crosses r when r carries on a wall's length either side of it and q reaches through r and out the other side: a
+  // grid line through a wall, an extension line's tick through a dimension line. A partition stops at the wall it meets.
+  const through = Math.max(2, (o.minOpening / 450) * THROUGH);
+  const crosses = (r: Run, q: Run) => r.axis !== q.axis && q.c > r.s0 + over && q.c < r.s1 - over && q.s0 <= r.c - r.t / 2 - through && q.s1 >= r.c + r.t / 2 + through;
+  let live = [...runs];
+  for (;;) {
+    let worst: Run | null = null;
+    let most = 0;
+    for (const r of live) {
+      const n = live.filter((q) => crosses(r, q)).length;
+      if (n > most || (n === most && worst && r.s1 - r.s0 > worst.s1 - worst.s0)) {
+        most = n;
+        worst = r;
+      }
+    }
+    if (!worst || most < CROSSINGS) break;
+    live = live.filter((r) => r !== worst);
+  }
+
+  // The walls painted, with each loose end bridged to the wall ahead of it: on its line, or square across it.
+  const painted = paintRuns(
+    emptyMask(w, h),
+    live.map((r) => ({ ...r, t: Math.max(2, r.t) })),
+  );
+  const bridges: Run[] = [];
+  for (const e of endsOf(live)) {
+    if (attached(e, live)) continue;
+    const r = e.run;
+    const s = r[e.end];
+    let best: number | null = null;
+    for (const q of live) {
+      if (q === r) continue;
+      let d: number;
+      if (q.axis === r.axis) {
+        if (Math.abs(q.c - r.c) > Math.max(q.t, r.t)) continue;
+        d = ((e.dir > 0 ? q.s0 : q.s1) - s) * e.dir;
+        if (d > o.maxOpening * BRIDGE) continue;
+      } else {
+        if (r.c < q.s0 - q.t / 2 || r.c > q.s1 + q.t / 2) continue;
+        d = (q.c - s) * e.dir;
+        if (d > o.maxOpening) continue;
+      }
+      if (d > 0 && (best === null || d < best)) best = d;
+    }
+    if (best !== null) bridges.push({ axis: r.axis, c: r.c, s0: Math.min(s, s + e.dir * best), s1: Math.max(s, s + e.dir * best), t: Math.max(2, r.t) });
+  }
+  const closed = paintRuns(painted, bridges);
+  for (let i = 0; i < closed.data.length; i++) closed.data[i] |= painted.data[i];
+  // Paper joined to the image's edge is outdoors.
+  const outdoors = new Uint8Array(w * h);
+  const stack: number[] = [];
+  const seed = (i: number) => {
+    if (!closed.data[i] && !outdoors[i]) {
+      outdoors[i] = 1;
+      stack.push(i);
+    }
+  };
+  for (let x = 0; x < w; x++) {
+    seed(x);
+    seed((h - 1) * w + x);
+  }
+  for (let y = 0; y < h; y++) {
+    seed(y * w);
+    seed(y * w + w - 1);
+  }
+  while (stack.length) {
+    const i = stack.pop()!;
+    const x = i % w;
+    if (x > 0) seed(i - 1);
+    if (x < w - 1) seed(i + 1);
+    if (i >= w) seed(i - w);
+    if (i + w < w * h) seed(i + w);
+  }
+  const out = (p: Vec2) => {
+    const x = Math.round(p.x);
+    const y = Math.round(p.y);
+    return x < 0 || y < 0 || x >= w || y >= h || !!outdoors[y * w + x];
+  };
+  const kept: Run[] = [];
+  for (const r of live) {
+    const off = r.t / 2 + 2;
+    let first = -1;
+    let last = -1;
+    let n = 0;
+    let bounded = 0;
+    for (let s = Math.ceil(r.s0); s < r.s1; s += 2, n++) {
+      if (out(pt(r.axis, s, r.c - off)) && out(pt(r.axis, s, r.c + off))) continue;
+      bounded++;
+      if (first < 0) first = s;
+      last = s;
+    }
+    if (!n || bounded / n < 0.5) continue;
+    kept.push({ ...r, s0: Math.max(r.s0, first - off), s1: Math.min(r.s1, last + off) });
+  }
+  return kept;
+}
+
+/**
+ * Drops the sheet's border and its title block: a rectangle of long runs spanning most of the image, with a strip
+ * along one or more sides divided off for the title block, the drawing inside leaving a margin on at least two sides.
+ * A building's outer walls (the image cropped close round it) have rooms right up against them, so they stay. Done
+ * up to three times over, for a border drawn double or inside a trim line.
+ */
+function dropSheetBorder(runs: Run[], w: number, h: number): Run[] {
+  for (let pass = 0; pass < 3; pass++) {
+    // A border's line is read in pieces where lettering or trim marks cross it: the pieces on one line are one line.
+    const lines = collinear(runs).map((parts) => ({
+      axis: parts[0].axis,
+      c: parts.reduce((a, r) => a + r.c * (r.s1 - r.s0), 0) / parts.reduce((a, r) => a + r.s1 - r.s0, 0),
+      s0: Math.min(...parts.map((r) => r.s0)),
+      s1: Math.max(...parts.map((r) => r.s1)),
+      t: Math.max(...parts.map((r) => r.t)),
+      inked: parts.reduce((a, r) => a + r.s1 - r.s0, 0),
+      parts,
+    }));
+    type Line = (typeof lines)[number];
+    const long = (axis: Axis, span: number) => lines.filter((l) => l.axis === axis && l.s1 - l.s0 >= FRAME_SPAN * span && l.inked >= (l.s1 - l.s0) * FRAME_INKED);
+    const hs = long('h', w);
+    const vs = long('v', h);
+    if (hs.length < 2 || vs.length < 2) return runs;
+    const top = hs.reduce((a, b) => (b.c < a.c ? b : a));
+    const bottom = hs.reduce((a, b) => (b.c > a.c ? b : a));
+    const left = vs.reduce((a, b) => (b.c < a.c ? b : a));
+    const right = vs.reduce((a, b) => (b.c > a.c ? b : a));
+    const fw = right.c - left.c;
+    const fh = bottom.c - top.c;
+    if (fw < FRAME_SPAN * w || fh < FRAME_SPAN * h) return runs;
+    // The four must meet at the corners to be one rectangle.
+    const tol = FRAME_TOL * Math.min(w, h);
+    const spans = (r: Line, c0: number, c1: number) => r.s0 <= c0 + tol && r.s1 >= c1 - tol;
+    if (![top, bottom].every((r) => spans(r, left.c, right.c)) || ![left, right].every((r) => spans(r, top.c, bottom.c))) return runs;
+    // A title block: a long line parallel to a side, close in from it and reaching the sides square to it, with the
+    // strip between them divided up by short runs.
+    const inner = { top: top.c, bottom: bottom.c, left: left.c, right: right.c };
+    const edges = new Set([top, bottom, left, right]);
+    const strip = (side: keyof typeof inner, axis: Axis, from: number, dir: 1 | -1, c0: number, c1: number, size: number) => {
+      const edge = lines
+        .filter(
+          (l) =>
+            l.axis === axis && !edges.has(l) && (l.c - from) * dir > 0 && (l.c - from) * dir <= FRAME_STRIP * size && spans(l, c0, c1) && l.inked >= (l.s1 - l.s0) * FRAME_INKED,
+        )
+        .sort((p, q) => (q.c - p.c) * dir)[0];
+      if (edge) inner[side] = edge.c;
+    };
+    strip('top', 'h', top.c, 1, left.c, right.c, fh);
+    strip('bottom', 'h', bottom.c, -1, left.c, right.c, fh);
+    strip('left', 'v', left.c, 1, top.c, bottom.c, fw);
+    strip('right', 'v', right.c, -1, top.c, bottom.c, fw);
+    const frame = new Set([...edges].flatMap((l) => l.parts));
+    const box = (r: Run) => {
+      const a = pt(r.axis, r.s0, r.c);
+      const b = pt(r.axis, r.s1, r.c);
+      return { x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), y0: Math.min(a.y, b.y), y1: Math.max(a.y, b.y) };
+    };
+    // What lies on the border's own lines or in a title block's strip goes with the border.
+    const outside = (r: Run) => {
+      const b = box(r);
+      return b.x1 <= inner.left + tol || b.x0 >= inner.right - tol || b.y1 <= inner.top + tol || b.y0 >= inner.bottom - tol;
+    };
+    const onFrame = (r: Run) => [...edges].some((f) => f.axis === r.axis && Math.abs(f.c - r.c) <= Math.max(f.t, r.t));
+    const rest = runs.filter((r) => !frame.has(r) && !onFrame(r) && !outside(r));
+    if (!rest.length) return runs;
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let y0 = Infinity;
+    let y1 = -Infinity;
+    for (const r of rest) {
+      const b = box(r);
+      x0 = Math.min(x0, b.x0);
+      x1 = Math.max(x1, b.x1);
+      y0 = Math.min(y0, b.y0);
+      y1 = Math.max(y1, b.y1);
+    }
+    const mx = FRAME_MARGIN * fw;
+    const my = FRAME_MARGIN * fh;
+    const margins = [x0 - inner.left > mx, inner.right - x1 > mx, y0 - inner.top > my, inner.bottom - y1 > my].filter(Boolean).length;
+    if (margins < 2) return runs;
+    runs = rest;
+  }
+  return runs;
+}
 
 function median(v: number[]): number {
   const s = [...v].sort((p, q) => p - q);

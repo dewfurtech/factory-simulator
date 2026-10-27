@@ -7,6 +7,7 @@ import { bounds, pointInPolygon } from '../model/vec';
 import { buildAreas, buildBuilding, buildIsland, buildZoneLabels } from './building3d';
 import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
 import { machineObject } from './machines3d';
+import { PERSON_ID, personObject } from './person3d';
 import { machineFootprint } from '../model/catalog';
 import { FLOW_IN, FLOW_OUT, flowArrows } from '../model/flow';
 import { disposeTree, FLAT, LABEL_LAYER, textSprite } from './lowpoly';
@@ -261,6 +262,14 @@ export class FactoryScene {
       holder.add(s);
     } else if (custom) {
       holder.add(new THREE.Mesh(plainGeometry(custom.shape, o.size), new THREE.MeshLambertMaterial({ color: custom.color })));
+    } else if (o.assetId === PERSON_ID) {
+      // The figure arrives after its download the first time: its parts are tagged then, and the view redrawn.
+      holder.add(
+        personObject(o.size, (h) => {
+          h.traverse((x) => (x.userData.objectId = o.id));
+          this.dirty = true;
+        }),
+      );
     } else holder.add(new THREE.Mesh(builtinGeometry(o.assetId, o.size), FLAT));
     holder.traverse((x) => (x.userData.objectId = o.id));
     return holder;
@@ -435,7 +444,43 @@ export class FactoryScene {
     this.dirty = false;
     this.fitLabels();
     this.renderer.render(this.scene, this.camera);
+    this.onFrame?.();
   };
+
+  /** Called after each frame drawn (the view moved or something changed): the buttons over a machine follow it. */
+  onFrame: (() => void) | null = null;
+
+  /**
+   * Where to hang buttons over a placed object, in px from the canvas's top-left: above the highest point of its box
+   * on screen, over its middle; null when it is behind the camera.
+   */
+  screenOf(id: Id): { x: number; y: number } | null {
+    const o = this.objectKeys.get(id);
+    const el = this.renderer.domElement;
+    if (!o || !el.clientWidth) return null;
+    const toScreen = (x: number, y: number, z: number) => {
+      const v = new THREE.Vector3(x, y, z).project(this.camera);
+      return v.z > 1 ? null : { x: ((v.x + 1) / 2) * el.clientWidth, y: ((1 - v.y) / 2) * el.clientHeight };
+    };
+    const mid = toScreen(o.x * M, (o.z + o.size.h) * M, o.y * M);
+    if (!mid) return null;
+    const c = Math.cos(o.rotation);
+    const s = Math.sin(o.rotation);
+    let top = mid.y;
+    for (const [u, v] of [[-1, -1], [1, -1], [1, 1], [-1, 1]])
+      for (const h of [o.z, o.z + o.size.h]) {
+        const lx = (u * o.size.w) / 2;
+        const ly = (v * o.size.d) / 2;
+        const p = toScreen((o.x + lx * c - ly * s) * M, h * M, (o.y + lx * s + ly * c) * M);
+        if (p) top = Math.min(top, p.y);
+      }
+    return { x: mid.x, y: top };
+  }
+
+  /** Asks for the next frame to be drawn. */
+  redraw(): void {
+    this.dirty = true;
+  }
 
   /** Shrinks names that would overlap on screen so each stays readable; they grow back when zoomed in. */
   private fitLabels() {

@@ -8,3 +8,6 @@ test-results/
 
 # Cloudflare wrangler local state
 .wrangler/
+
+# Wall-trace test output (scripts/trace-test-plans.ts)
+test-plans/out/

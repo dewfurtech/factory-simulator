@@ -21,12 +21,12 @@ export const MACHINES = [
     flow: { in: 'right', out: 'left' },
     summary: 'เครื่องเดี่ยว เปลี่ยนทูลอัตโนมัติ 12 ตัว',
     // Add-ons a customer can tick per placed machine; `flags` are what they switch on in the model (rakete-real.js
-    // RAKETE_VARIANTS), and scripts/bbox.mjs measures the footprint with each combination. No prices: the price list
-    // gives none for them yet, and guessing is worse than leaving them out.
+    // RAKETE_VARIANTS), and scripts/bbox.mjs measures the footprint with each combination. An add-on may carry `price`
+    // (baht added to the machine); V6 gives none for these yet, so they show "สอบถาม" until the real price is filled in.
     options: [
-      { id: 'infeed', name: 'โต๊ะยกไม้ (ป้อนเข้า)', note: 'ต่อท้ายด้านป้อน ยาวขึ้น 2.5 ม.', flags: { infeed: true }, flow: { in: 'right' } },
-      { id: 'outfeed', name: 'สายพานลำเลียงออก', note: 'ต่อท้ายด้านออก ครบทั้งสองเป็นไลน์ 10.3 ม.', flags: { outfeed: true }, flow: { out: 'left' } },
-      { id: 'loader', name: 'ชุดดูดแผ่นป้อนอัตโนมัติ', note: 'บนแกนทรี ใช้คู่กับโต๊ะยก', flags: { loader: true } },
+      { id: 'infeed', name: 'โต๊ะยกไม้ (ป้อนเข้า)', short: 'โต๊ะยก', note: 'ต่อท้ายด้านป้อน ยาวขึ้น 2.5 ม.', flags: { infeed: true }, flow: { in: 'right' } },
+      { id: 'outfeed', name: 'สายพานลำเลียงออก', short: 'สายพานออก', note: 'ต่อท้ายด้านออก ครบทั้งสองเป็นไลน์ 10.3 ม.', flags: { outfeed: true }, flow: { out: 'left' } },
+      { id: 'loader', name: 'ชุดดูดแผ่นป้อนอัตโนมัติ', short: 'ชุดดูดแผ่น', note: 'บนแกนทรี ใช้คู่กับโต๊ะยก', flags: { loader: true } },
     ],
     look: 'โต๊ะ 1220×2450, ตู้คอนโทรลแยก (ตู้สูงมีไฟสัญญาณ), หัว ATC ฝาส้ม, ท่อดูดฝุ่น, แม็กกาซีนทูลเรียงเส้น 12 ตัว, หมุดดันขึ้น (popup pin)',
     specs: { 'Working area': '1320×2550×200 mm', 'Spindle': 'ATC 9 kW 24,000 rpm', 'Servo': '1000 W ×4', 'Control': 'Industrial PC / Windows', 'Total power': '26 kW' },

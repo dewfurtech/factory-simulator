@@ -23,13 +23,14 @@ export type UseKind =
   | 'tools'
   | 'display';
 
-export type CatalogGroup = 'nesting' | 'edge' | 'drill' | 'other' | 'office' | 'production' | 'storage' | 'amenity' | 'decor' | 'custom';
+export type CatalogGroup = 'nesting' | 'edge' | 'drill' | 'other' | 'scale' | 'office' | 'production' | 'storage' | 'amenity' | 'decor' | 'custom';
 
 export const GROUP_LABEL: Record<CatalogGroup, string> = {
   nesting: 'CNC Nesting (Rakete)',
   edge: 'Edge Banding (Booster / Moon)',
   drill: 'CNC Drilling (Nova)',
   other: 'เครื่องเสริม',
+  scale: 'เทียบขนาด',
   office: 'สำนักงาน',
   production: 'โต๊ะงาน / ผลิต',
   storage: 'คลัง / จัดเก็บ',
@@ -95,6 +96,8 @@ const builtins: CatalogItem[] = [
   { id: 'sink', label: 'อ่างล้างมือ', group: 'amenity', size: S(1500, 550, 900) },
   { id: 'water', label: 'ตู้น้ำดื่ม', group: 'amenity', size: S(450, 450, 1150), use: 'water' },
   { id: 'plant', label: 'ต้นไม้', group: 'decor', size: S(600, 600, 1300) },
+  // A standing figure for scale; people walk, so it never blocks a path.
+  { id: 'person', label: 'คน (เทียบขนาด)', group: 'scale', size: S(600, 400, 1750), open: true, summary: 'หุ่นคนยืนสูง 1.75 ม. ไว้วางเทียบขนาดกับเครื่องและของในโรงงาน' },
   { id: 'box', label: 'กล่อง / บล็อก', group: 'decor', size: S(1000, 1000, 1000) },
   { id: 'floor-mark', label: 'เส้นตีพื้นทางเดิน', group: 'decor', size: S(4000, 1500, 5), open: true },
   { id: 'zone-area', label: 'พื้นที่ตีเส้น (โซนงาน)', group: 'decor', size: S(6000, 4000, 5), open: true },
@@ -130,6 +133,9 @@ export interface MachineInfo {
   /** L × W × H in mm as the brochure prints it; null when the brochure gives none. */
   size: [Mm, Mm, Mm] | null;
   summary?: string;
+  /** Baht, from the price list; null when the list gives none. */
+  price?: number | null;
+  priceNote?: string;
   /** Where the work goes in and comes out, in the machine's own frame. */
   flow?: MachineFlow;
   options?: MachineOption[];
@@ -146,7 +152,11 @@ export interface MachineFlow {
 export interface MachineOption {
   id: string;
   name: string;
+  /** A word or two for the catalog's tick row. */
+  short?: string;
   note?: string;
+  /** Baht added to the machine's price when ticked; absent or null when the price list gives none. */
+  price?: number | null;
   /** One end of the flow this add-on moves (a lift table takes boards in at its end). */
   flow?: Partial<MachineFlow>;
 }
@@ -196,7 +206,7 @@ export const machineInfo = (assetId: string): MachineInfo | undefined => INFO.ge
 
 export const MACHINE_CATEGORIES = CATEGORIES as { id: string; name: string; series: string }[];
 
-export const GROUP_ORDER: CatalogGroup[] = ['nesting', 'edge', 'drill', 'other', 'office', 'production', 'storage', 'amenity', 'decor', 'custom'];
+export const GROUP_ORDER: CatalogGroup[] = ['nesting', 'edge', 'drill', 'other', 'scale', 'office', 'production', 'storage', 'amenity', 'decor', 'custom'];
 
 /** A point in the object's own frame (x along its width, y toward its front) in plan coordinates. */
 export function localToPlan(o: Pick<PlacedObject, 'x' | 'y' | 'rotation'>, lx: Mm, ly: Mm): Vec2 {

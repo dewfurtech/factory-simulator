@@ -2,7 +2,7 @@ import { onLevel, viewLevel } from '../model/levels';
 import { obbCorners, objectObb } from '../model/objects';
 import { wallFootprint } from '../model/miter';
 import { roomOf, roomPolygon, wallDir } from '../model/plan';
-import type { Column, Mm, PlacedObject, Plan, Project, Vec2 } from '../model/types';
+import type { Column, Id, Mm, PlacedObject, Plan, Project, Vec2 } from '../model/types';
 import { add, dist, dot, fromAngle, perp, pointInPolygon, projectOnSegment, scale, segmentIntersect, signedArea, sub } from '../model/vec';
 import { planAreas } from '../model/areas';
 import { aisleOutline, onAisle, planAisles } from '../model/aisles';
@@ -54,6 +54,14 @@ export function hitTest(project: Project, p: Vec2, radius: Mm): Selection | null
   const indoor = hitObject(false);
   if (indoor) return indoor;
   for (const w of Object.values(plan.walls)) if (!off(w) && pointInPolygon(p, wallFootprint(plan, w.id))) return { kind: 'wall', id: w.id };
+  // Zoomed out a wall is a hairline: a click within the snap radius of its centre line still picks it.
+  let near: { id: Id; d: Mm } | null = null;
+  for (const w of Object.values(plan.walls)) {
+    if (off(w)) continue;
+    const d = projectOnSegment(p, plan.corners[w.a], plan.corners[w.b]).distance - w.thickness / 2;
+    if (d <= radius && (!near || d < near.d)) near = { id: w.id, d };
+  }
+  if (near) return { kind: 'wall', id: near.id };
   // Areas lie over the rooms; the smallest one under p wins, so an area inside another can be picked.
   if (!useUi.getState().areasHidden) {
     let area: Selection | null = null;

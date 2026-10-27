@@ -101,7 +101,8 @@ export interface Area extends LayerFlags {
 }
 
 /** What runs along a line on the floor: people on foot, forklifts, or the work itself (a flow arrow from one machine to the next). */
-export type AisleKind = 'walk' | 'forklift' | 'flow';
+/** Only walkways are drawn by hand now; truck aisles and flow arrows saved by older versions become walkways. */
+export type AisleKind = 'walk';
 
 /** A marked route on the floor: a strip of a set width along a centre line, or a flow arrow along it. */
 export interface Aisle extends LayerFlags {
@@ -162,6 +163,8 @@ export interface PlacedObject extends LayerFlags {
   fromPlan?: true;
   /** Machines only: average breakdowns per working day, overriding the project default. */
   breakdownsPerDay?: number;
+  /** Baht for this one piece on the quotation, typed in place of the price list's; absent means the list's price. */
+  price?: number;
 }
 
 /** An image of an existing plan placed in plan coordinates. */
@@ -191,6 +194,8 @@ export interface Project {
   upper?: UpperFloor;
   /** Tape measurements laid on the plan: saved, shared by link, and undone like any other change. */
   tapes?: Tape[];
+  /** Clear width the app's own walkways must have; 1.2 m when unset. */
+  walkwayWidth?: Mm;
   /** Who the plan is for: kept with the project, shown on its card, and searched by. */
   client?: Client;
 }

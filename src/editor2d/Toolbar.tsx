@@ -2,8 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'rea
 import { OPENING_PRESET_IDS, OPENING_PRESETS, type OpeningPresetId } from '../model/openings';
 import { useUi, type Tool } from '../store/ui';
 import { EMPTY_ENTRY } from './entry';
-import { AISLE_KIND_IDS, AISLE_KINDS, defaultWidth, isArrow } from '../model/aisles';
-import type { AisleKind } from '../model/types';
+import { AISLE_KIND_IDS, defaultWidth } from '../model/aisles';
 import { fmtLen } from '../format';
 
 const PATHS: Record<string, string> = {
@@ -14,8 +13,6 @@ const PATHS: Record<string, string> = {
   areaBox: 'M4 5h4 M12 5h4 M20 5v4 M20 13v4 M4 9v4 M4 17v2h2 M10 19h4 M18 19h2 M8 9h8v6H8z',
   areaPoly: 'M5 6l9-2 5 6-3 9-10-1z M5 6a1.5 1.5 0 1 0 .01 0 M14 4a1.5 1.5 0 1 0 .01 0 M19 10a1.5 1.5 0 1 0 .01 0 M16 19a1.5 1.5 0 1 0 .01 0 M6 18a1.5 1.5 0 1 0 .01 0',
   aisleWalk: 'M4 3v18 M20 3v18 M10 6a1.6 2.2 0 1 0 .01 0 M14 12a1.6 2.2 0 1 0 .01 0 M10 18a1.6 2.2 0 1 0 .01 0',
-  aisleForklift: 'M4 3v18 M20 3v18 M12 5v13 M8.5 14.5L12 18l3.5-3.5',
-  flowArrow: 'M4 18h6a4 4 0 0 0 4-4V6 M10 10l4-4 4 4',
   island: 'M3 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0 M6 13c1.5-1 3-1 4.5 0 M12 5c2 0 4 2 4 5v3H8v-3c0-3 2-5 4-5z M12 5v8',
   rect: 'M4 5h16v14H4z',
   L: 'M4 4h8v8h8v8H4z',
@@ -77,6 +74,10 @@ const PATHS: Record<string, string> = {
   menu: 'M4 6h16 M4 12h16 M4 18h16',
   share: 'M18 5a2.5 2.5 0 1 0 0.01 0 M6 12a2.5 2.5 0 1 0 0.01 0 M18 19a2.5 2.5 0 1 0 0.01 0 M8.2 10.8l7.6-4.4 M8.2 13.2l7.6 4.4',
   reply: 'M9 7L4 12l5 5 M4 12h10a6 6 0 0 1 6 6v1',
+  doc: 'M6 3h8l5 5v13H6z M14 3v5h5 M9 13h6 M9 17h6',
+  chevronDown: 'M6 9l6 6 6-6',
+  chevronUp: 'M6 15l6-6 6 6',
+  print: 'M6 9V3h12v6 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v7H6z',
   undo: 'M9 14L4 9l5-5 M4 9h10.5a5.5 5.5 0 0 1 0 11H11',
   redo: 'M15 14l5-5-5-5 M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
   trash: 'M4 7h16 M10 11v6 M14 11v6 M6 7l1 13h10l1-13 M9 7V4h6v3',
@@ -161,17 +162,52 @@ const AREA_ITEMS: Item[] = [
   },
 ];
 
-const AISLE_ICON: Record<AisleKind, string> = { walk: 'aisleWalk', forklift: 'aisleForklift', flow: 'flowArrow' };
-
 const AISLE_ITEMS: Item[] = AISLE_KIND_IDS.map(
   (kind): Item => ({
-    id: AISLE_ICON[kind],
-    label: isArrow(kind) ? AISLE_KINDS[kind].label : `${AISLE_KINDS[kind].label} · กว้าง ${fmtLen(defaultWidth(kind))}`,
+    id: 'aisleWalk',
+    label: `วาดทางเดินเอง · กว้าง ${fmtLen(defaultWidth(kind))}`,
     tool: () => ({ kind: 'drawAisle', aisle: kind, points: [], entry: EMPTY_ENTRY }),
     isOn: (t) => t.kind === 'drawAisle' && t.aisle === kind,
     testId: `tool-aisle-${kind}`,
   }),
 );
+
+/** The walkway flyout's footer: the app's own walkways, found from the free floor, switched off and on. */
+function WalkwaysVisible() {
+  const hidden = useUi((s) => s.walkwaysHidden);
+  return (
+    <button
+      className={`flyout-foot${hidden ? '' : ' on'}`}
+      role="menuitemcheckbox"
+      aria-checked={!hidden}
+      onClick={() => useUi.getState().set({ walkwaysHidden: !hidden })}
+      data-testid="walkways-auto"
+    >
+      <Icon name={hidden ? 'eyeOff' : 'eye'} />
+      <span>{hidden ? 'ทางเดินอัตโนมัติปิดอยู่ · คลิกเพื่อแสดง' : 'ทางเดินอัตโนมัติ: พื้นที่ระยะปลอดภัยรอบเครื่อง'}</span>
+    </button>
+  );
+}
+
+/**
+ * The walkway flyout's second footer: a machine's safety distances show with their dimensions when the pointer is on
+ * it or it is picked; this switch shows them on every machine at once.
+ */
+function SafetyVisible() {
+  const all = useUi((s) => s.safetyAll);
+  return (
+    <button
+      className={`flyout-foot${all ? ' on' : ''}`}
+      role="menuitemcheckbox"
+      aria-checked={all}
+      onClick={() => useUi.getState().set({ safetyAll: !all })}
+      data-testid="safety-dims-toggle"
+    >
+      <Icon name={all ? 'eye' : 'eyeOff'} />
+      <span>{all ? 'ระยะปลอดภัย: แสดงทุกเครื่อง · คลิกเพื่อแสดงเฉพาะเครื่องที่ชี้' : 'ระยะปลอดภัย: แสดงเมื่อชี้ที่เครื่อง · คลิกเพื่อแสดงทุกเครื่อง'}</span>
+    </button>
+  );
+}
 
 /** The area flyout's footer: one switch that takes every area out of both views and brings them back. */
 function AreasVisible() {
@@ -330,6 +366,7 @@ function ToolGroup({
 export function Toolbar() {
   const tool = useUi((s) => s.tool);
   const dock = useUi((s) => s.dock);
+  const panelOpen = useUi((s) => s.panelOpen);
   const [open, setOpen] = useState<string | null>(null);
   const ref = useRef<HTMLElement>(null);
 
@@ -355,29 +392,36 @@ export function Toolbar() {
 
   return (
     <nav className="toolbar rail glass" data-testid="toolbar" ref={ref}>
-      <RailButton icon="select" text="เลือก" label="เลือก / ย้าย (Esc)" on={tool.kind === 'select'} onClick={() => setTool({ kind: 'select', drag: null })} testId="tool-select" />
+      <RailButton
+        icon="select"
+        text="เลือก"
+        label="เลือก / ย้าย (Space, M, Esc)"
+        on={tool.kind === 'select'}
+        onClick={() => setTool({ kind: 'select', drag: null })}
+        testId="tool-select"
+      />
       {/* Three groups in the order the work goes: the building, what goes in it, and checking it. */}
       {!customer && (
         <>
           <div className="rail-head">อาคาร</div>
-          <ToolGroup id="wall" text="ผนัง" label="ผนัง" items={WALL_ITEMS} {...group('wall')} />
+          <ToolGroup id="wall" text="ผนัง" label="ผนัง (L)" items={WALL_ITEMS} {...group('wall')} />
           <RailButton
             icon="drawRoomRect"
             text="ห้อง"
-            label="ห้อง / โซน: คลิก 2 มุม"
+            label="ห้อง / โซน: คลิก 2 มุม (R)"
             on={tool.kind === 'drawRoomRect'}
             onClick={() => setTool(ROOM_ITEMS[0].tool())}
             testId="tool-drawRoomRect"
           />
-          <ToolGroup id="opening" text="ประตู" label="ประตู / หน้าต่าง" items={OPENING_ITEMS} {...group('opening')} />
-          <ToolGroup id="column" text="เสา" label="เสา" items={COLUMN_ITEMS} {...group('column')} />
+          <ToolGroup id="opening" text="ประตู" label="ประตู / หน้าต่าง (D)" items={OPENING_ITEMS} {...group('opening')} />
+          <ToolGroup id="column" text="เสา" label="เสา (C)" items={COLUMN_ITEMS} {...group('column')} />
         </>
       )}
       <div className="rail-head">จัดวาง</div>
       <RailButton
         icon="machine"
         text="เครื่อง"
-        label="คลังเครื่องจักรและอุปกรณ์ (คอลัมน์ซ้าย)"
+        label="คลังเครื่องจักรและอุปกรณ์ (B)"
         on={dock === 'catalog' || tool.kind === 'placeObject'}
         onClick={() => useUi.getState().set({ dock: dock === 'catalog' ? null : 'catalog' })}
         testId="tool-catalog"
@@ -385,15 +429,27 @@ export function Toolbar() {
       />
       {!customer && (
         <>
-          <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (กล่องโปร่งแสง)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
-          <ToolGroup id="aisle" text="ทางเดิน" label="ทางเดิน / ทางรถ / ทิศทางงาน" items={AISLE_ITEMS} {...group('aisle')} />
+          <ToolGroup id="area" text="พื้นที่" label="พื้นที่ (A)" items={AREA_ITEMS} {...group('area')} footer={<AreasVisible />} />
+          <ToolGroup
+            id="aisle"
+            text="ทางเดิน"
+            label="ทางเดิน (W)"
+            items={AISLE_ITEMS}
+            {...group('aisle')}
+            footer={
+              <>
+                <WalkwaysVisible />
+                <SafetyVisible />
+              </>
+            }
+          />
         </>
       )}
       <div className="rail-head">ดู</div>
       <RailButton
         icon="ruler"
         text="วัด"
-        label="วัดระยะ: คลิก 2 จุด ดูดเข้าหามุม ผนัง และขอบเครื่อง"
+        label="วัดระยะ (T): คลิก 2 จุด ดูดเข้าหามุม ผนัง และขอบเครื่อง"
         on={tool.kind === 'measure'}
         onClick={() => setTool({ kind: 'measure', a: null, b: null })}
         testId="tool-measure"
@@ -403,6 +459,28 @@ export function Toolbar() {
           <UnderlayMenu />
         </Suspense>
       )}
+      {/* Phones only: the panel toggles from the top bar ride at the end of this one row, so there is a single bar. */}
+      <div className="rail-head tb-phone">แผง</div>
+      {!customer && (
+        <RailButton
+          icon="layers"
+          text="เลเยอร์"
+          label="เลเยอร์: รายการห้อง ผนัง เสา เครื่องจักร"
+          on={dock === 'layers'}
+          onClick={() => useUi.getState().toggleDock('layers')}
+          testId="tool-layers-phone"
+          className="tb-phone"
+        />
+      )}
+      <RailButton
+        icon="props"
+        text="รายละเอียด"
+        label="รายละเอียด / ตั้งค่าโรงงาน"
+        on={panelOpen}
+        onClick={() => useUi.getState().set({ panelOpen: !panelOpen })}
+        testId="tool-props-phone"
+        className="tb-phone"
+      />
     </nav>
   );
 }

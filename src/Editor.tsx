@@ -1,4 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { keyLetter, toolKey } from './editor2d/shortcuts';
+import { QuoteCard } from './panels/QuoteCard';
 import { PlanEditor } from './editor2d/PlanEditor';
 import { Icon, Toolbar } from './editor2d/Toolbar';
 import { deleteSelection, dispatchKey, objectKey } from './editor2d/tools';
@@ -10,7 +12,7 @@ import { download, planPicture, shownScale, svgBlob, toPng } from './editor2d/ex
 import { exportProject, flushAutosave } from './store/persist';
 import { useProject } from './store/project';
 import { createShare, lastSender, shareUrl } from './store/share';
-import { SELECT, useUi, type ViewMode } from './store/ui';
+import { SELECT, setSnapReach, SNAP_REACH, useUi, type SnapReach, type ViewMode } from './store/ui';
 import { shareDialog } from './ui/Dialog';
 
 import { Loading3D } from './ui/Loading3D';
@@ -33,17 +35,17 @@ function useKeyboard() {
         if (!e.repeat && !ui.peek) ui.set({ peek: true });
         return;
       }
-      if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      if (mod && keyLetter(e) === 'z' && !e.shiftKey) {
         e.preventDefault();
         useProject.getState().undo();
         return;
       }
-      if (mod && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+      if (mod && (keyLetter(e) === 'y' || (keyLetter(e) === 'z' && e.shiftKey))) {
         e.preventDefault();
         useProject.getState().redo();
         return;
       }
-      if (dispatchKey(e) || objectKey(e)) {
+      if (dispatchKey(e) || objectKey(e) || toolKey(e)) {
         e.preventDefault();
         return;
       }
@@ -75,6 +77,56 @@ const VIEWS: { id: ViewMode; label: string; icon: string }[] = [
   { id: 'split', label: 'แบ่งจอ', icon: 'split' },
   { id: '3d', label: '3D', icon: 'view3d' },
 ];
+
+/** A small magnet that turns snapping on and off, with how far it reaches on screen beside it (5 / 10 / 20 px). */
+function SnapControl() {
+  const snapOn = useUi((s) => s.snapOn);
+  const reach = useUi((s) => s.snapReach);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    window.addEventListener('pointerdown', close, true);
+    return () => window.removeEventListener('pointerdown', close, true);
+  }, [open]);
+  return (
+    <div className={`snap-ctl tb-desk${snapOn ? ' on' : ''}`} ref={ref}>
+      <button
+        className="snap-toggle"
+        onClick={() => useUi.getState().set({ snapOn: !snapOn })}
+        aria-pressed={snapOn}
+        title={`Snap ${snapOn ? 'เปิด' : 'ปิด'}: ดูดเข้าหากริด มุม ผนัง และเครื่องข้างๆ (กด Alt ค้างเพื่อวางอิสระ)`}
+        data-testid="snap-toggle"
+      >
+        <Icon name="snap" />
+      </button>
+      <button className="snap-reach" onClick={() => setOpen(!open)} aria-expanded={open} title="ระยะดูด: ดูดเมื่อเมาส์อยู่ใกล้กว่ากี่พิกเซลบนจอ" data-testid="snap-reach">
+        {snapOn ? SNAP_REACH[reach].label : 'ปิด'}
+      </button>
+      {open && (
+        <div className="snap-menu glass" role="menu">
+          <div className="snap-menu-title">ระยะดูด (บนจอ)</div>
+          {(Object.keys(SNAP_REACH) as SnapReach[]).map((r) => (
+            <button
+              key={r}
+              role="menuitemradio"
+              aria-checked={snapOn && reach === r}
+              className={snapOn && reach === r ? 'on' : undefined}
+              onClick={() => (setSnapReach(r), setOpen(false))}
+              data-testid={`snap-${r}`}
+            >
+              {SNAP_REACH[r].label}
+            </button>
+          ))}
+          <button role="menuitemradio" aria-checked={!snapOn} className={!snapOn ? 'on' : undefined} onClick={() => (useUi.getState().set({ snapOn: false }), setOpen(false))}>
+            ปิด
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function BarButton({
   icon,
@@ -243,6 +295,55 @@ function MainMenu() {
   );
 }
 
+/**
+ * The three panel toggles: library, layers, details, in the top bar. On a phone the top bar drops them and the same
+ * three ride at the end of the bottom row instead (the tool rail in 2D, the view buttons in 3D).
+ */
+function PanelButtons({ className }: { className: string }) {
+  const dock = useUi((s) => s.dock);
+  const panelOpen = useUi((s) => s.panelOpen);
+  const calibrating = useUi((s) => s.tool.kind === 'calibrate');
+  const customer = useUi((s) => !!s.customer);
+  const showPanel = panelOpen && !calibrating;
+  const set = useUi.getState().set;
+  return (
+    <div className={`seg seg-icons seg-panels ${className}`} role="group" aria-label="แผง">
+      <button
+        className={dock === 'catalog' ? 'on' : ''}
+        onClick={() => useUi.getState().toggleDock('catalog')}
+        aria-pressed={dock === 'catalog'}
+        title="คลังโมเดล"
+        data-testid="dock-catalog"
+      >
+        <Icon name="machine" />
+        <span>คลังโมเดล</span>
+      </button>
+      {!customer && (
+        <button
+          className={dock === 'layers' ? 'on' : ''}
+          onClick={() => useUi.getState().toggleDock('layers')}
+          aria-pressed={dock === 'layers'}
+          title="เลเยอร์: รายการห้อง ผนัง เสา เครื่องจักร ซ่อน/ล็อก และไปดูได้"
+          data-testid="dock-layers"
+        >
+          <Icon name="layers" />
+          <span>เลเยอร์</span>
+        </button>
+      )}
+      <button
+        className={showPanel ? 'on' : ''}
+        onClick={() => set({ panelOpen: !showPanel })}
+        aria-pressed={showPanel}
+        title="รายละเอียด / ตั้งค่าโรงงาน"
+        data-testid="panel-toggle"
+      >
+        <Icon name="props" />
+        <span>รายละเอียด</span>
+      </button>
+    </div>
+  );
+}
+
 export function Editor() {
   useKeyboard();
   const canUndo = useProject((s) => s.past.length > 0);
@@ -251,16 +352,17 @@ export function Editor() {
   const dock = useUi((s) => s.dock);
   const panelOpen = useUi((s) => s.panelOpen);
   const hasSelection = useUi((s) => !!s.selection || s.boxed.length > 0);
-  const snapOn = useUi((s) => s.snapOn);
   const level = useProject((s) => s.level);
   const hasUpper = useProject((s) => !!s.project!.upper);
   const customer = useUi((s) => !!s.customer);
   const set = useUi.getState().set;
-  // The right panel slides out whenever something is picked, and on demand for the factory's own settings.
-  const showPanel = hasSelection || panelOpen;
+  // Measuring the scale is the one thing to do then: the panels and other tools step aside until it is done or skipped.
+  const calibrating = useUi((s) => s.tool.kind === 'calibrate');
+  // The right panel opens only when asked for: from the right-click menu or the button in the top bar.
+  const showPanel = panelOpen && !calibrating;
 
   return (
-    <div className={`editor${dock ? ' with-dock' : ''}`}>
+    <div className={`editor${dock && !calibrating ? ' with-dock' : ''}${calibrating ? ' calibrating' : ''}`}>
       <header className="topbar">
         <div className="tb-group tb-left">
           <MainMenu />
@@ -271,17 +373,9 @@ export function Editor() {
           <span className="tb-sep tb-desk" />
           <BarButton icon="undo" label="เลิกทำ (Ctrl+Z)" disabled={!canUndo} onClick={() => useProject.getState().undo()} />
           <BarButton icon="redo" label="ทำซ้ำ (Ctrl+Y)" disabled={!canRedo} onClick={() => useProject.getState().redo()} className="tb-desk" />
-          <BarButton icon="trash" label="ลบที่เลือก (Delete)" disabled={!hasSelection} onClick={deleteSelection} className="tb-desk" />
+          <BarButton icon="trash" label="ลบที่เลือก (Delete)" disabled={!hasSelection} onClick={deleteSelection} className="tb-desk tb-trash" />
           <span className="tb-sep tb-desk" />
-          <button
-            className={`tb-chip tb-desk${snapOn ? ' on' : ''}`}
-            onClick={() => set({ snapOn: !snapOn })}
-            aria-pressed={snapOn}
-            title={`Snap ${snapOn ? 'เปิด' : 'ปิด'}: ดูดเข้าหากริด มุม และผนัง`}
-          >
-            <Icon name="snap" />
-            <span>Snap</span>
-          </button>
+          <SnapControl />
         </div>
         <div className="tb-center">
           {/* A plain 2D/3D switch; side by side is a small extra beside it, for wide screens. */}
@@ -337,46 +431,22 @@ export function Editor() {
             <Icon name={customer ? 'reply' : 'share'} />
             <span>{customer ? 'ส่งกลับ' : 'แชร์ลิงก์'}</span>
           </button>
-          <span className="tb-sep" />
-          <div className="seg seg-icons seg-panels" role="group" aria-label="แผง">
-            <button
-              className={dock === 'catalog' ? 'on' : ''}
-              onClick={() => useUi.getState().toggleDock('catalog')}
-              aria-pressed={dock === 'catalog'}
-              title="คลังโมเดล"
-              data-testid="dock-catalog"
-            >
-              <Icon name="machine" />
-              <span>คลังโมเดล</span>
-            </button>
-            {!customer && (
-              <button
-                className={dock === 'layers' ? 'on' : ''}
-                onClick={() => useUi.getState().toggleDock('layers')}
-                aria-pressed={dock === 'layers'}
-                title="เลเยอร์: รายการห้อง ผนัง เสา เครื่องจักร ซ่อน/ล็อก และไปดูได้"
-                data-testid="dock-layers"
-              >
-                <Icon name="layers" />
-                <span>เลเยอร์</span>
-              </button>
-            )}
-            <button
-              className={showPanel ? 'on' : ''}
-              onClick={() => (showPanel ? set({ panelOpen: false, selection: null }) : set({ panelOpen: true }))}
-              aria-pressed={showPanel}
-              title="รายละเอียด / ตั้งค่าโรงงาน"
-              data-testid="panel-toggle"
-            >
-              <Icon name="props" />
-              <span>รายละเอียด</span>
-            </button>
-          </div>
+          <span className="tb-sep tb-desk" />
+          <PanelButtons className="tb-desk" />
         </div>
       </header>
-      {dock && <div className="dock-col">{dock === 'catalog' ? <CatalogPanel /> : <LayersPanel />}</div>}
+      {dock && !calibrating && (
+        <div className="dock-col">
+          {/* Phones only: the panel is a sheet over the plan, closed from its corner. */}
+          <button className="ib dock-close" onClick={() => set({ dock: null })} title="ปิด" aria-label="ปิด" data-testid="dock-close">
+            <Icon name="close" />
+          </button>
+          {dock === 'catalog' ? <CatalogPanel /> : <LayersPanel />}
+        </div>
+      )}
       <main className="viewport">
         <ShareBanner />
+        {!calibrating && <QuoteCard />}
         <div className={`panes view-${view}`}>
           {view !== '3d' && (
             <div className="pane">

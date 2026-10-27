@@ -10,6 +10,8 @@ export interface CustomModel {
   tags: string[];
   shape: 'box' | 'cylinder';
   note?: string;
+  /** Baht per piece on the quotation; absent means it is not quoted. */
+  price?: number;
   createdAt: number;
 }
 

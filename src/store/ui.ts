@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { SnapResult } from '../model/snap';
 import type { OpeningPresetId } from '../model/openings';
-import type { AisleKind, Column, Id, Mm, Vec2 } from '../model/types';
+import type { AisleKind, Column, Id, Mm, PlacedObject, Vec2 } from '../model/types';
 import type { Entry } from '../editor2d/entry';
 
 export type Selection =
@@ -15,13 +15,15 @@ export type Selection =
   | { kind: 'aisle'; id: Id };
 
 export type Drag =
-  | { kind: 'corner'; id: Id }
+  /** `origin` is where the press began, until the pointer has gone far enough for the corner to start moving. */
+  | { kind: 'corner'; id: Id; origin?: Vec2 }
   | { kind: 'wall'; id: Id; origin: Vec2; applied: Mm }
   /** An area slides as a whole; `applied` is how far it has moved from where the drag began. */
   | { kind: 'area'; id: Id; origin: Vec2; applied: Vec2 }
   | { kind: 'aisle'; id: Id; origin: Vec2; applied: Vec2 }
   | { kind: 'opening'; id: Id }
-  | { kind: 'object'; id: Id; grab: Vec2 }
+  /** `carry`: picked up from the right-click menu; it follows the pointer with no button held until the next click. */
+  | { kind: 'object'; id: Id; grab: Vec2; carry?: boolean }
   | { kind: 'column'; id: Id; grab: Vec2 }
   | { kind: 'box'; from: Vec2; to: Vec2 };
 
@@ -60,6 +62,32 @@ export interface CustomerMode {
   sender?: string;
 }
 
+export type SnapReach = 'near' | 'mid' | 'far';
+/** Snap distance per setting, as a share of the usual 10 px; label is how far it pulls on screen. */
+export const SNAP_REACH: Record<SnapReach, { factor: number; label: string }> = {
+  near: { factor: 0.5, label: '5 px' },
+  mid: { factor: 1, label: '10 px' },
+  far: { factor: 2, label: '20 px' },
+};
+const REACH_KEY = 'snap.reach';
+function readSnapReach(): SnapReach {
+  try {
+    const r = localStorage.getItem(REACH_KEY);
+    return r === 'near' || r === 'far' ? r : 'mid';
+  } catch {
+    return 'mid';
+  }
+}
+/** Sets how far snapping reaches and remembers it in this browser. */
+export function setSnapReach(r: SnapReach): void {
+  useUi.getState().set({ snapReach: r, snapOn: true });
+  try {
+    localStorage.setItem(REACH_KEY, r);
+  } catch {
+    /* private window: the choice just isn't remembered */
+  }
+}
+
 interface UiState {
   view: ViewMode;
   /** Set while a shared link is open; null in the full editor. */
@@ -68,8 +96,12 @@ interface UiState {
   selection: Selection | null;
   boxed: Selection[];
   snapOn: boolean;
+  /** How far snapping reaches: near pulls only from close by, far from twice the usual distance. */
+  snapReach: SnapReach;
   grid: Mm;
   cursor: SnapResult | null;
+  /** While placing from the catalog: the machine a click would put down, drawn under the pointer. */
+  placeGhost: PlacedObject | null;
   objectGuides: { from: Vec2; to: Vec2 }[];
   dock: Dock | null;
   /** The right panel with nothing selected (factory settings); picking something opens it on its own. */
@@ -82,12 +114,20 @@ interface UiState {
   floorCentre: (() => Vec2 | null) | null;
   /** Every area out of sight in both views, without touching the areas' own flags. */
   areasHidden: boolean;
+  /** The app's own walkways taken off the plan. */
+  walkwaysHidden: boolean;
+  /** Every machine's safety distances drawn with their dimensions, not only the one under the pointer or picked. */
+  safetyAll: boolean;
+  /** The object under the pointer on the plan while selecting, whose safety distances are shown. */
+  hoverId: string | null;
   /** The share link's banner, closed by the viewer for this visit. */
   bannerClosed: boolean;
   /** A request from the layers panel to bring the views to this thing; n makes each request distinct. */
   goto: { sel: Selection; n: number } | null;
   /** Holding the peek key or button: the drawing fades so the plan image beneath it can be checked against. */
   peek: boolean;
+  /** Add-ons ticked in the catalog: every machine put down from now on that offers one comes with it. */
+  placeAddons: string[];
   /** Selects something and asks the open views to move to it. */
   goTo(sel: Selection): void;
   set(patch: Partial<Omit<UiState, 'set' | 'setTool' | 'toggleDock' | 'goTo'>>): void;
@@ -97,6 +137,9 @@ interface UiState {
 
 export const SELECT: Tool = { kind: 'select', drag: null };
 
+/** A phone-sized screen, where the panels come up as sheets over the view (the same width the stylesheet uses). */
+export const isPhone = (): boolean => typeof matchMedia === 'function' && matchMedia('(max-width: 640px)').matches;
+
 export const useUi = create<UiState>((set) => ({
   view: '2d',
   customer: null,
@@ -104,8 +147,10 @@ export const useUi = create<UiState>((set) => ({
   selection: null,
   boxed: [],
   snapOn: true,
+  snapReach: readSnapReach(),
   grid: 100,
   cursor: null,
+  placeGhost: null,
   objectGuides: [],
   dock: null,
   panelOpen: false,
@@ -113,11 +158,15 @@ export const useUi = create<UiState>((set) => ({
   move3d: false,
   floorCentre: null,
   areasHidden: false,
+  walkwaysHidden: false,
+  safetyAll: false,
+  hoverId: null,
   bannerClosed: false,
   goto: null,
   peek: false,
+  placeAddons: [],
   goTo: (sel) => set((s) => ({ selection: sel, boxed: [], goto: { sel, n: (s.goto?.n ?? 0) + 1 } })),
   set: (patch) => set('selection' in patch && !('boxed' in patch) ? { ...patch, boxed: [] } : patch),
-  setTool: (tool) => set({ tool, cursor: null, objectGuides: [] }),
+  setTool: (tool) => set({ tool, cursor: null, placeGhost: null, objectGuides: [], hoverId: null }),
   toggleDock: (dock) => set((s) => ({ dock: s.dock === dock ? null : dock })),
 }));

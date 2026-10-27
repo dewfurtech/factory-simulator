@@ -2,9 +2,11 @@ import { catalogItem, needsOperator, spotsOf } from './catalog';
 import { levelZ, onLevel, planOf } from './levels';
 import { findCollisions, objectObb, obbOverlap, wallObb, type Obb } from './objects';
 import { roomOf, roomTop } from './plan';
-import { aisleBoxes, isArrow, planAisles } from './aisles';
+import { aisleBoxes, planAisles } from './aisles';
+import { walkwaysOf } from './walkways';
 import type { Id, Mm, PlacedObject, Project } from './types';
 import { fromAngle, perp } from './vec';
+import { safetyBox } from './safety';
 
 /**
  * Whether what is placed on the plan can really stand there: two things in one spot, a thing through a wall, one
@@ -16,7 +18,11 @@ export type Issue =
   | { kind: 'wall'; wallId: Id }
   | { kind: 'ceiling'; top: Mm; ceiling: Mm }
   | { kind: 'spot' }
-  | { kind: 'aisle'; aisleId: Id; aisleName: string };
+  | { kind: 'aisle'; aisleId: Id; aisleName: string }
+  /** A wall or another thing inside the machine's safety distances. */
+  | { kind: 'safety'; what: string }
+  /** The operator's spot is off the walkway that reaches the doors: the machine is boxed in. */
+  | { kind: 'reach' };
 
 /** Interpenetration under this is a touch, not a clash: things are pushed flush against walls and each other, a little into the plaster. */
 const TOUCH: Mm = 60;
@@ -68,10 +74,17 @@ export function checkClearance(project: Project): Map<Id, Issue[]> {
       if (room && !room.outdoor && !o.assetId.startsWith('stair') && top > roomTop(room) + 1) add(o.id, { kind: 'ceiling', top, ceiling: roomTop(room) });
       const blocked = operatorBox(o).some((box) => walls.some((w) => obbOverlap(box, w, TOUCH)) || obbs.some((b, i) => objects[i].id !== o.id && obbOverlap(box, b, TOUCH)));
       if (blocked) add(o.id, { kind: 'spot' });
+      const zone = safetyBox(o);
+      if (zone) {
+        const i = objects.findIndex((x, j) => x.id !== o.id && obbOverlap(zone, obbs[j], TOUCH));
+        if (walls.some((w) => obbOverlap(zone, w, TOUCH))) add(o.id, { kind: 'safety', what: 'ผนัง' });
+        else if (i >= 0) add(o.id, { kind: 'safety', what: label(objects[i]) });
+      }
     }
-    // Nothing may stand in a marked aisle; a flow arrow only shows the way and blocks nothing.
+    for (const id of walkwaysOf(project, level).unreached) add(id, { kind: 'reach' });
+    // Nothing may stand in a marked walkway.
     for (const a of planAisles(plan)) {
-      if (a.hidden || isArrow(a.kind)) continue;
+      if (a.hidden) continue;
       const boxes = aisleBoxes(a, floor);
       for (let i = 0; i < objects.length; i++) if (boxes.some((b) => obbOverlap(b, obbs[i], TOUCH))) add(objects[i].id, { kind: 'aisle', aisleId: a.id, aisleName: a.name });
     }
@@ -92,5 +105,9 @@ export function issueText(issue: Issue): string {
       return 'ไม่มีที่ยืนทำงานหน้าเครื่อง (ติดผนังหรือของอื่น)';
     case 'aisle':
       return `วางกีดขวางทางเดิน ${issue.aisleName}`;
+    case 'safety':
+      return `ระยะปลอดภัยไม่พอ ติด${issue.what}`;
+    case 'reach':
+      return 'ทางเดินไปไม่ถึงหน้าเครื่อง (ถูกของอื่นกั้น)';
   }
 }

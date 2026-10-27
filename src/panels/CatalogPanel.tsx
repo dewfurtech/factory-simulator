@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CATALOG, GROUP_LABEL, GROUP_ORDER, type CatalogGroup, type CatalogItem } from '../model/catalog';
+import { CATALOG, GROUP_LABEL, GROUP_ORDER, machineInfo, machineOptions, type CatalogGroup, type CatalogItem, type MachineOption } from '../model/catalog';
+import { fmtBaht } from '../model/quote';
 import { allTags, matchesTag, type CustomModel } from '../model/library';
 import { useLibrary } from '../store/library';
 import { ModelForm } from './ModelForm';
-import { useUi } from '../store/ui';
+import { isPhone, useUi } from '../store/ui';
 import { ASSET_MIME, setDraggedAsset } from '../editor2d/PlanEditor';
 import { placeObjectAt } from '../editor2d/tools';
 import { Icon } from '../editor2d/Toolbar';
@@ -27,36 +28,72 @@ const BLANK =
     ? Object.assign(new Image(), { src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' })
     : (undefined as unknown as HTMLImageElement);
 
+/**
+ * Short ticks for the add-ons the machines in a group offer. What is ticked comes with every one of those machines
+ * put down from now on; pieces already on the plan keep their own (changed in their details panel).
+ */
+function AddonTicks({ ids }: { ids: string[] }) {
+  const ticked = useUi((s) => s.placeAddons);
+  const customer = useUi((s) => !!s.customer);
+  const addons = new Map<string, { a: MachineOption; models: string[] }>();
+  for (const id of ids)
+    for (const a of machineOptions(id)) {
+      const e = addons.get(a.id) ?? { a, models: [] };
+      e.models.push(machineInfo(id)?.name ?? id);
+      addons.set(a.id, e);
+    }
+  if (!addons.size || customer) return null;
+  const set = (id: string, on: boolean) => useUi.getState().set({ placeAddons: on ? [...ticked, id] : ticked.filter((x) => x !== id) });
+  return (
+    <div className="cat-addons" data-testid="catalog-addons">
+      <span className="cat-addons-label">อุปกรณ์เสริม</span>
+      {[...addons.values()].map(({ a, models }) => {
+        const on = ticked.includes(a.id);
+        return (
+          <label
+            key={a.id}
+            className={`cat-addon${on ? ' on' : ''}`}
+            title={`${a.name}${a.note ? `\n${a.note}` : ''}\nใช้กับ ${models.join(', ')} · ติ๊กแล้วเครื่องที่วางต่อจากนี้ติดไปด้วย`}
+          >
+            <input type="checkbox" checked={on} onChange={(e) => set(a.id, e.target.checked)} data-testid={`catalog-addon-${a.id}`} />
+            {a.short ?? a.name}
+            <small>{typeof a.price === 'number' ? `+${fmtBaht(a.price)}` : 'สอบถาม'}</small>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 const fmtSize = (c: CatalogItem) => `${(c.size.w / 1000).toFixed(1)}×${(c.size.d / 1000).toFixed(1)} ม.`;
 
-/** The two shelves of the library: the Mastrox lineup comes first, as it is what the app sells. */
-type Shelf = 'mastrox' | 'general' | 'mine';
-const shelfOf = (c: CatalogItem): Shelf => (c.group === 'custom' ? 'mine' : c.use === 'machine' ? 'mastrox' : 'general');
+/**
+ * The two shelves of the library: the Mastrox lineup comes first, as it is what the app sells, then the user's own
+ * models. The standing figure (group 'scale') stands with the machines, there to show their size. The built-in
+ * furniture (desks, racks, lockers…) is not offered: those entries stay in CATALOG only so plans that already hold
+ * them keep drawing.
+ */
+type Shelf = 'mastrox' | 'mine';
+const shelfOf = (c: CatalogItem): Shelf | null => (c.group === 'custom' ? 'mine' : c.use === 'machine' || c.group === 'scale' ? 'mastrox' : null);
 const SHELF_GROUPS: Record<Shelf, CatalogGroup[]> = {
   mastrox: GROUP_ORDER.filter((g) => CATALOG.some((c) => c.group === g && shelfOf(c) === 'mastrox')),
-  general: GROUP_ORDER.filter((g) => CATALOG.some((c) => c.group === g && shelfOf(c) === 'general')),
   mine: [],
 };
 /** Short chip names; the full group label stays as the section heading. */
-const CHIP: Record<CatalogGroup, string> = {
+const CHIP: Partial<Record<CatalogGroup, string>> = {
   nesting: 'CNC Nesting',
   edge: 'ปิดขอบ',
   drill: 'CNC เจาะ',
   other: 'เครื่องเสริม',
-  office: 'สำนักงาน',
-  production: 'ผลิต',
-  storage: 'จัดเก็บ',
-  amenity: 'พนักงาน',
-  decor: 'อื่น ๆ',
-  custom: 'คลังของฉัน',
+  scale: 'เทียบขนาด',
 };
-const MASTROX_COUNT = CATALOG.filter((c) => shelfOf(c) === 'mastrox').length;
+const MASTROX_COUNT = CATALOG.filter((c) => c.use === 'machine').length;
 
 const SHELF_KEY = 'catalog.shelf';
 const readShelf = (): Shelf => {
   try {
     const s = localStorage.getItem(SHELF_KEY);
-    return s === 'general' || s === 'mine' ? s : 'mastrox';
+    return s === 'mine' ? s : 'mastrox';
   } catch {
     return 'mastrox';
   }
@@ -81,9 +118,12 @@ export function CatalogPanel() {
       if (!at) return;
       const id = placeObjectAt(assetId, at, 300, true);
       ui.set({ selection: { kind: 'object', id }, move3d: true });
+      if (isPhone()) ui.set({ dock: null });
       return;
     }
     ui.setTool(on ? { kind: 'select', drag: null } : { kind: 'placeObject', assetId });
+    // On a phone the library covers the plan: it steps aside so the machine can be put down.
+    if (!on && isPhone()) ui.set({ dock: null });
   };
   const setShelf = (s: Shelf) => {
     setShelfState(s);
@@ -100,13 +140,15 @@ export function CatalogPanel() {
     const needle = q.trim().toLowerCase();
     // A search looks through both shelves (Mastrox first), so nothing hides behind the other tab.
     const mine: CatalogItem[] = models.map((m) => ({ id: m.id, label: m.name, group: 'custom', size: m.size, summary: m.note, custom: m }));
-    const shown = [...CATALOG, ...mine].filter((c) =>
-      needle
-        ? c.label.toLowerCase().includes(needle) ||
-          c.id.includes(needle) ||
-          (c.summary ?? '').toLowerCase().includes(needle) ||
-          (c.custom?.tags ?? []).some((t) => t.toLowerCase().includes(needle))
-        : shelfOf(c) === shelf && (group === 'all' || c.group === group) && (!c.custom || matchesTag(c.custom, tag)),
+    const shown = [...CATALOG, ...mine].filter(
+      (c) =>
+        shelfOf(c) !== null &&
+        (needle
+          ? c.label.toLowerCase().includes(needle) ||
+            c.id.includes(needle) ||
+            (c.summary ?? '').toLowerCase().includes(needle) ||
+            (c.custom?.tags ?? []).some((t) => t.toLowerCase().includes(needle))
+          : shelfOf(c) === shelf && (group === 'all' || c.group === group) && (!c.custom || matchesTag(c.custom, tag))),
     );
     return GROUP_ORDER.map((g) => ({ g, items: shown.filter((c) => c.group === g) })).filter((x) => x.items.length);
   }, [q, shelf, group, tag, models]);
@@ -125,15 +167,6 @@ export function CatalogPanel() {
           </span>
           <span className="shelf-count">{MASTROX_COUNT}</span>
         </button>
-        <button
-          role="tab"
-          aria-selected={shelf === 'general'}
-          className={`shelf-tab${shelf === 'general' ? ' on' : ''}`}
-          onClick={() => setShelf('general')}
-          data-testid="shelf-general"
-        >
-          อุปกรณ์
-        </button>
         <button role="tab" aria-selected={shelf === 'mine'} className={`shelf-tab${shelf === 'mine' ? ' on' : ''}`} onClick={() => setShelf('mine')} data-testid="shelf-mine">
           ของฉัน{models.length > 0 && <span className="shelf-count">{models.length}</span>}
         </button>
@@ -141,11 +174,7 @@ export function CatalogPanel() {
       <div className="cat-search">
         <div className="search">
           <Icon name="search" />
-          <input
-            placeholder={shelf === 'mastrox' ? 'ค้นหาเครื่องจักร Mastrox' : shelf === 'mine' ? 'ค้นหาชื่อหรือ tag' : 'ค้นหาอุปกรณ์'}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
+          <input placeholder={shelf === 'mastrox' ? 'ค้นหาเครื่องจักร Mastrox' : 'ค้นหาชื่อหรือ tag'} value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         {shelf === 'mine' && (
           <button className="btn btn-primary btn-sm" onClick={() => setForm({})} title="เพิ่มโมเดลของคุณเอง" data-testid="add-model">
@@ -167,11 +196,11 @@ export function CatalogPanel() {
           ))}
         </div>
       )}
-      {!searching && shelf !== 'mine' && (
+      {!searching && shelf === 'mastrox' && (
         <div className="cat-chips">
-          {(['all', ...SHELF_GROUPS[shelf]] as const).map((g) => (
-            <button key={g} className={`chip${group === g ? ' on' : ''}${shelf === 'mastrox' ? ' mx' : ''}`} onClick={() => setGroup(g)} data-testid={`chip-${g}`}>
-              {g === 'all' ? 'ทั้งหมด' : CHIP[g]}
+          {(['all', ...SHELF_GROUPS.mastrox] as const).map((g) => (
+            <button key={g} className={`chip${group === g ? ' on' : ''} mx`} onClick={() => setGroup(g)} data-testid={`chip-${g}`}>
+              {g === 'all' ? 'ทั้งหมด' : (CHIP[g] ?? GROUP_LABEL[g])}
             </button>
           ))}
         </div>
@@ -180,10 +209,11 @@ export function CatalogPanel() {
         {!groups.length && shelf === 'mine' && !searching && (
           <div className="cat-none muted">ยังไม่มีโมเดลของคุณ กดปุ่ม “+ เพิ่ม” แล้วตั้งชื่อ ขนาด สี และ tag หรืออัปโหลดไฟล์ 3D (GLB, glTF, OBJ, STL)</div>
         )}
-        {!groups.length && (searching || shelf !== 'mine') && <div className="cat-none muted">ไม่พบ “{q.trim()}”</div>}
+        {!groups.length && (searching || shelf === 'mastrox') && <div className="cat-none muted">ไม่พบ “{q.trim()}”</div>}
         {groups.map(({ g, items }) => (
           <section key={g} className="cat-group">
             <h4 className={SHELF_GROUPS.mastrox.includes(g) ? 'mx' : undefined}>{GROUP_LABEL[g]}</h4>
+            <AddonTicks ids={items.map((c) => c.id)} />
             <div className="cat-grid">
               {items.map((c) => {
                 const on = tool.kind === 'placeObject' && tool.assetId === c.id;
@@ -196,10 +226,8 @@ export function CatalogPanel() {
                       e.dataTransfer.setData(ASSET_MIME, c.id);
                       e.dataTransfer.effectAllowed = 'copy';
                       setDraggedAsset(c.id);
-                      // On the plan the small picture follows the cursor; with 3D open the views draw the shape itself, so nothing does.
-                      const img = e.currentTarget.querySelector('img');
-                      if (useUi.getState().view !== '2d') e.dataTransfer.setDragImage(BLANK, 0, 0);
-                      else if (img) e.dataTransfer.setDragImage(img, 0, 0);
+                      // No picture follows the cursor: the plan and the 3D view draw the dragged shape where it would land.
+                      e.dataTransfer.setDragImage(BLANK, 0, 0);
                     }}
                     onDragEnd={() => setDraggedAsset(null)}
                     onClick={() => pick(c.id, on)}

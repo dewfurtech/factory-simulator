@@ -3,6 +3,7 @@ import { catalogItem, isMachine } from '../model/catalog';
 import { machinePhoto } from '../model/photos';
 import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
 import { FLAT } from './lowpoly';
+import { loadPerson, PERSON_ID, personObject, personReady } from './person3d';
 
 /**
  * Small pictures of catalog items for the library. A Mastrox machine shows its real photo; everything else is
@@ -37,7 +38,9 @@ function render(id: string): string {
   const dims = item?.size ?? { w: 1000, d: 1000, h: 1000 };
   const obj: THREE.Object3D = item?.custom
     ? new THREE.Mesh(plainGeometry(item.custom.shape, dims), new THREE.MeshLambertMaterial({ color: item.custom.color }))
-    : new THREE.Mesh(isMachine({ assetId: id }) ? machineBlock(dims) : builtinGeometry(id, dims), FLAT);
+    : id === PERSON_ID
+      ? personObject(dims)
+      : new THREE.Mesh(isMachine({ assetId: id }) ? machineBlock(dims) : builtinGeometry(id, dims), FLAT);
   scene.add(obj);
   const box = new THREE.Box3().setFromObject(obj);
   const size = box.getSize(new THREE.Vector3());
@@ -80,6 +83,14 @@ export function forgetThumbnail(id: string): void {
 export function thumbnail(id: string, cb: (url: string) => void): void {
   const photo = isMachine({ assetId: id }) ? machinePhoto(id) : null;
   if (photo) return cb(photo.url);
+  // The figure's picture waits for its model to download; a failed download leaves it blank.
+  if (id === PERSON_ID && !personReady()) {
+    loadPerson().then(
+      () => thumbnail(id, cb),
+      () => cb(''),
+    );
+    return;
+  }
   const done = urls.get(id);
   if (done !== undefined) return cb(done);
   if (!waiting.has(id)) {

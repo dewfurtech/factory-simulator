@@ -3,6 +3,7 @@ import { Icon } from '../editor2d/Toolbar';
 import { FLOW_SIDE_LABEL, MACHINE_CATEGORIES, machineFlow, machineInfo, machineOptions } from '../model/catalog';
 import { FLOW_IN, FLOW_OUT } from '../model/flow';
 import { machinePhoto } from '../model/photos';
+import { fmtBaht } from '../model/quote';
 import type { Size3 } from '../model/types';
 
 const mm = (n: number) => n.toLocaleString('th-TH');
@@ -133,10 +134,13 @@ export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: 
                   <b>{a.name}</b>
                   {a.note && <small>{a.note}</small>}
                 </span>
+                <span className="addon-price" data-testid={`addon-price-${a.id}`}>
+                  {typeof a.price === 'number' ? `+${fmtBaht(a.price)}` : <small className="muted">สอบถาม</small>}
+                </span>
               </label>
             );
           })}
-          <p className="muted small">ติ๊กแล้วพื้นที่ที่เครื่องใช้บนผังจะยาวขึ้นตาม</p>
+          <p className="muted small">ติ๊กแล้วพื้นที่ที่เครื่องใช้บนผังจะยาวขึ้นตาม และราคาบวกเพิ่มในใบเสนอราคา</p>
         </section>
       )}
       {size && (

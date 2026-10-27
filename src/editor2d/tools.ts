@@ -1,4 +1,5 @@
-import { catalogItem } from '../model/catalog';
+import { catalogItem, machineFootprint, machineOptions } from '../model/catalog';
+import { keyLetter } from './shortcuts';
 import { newId } from '../model/id';
 import { incidentWalls } from '../model/miter';
 import { moveWithStack, obbCorners, objectObb, snapObject } from '../model/objects';
@@ -26,7 +27,7 @@ import { addArea, boxOutline, closedOutline, extendOutline, moveArea } from '../
 import { addAisle, cleanLine, moveAisle } from '../model/aisles';
 import { editProject, useProject } from '../store/project';
 import { levelZ } from '../model/levels';
-import { SELECT, useUi, type ColumnSpec, type Drag, type Selection, type Tool, type ToolKind } from '../store/ui';
+import { SELECT, SNAP_REACH, useUi, type ColumnSpec, type Drag, type Selection, type Tool, type ToolKind } from '../store/ui';
 import { boxSelect, columnOutline, hitTest } from './hit';
 import { guideLines, snapToInk } from './planGuides';
 import { EMPTY_ENTRY, ENTRY_FIELDS, entryKey, hasTyped, rectCorner, wallEnd } from './entry';
@@ -58,16 +59,30 @@ function snap(input: PointerInput, extra: { from?: Vec2; excludeCorners?: Id[]; 
   const free = input.alt || !snapOn;
   const u = project().underlay;
   const lines = free ? [] : guideLines(u);
-  const s = snapPoint(project().plan, input.p, { grid, radius: input.radius, free, lines, ...extra });
+  const s = snapPoint(project().plan, input.p, { grid, radius: reach(input.radius), free, lines, ...extra });
   if (free || !(s.kind === 'grid' || s.kind === 'align' || s.kind === 'angle')) return s;
-  return snapToInk(u, input.p, input.radius) ?? s;
+  return snapToInk(u, input.p, reach(input.radius)) ?? s;
 }
 
 const snapping = (input: Pick<PointerInput, 'alt'>) => !input.alt && ui().snapOn;
+/** A snap distance scaled by the near / middle / far setting on the Snap button. */
+const reach = (radius: Mm) => radius * SNAP_REACH[ui().snapReach].factor;
+
+/** While selecting, the corner or wall a click would pick gets the same snap mark the drawing tools show. */
+function hoverSnap(input: PointerInput): SnapResult | null {
+  const p = project();
+  const hit = hitTest(p, input.p, input.radius);
+  if (hit?.kind === 'corner') return { point: p.plan.corners[hit.id], kind: 'corner', guides: [], cornerId: hit.id };
+  if (hit?.kind === 'wall') {
+    const w = p.plan.walls[hit.id];
+    return { point: projectOnSegment(input.p, p.plan.corners[w.a], p.plan.corners[w.b]).point, kind: 'wall', guides: [], wallId: hit.id };
+  }
+  return null;
+}
 
 /** A room outline to place, pulled onto nearby walls so neighbouring rooms share them. */
 export function roomOutline(points: Vec2[], input: Pick<PointerInput, 'alt' | 'radius'>): Vec2[] {
-  return snapping(input) ? alignToWalls(project().plan, points, DEFAULT_WALL.thickness, input.radius) : points;
+  return snapping(input) ? alignToWalls(project().plan, points, DEFAULT_WALL.thickness, reach(input.radius)) : points;
 }
 
 function commitSegment(from: Vec2, end: SnapResult, glass: boolean): boolean {
@@ -178,16 +193,28 @@ function newColumn(spec: ColumnSpec, p: Vec2): Column {
 const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
   select: {
     down(tool, input) {
+      // A machine carried from the right-click menu is put down where it is.
+      if (tool.drag?.kind === 'object' && tool.drag.carry) {
+        useProject.getState().endGesture();
+        setTool({ ...tool, drag: null });
+        ui().set({ objectGuides: [] });
+        return;
+      }
       const p = project();
       const hit = hitTest(p, input.p, input.radius);
+      const before = ui().selection;
       // A click on nothing also tucks the panel away, even when it was opened by hand.
       ui().set(hit ? { selection: hit } : { selection: null, panelOpen: false });
       if (!hit || hit.kind === 'room') {
         setTool({ ...tool, drag: { kind: 'box', from: input.p, to: input.p } });
         return;
       }
+      // Nothing is moved by a stray press: the first click only picks a thing, and it moves only when pressed
+      // again while already picked.
+      if (!(before?.kind === hit.kind && before.id === hit.id)) return;
       let drag: Drag;
       if (hit.kind === 'wall') drag = { kind: 'wall', id: hit.id, origin: input.p, applied: 0 };
+      else if (hit.kind === 'corner') drag = { kind: 'corner', id: hit.id, origin: input.p };
       else if (hit.kind === 'object') {
         const o = p.objects.find((x) => x.id === hit.id)!;
         drag = { kind: 'object', id: hit.id, grab: sub(input.p, { x: o.x, y: o.y }) };
@@ -199,10 +226,20 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
     },
     move(tool, input) {
       const drag = tool.drag;
-      if (!drag) return ui().set({ cursor: null });
+      if (!drag) {
+        const hit = hitTest(project(), input.p, input.radius);
+        const hoverId = hit?.kind === 'object' ? hit.id : null;
+        return ui().set(ui().hoverId === hoverId ? { cursor: hoverSnap(input) } : { cursor: hoverSnap(input), hoverId });
+      }
       if (drag.kind === 'box') return setTool({ ...tool, drag: { ...drag, to: input.p } });
       const p = project();
+      // A wall or corner stays put until the pointer has gone ~8 px, so a shaky click does not nudge it.
+      const dead = input.radius * 0.8;
       if (drag.kind === 'corner') {
+        if (drag.origin) {
+          if (Math.hypot(input.p.x - drag.origin.x, input.p.y - drag.origin.y) < dead) return;
+          setTool({ ...tool, drag: { kind: 'corner', id: drag.id } });
+        }
         const walls = incidentWalls(p.plan, drag.id).map((w) => w.id);
         const s = snap(input, { excludeCorners: [drag.id], excludeWalls: walls });
         ui().set({ cursor: s });
@@ -211,8 +248,9 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
         const wall = p.plan.walls[drag.id];
         const n = perp(wallDir(p.plan, wall));
         const raw = dot(sub(input.p, drag.origin), n);
+        if (drag.applied === 0 && Math.abs(raw) < dead) return;
         const step = snapping(input) ? ui().grid : 1;
-        const onWall = snapping(input) ? parallelWallOffset(p.plan, drag.id, raw - drag.applied, input.radius) : null;
+        const onWall = snapping(input) ? parallelWallOffset(p.plan, drag.id, raw - drag.applied, reach(input.radius)) : null;
         const target = onWall === null ? Math.round(raw / step) * step : drag.applied + onWall;
         const delta = target - drag.applied;
         if (delta !== 0) {
@@ -247,12 +285,16 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
       } else {
         const o = p.objects.find((x) => x.id === drag.id)!;
         const target = sub(input.p, drag.grab);
-        const s = !snapping(input) ? { x: target.x, y: target.y, z: o.z, rotation: o.rotation, guides: [] } : snapObject(p.plan, p.objects, o, target, Math.max(input.radius, 150));
+        const s = !snapping(input)
+          ? { x: target.x, y: target.y, z: o.z, rotation: o.rotation, guides: [] }
+          : snapObject(p.plan, p.objects, o, target, objectSnapRadius(input.radius));
         ui().set({ objectGuides: s.guides });
         edit((d) => moveWithStack(d.objects, drag.id, s));
       }
     },
     up(tool, input) {
+      // Still carried: only the next press puts it down.
+      if (tool.drag?.kind === 'object' && tool.drag.carry) return;
       if (tool.drag?.kind === 'box') {
         const { from } = tool.drag;
         if (dist(from, input.p) > input.radius) {
@@ -269,7 +311,19 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
       setTool({ ...tool, drag: null });
       ui().set({ cursor: null, objectGuides: [] });
     },
-    key(_tool, e) {
+    key(tool, e) {
+      // Esc puts a carried machine back where it was.
+      if (tool.drag?.kind === 'object' && tool.drag.carry) {
+        if (e.key !== 'Escape') return false;
+        // Undo only what the carry moved: with the machine not moved yet there is nothing to take back.
+        const { past, project: now } = useProject.getState();
+        const moved = past[past.length - 1] !== now;
+        useProject.getState().endGesture();
+        if (moved) useProject.getState().undo();
+        setTool({ ...tool, drag: null });
+        ui().set({ objectGuides: [] });
+        return true;
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && (ui().selection || ui().boxed.length)) {
         deleteSelection();
         return true;
@@ -419,10 +473,15 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
   placeObject: {
     down(tool, input) {
       placeObjectAt(tool.assetId, input.p, input.radius, !snapping(input));
-      // Keep the tool for placing the same thing again; Esc ends it.
+      // One at a time: back to the pointer, with the new machine picked.
+      setTool(SELECT);
     },
-    move(_tool, input) {
-      ui().set({ cursor: { point: input.p, kind: 'free', guides: [] } });
+    move(tool, input) {
+      // The ghost stands where a click would put it: pulled onto walls and neighbours, with the line it lines up on.
+      const free = !snapping(input);
+      const o = objectAt(tool.assetId, input.p, input.radius, free);
+      const guides = free ? [] : snapObject(project().plan, project().objects, o, input.p, objectSnapRadius(input.radius)).guides;
+      ui().set({ cursor: { point: { x: o.x, y: o.y }, kind: 'free', guides }, placeGhost: o });
     },
     key(_tool, e) {
       if (e.key !== 'Escape') return false;
@@ -453,7 +512,7 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
       if (openB !== tool.openB) setTool({ ...tool, openB });
     },
     key(tool, e) {
-      if (e.key === 'f' || e.key === 'F') {
+      if (keyLetter(e) === 'f') {
         setTool({ ...tool, hingeEnd: !tool.hingeEnd });
         return true;
       }
@@ -601,7 +660,7 @@ function calibrateSnap(tool: Of<'calibrate'>, input: PointerInput): SnapResult {
   const p = from && input.shift ? squared(input.p, from) : input.p;
   if (!snapping(input)) return { point: p, kind: 'free', guides: [] };
   const u = project().underlay;
-  const s = snapToLines(guideLines(u), p, input.radius) ?? snapToInk(u, p, input.radius);
+  const s = snapToLines(guideLines(u), p, reach(input.radius)) ?? snapToInk(u, p, reach(input.radius));
   if (!s) return { point: p, kind: 'free', guides: [] };
   return from && input.shift ? { ...s, point: squared(s.point, from) } : s;
 }
@@ -610,7 +669,20 @@ const measurePoint = (tool: Of<'measure'>, input: PointerInput): Vec2 => measure
 
 const squared = (q: Vec2, prev: Vec2): Vec2 => (Math.abs(q.x - prev.x) > Math.abs(q.y - prev.y) ? { x: q.x, y: prev.y } : { x: prev.x, y: q.y });
 
-/** The object a catalog item would become if put down at p, snapped to walls and neighbours unless `free`. */
+/** How far a placed thing reaches for a wall or neighbour: ~20 px on screen at the middle setting. */
+const objectSnapRadius = (radius: Mm) => reach(radius * 2);
+
+/**
+ * Where the pointer holds a piece, from its centre: the top-left corner of the box it covers on screen (plan y runs
+ * down), turned with it, so the corner can be set right where it should go.
+ */
+export function topLeftGrab(o: Pick<PlacedObject, 'size' | 'rotation'>): Vec2 {
+  const c = Math.abs(Math.cos(o.rotation));
+  const s = Math.abs(Math.sin(o.rotation));
+  return { x: -(c * o.size.w + s * o.size.d) / 2, y: -(s * o.size.w + c * o.size.d) / 2 };
+}
+
+/** The object a catalog item would become if put down with its top-left corner at p, snapped to walls and neighbours unless `free`. */
 export function objectAt(assetId: string, p: Vec2, radius: Mm, free = false): PlacedObject {
   const proj = project();
   const item = catalogItem(assetId);
@@ -624,8 +696,21 @@ export function objectAt(assetId: string, p: Vec2, radius: Mm, free = false): Pl
     rotation: 0,
     size: item ? { ...item.size } : { w: 1000, d: 1000, h: 1000 },
   };
+  // The add-ons ticked in the catalog come with each new machine that offers them, and lengthen it.
+  const ticked = ui().placeAddons;
+  const options = machineOptions(assetId)
+    .filter((a) => ticked.includes(a.id))
+    .map((a) => a.id);
+  if (options.length) {
+    obj.options = options;
+    const f = machineFootprint(assetId, options);
+    if (f) obj.size = f;
+  }
+  // The pointer holds the top-left corner, not the middle.
+  const centre = sub(p, topLeftGrab(obj));
+  Object.assign(obj, centre);
   if (!free) {
-    const s = snapObject(proj.plan, proj.objects, obj, p, Math.max(radius, 300));
+    const s = snapObject(proj.plan, proj.objects, obj, centre, objectSnapRadius(radius));
     Object.assign(obj, { x: s.x, y: s.y, z: s.z, rotation: s.rotation });
   }
   return obj;
@@ -688,6 +773,18 @@ export function flipOpeningHinge(id: Id): void {
     const o = d.plan.openings[id];
     if (o) o.hingeEnd = !o.hingeEnd;
   });
+}
+
+/**
+ * Picks a machine up to move it without holding the button, as SketchUp's Move does: it is held by its top-left
+ * corner, so the corner jumps to the pointer and follows it until the next click puts it down; Esc puts it back.
+ */
+export function carryObject(id: Id): void {
+  const o = project().objects.find((x) => x.id === id);
+  if (!o) return;
+  useProject.getState().beginGesture();
+  ui().set({ selection: { kind: 'object', id }, boxed: [] });
+  setTool({ kind: 'select', drag: { kind: 'object', id, grab: topLeftGrab(o), carry: true } });
 }
 
 export function deleteSelection(): void {
@@ -798,16 +895,26 @@ export function rotateObject(id: Id, by: number): void {
   });
 }
 
+/** Turns the object to face `rotation` (radians), its stack with it; snapped to 15° steps unless `free`. */
+export function setObjectRotation(id: Id, rotation: number, free = false): void {
+  const step = Math.PI / 12;
+  const r = free ? rotation : Math.round(rotation / step) * step;
+  edit((d) => {
+    const o = d.objects.find((x) => x.id === id);
+    if (o && o.rotation !== r) moveWithStack(d.objects, id, { ...o, rotation: r });
+  });
+}
+
 const STEP = Math.PI / 12;
 
-/** R / Shift+R turn 90°, Q / E turn 15°, Ctrl+D duplicates. */
+/** R / Shift+R turn 90°, Q / E turn 15°, M picks up to move, Ctrl+D duplicates. */
 export function objectKey(e: KeyboardEvent): boolean {
   const sel = ui().selection;
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+  if ((e.ctrlKey || e.metaKey) && keyLetter(e) === 'd') {
     duplicateSelection();
     return true;
   }
-  if (sel?.kind === 'column' && e.key.toLowerCase() === 'r') {
+  if (sel?.kind === 'column' && !e.ctrlKey && !e.metaKey && keyLetter(e) === 'r') {
     edit((d) => {
       const c = d.columns[sel.id];
       if (c) c.rotation += Math.PI / 2;
@@ -815,15 +922,16 @@ export function objectKey(e: KeyboardEvent): boolean {
     return true;
   }
   if (sel?.kind === 'opening' && !e.ctrlKey && !e.metaKey) {
-    const k = e.key.toLowerCase();
+    const k = keyLetter(e);
     if (k === 'f') flipOpeningHinge(sel.id);
     else if (k === 'g') flipOpeningSide(sel.id);
     else return false;
     return true;
   }
-  if (sel?.kind !== 'object') return false;
-  const k = e.key.toLowerCase();
+  if (sel?.kind !== 'object' || e.ctrlKey || e.metaKey) return false;
+  const k = keyLetter(e);
   if (k === 'r') rotateObject(sel.id, e.shiftKey ? -Math.PI / 2 : Math.PI / 2);
+  else if (k === 'm' && !e.shiftKey && !e.altKey && !e.repeat) carryObject(sel.id);
   else if (k === 'q') rotateObject(sel.id, -STEP);
   else if (k === 'e') rotateObject(sel.id, STEP);
   else return false;

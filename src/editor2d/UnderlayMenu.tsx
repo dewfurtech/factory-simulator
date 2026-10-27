@@ -38,7 +38,7 @@ type Status =
   | { kind: 'needScale'; then: 'choose' | 'build' }
   | { kind: 'failed'; message: string };
 
-const STYLE_LABEL: Record<WallStyle | 'auto', string> = { auto: 'อัตโนมัติ', solid: 'ทึบ / แรเงา', hollow: 'เส้นคู่', sketch: 'ร่างด้วยมือ' };
+const STYLE_LABEL: Record<WallStyle | 'auto', string> = { auto: 'อัตโนมัติ', solid: 'ทึบ / แรเงา', hollow: 'เส้นคู่', thin: 'เส้นเดี่ยวบาง', sketch: 'ร่างด้วยมือ' };
 
 const editUnderlay = (recipe: (u: Underlay) => void) =>
   applyEdit((d) => {
@@ -513,7 +513,8 @@ const GLYPHS: Record<string, string> = {
   peek: 'M4 5h16v14H4z M7 12s2-3.5 5-3.5 5 3.5 5 3.5-2 3.5-5 3.5-5-3.5-5-3.5z M12 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2z',
   busy: 'M12 3a9 9 0 1 0 9 9',
   ruler: 'M3 16L16 3l5 5L8 21z M7 12l2 2 M10 9l2 2 M13 6l2 2',
-  move: 'M12 3v18 M3 12h18 M9 6l3-3 3 3 M9 18l3 3 3-3 M6 9l-3 3 3 3 M18 9l3 3-3 3',
+  // A picture with a move cross at its corner: it moves the plan image, not the walls or machines.
+  move: 'M3 3h12v9H3z M3 10l3-3 3 3 2-2 4 4 M17 13v8 M13 17h8 M15.5 14.5l1.5-1.5 1.5 1.5 M15.5 19.5l1.5 1.5 1.5-1.5 M14.5 15.5l-1.5 1.5 1.5 1.5 M19.5 15.5l1.5 1.5-1.5 1.5',
   eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z',
   eyeOff: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z M4 4l16 16',
   image: 'M4 5h16v14H4z M4 15l5-5 4 4 2-2 5 5 M15 9h.01',

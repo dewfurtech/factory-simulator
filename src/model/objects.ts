@@ -1,5 +1,6 @@
-import type { Id, Mm, PlacedObject, Plan, Vec2 } from './types';
+import type { Id, Mm, PlacedObject, Plan, Vec2, Wall } from './types';
 import { add, cross, dot, fromAngle, len, perp, pointInPolygon, rotate, scale, sub, wrapAngle, norm } from './vec';
+import { safetyToward } from './safety';
 
 export interface Obb {
   c: Vec2;
@@ -102,54 +103,102 @@ export function snapObject(plan: Plan, others: readonly PlacedObject[], moving: 
   const ou = fromAngle(rotation);
   const ov = perp(ou);
   const halfAlong = (axis: Vec2) => (Math.abs(dot(ou, axis)) * width + Math.abs(dot(ov, axis)) * depth) / 2;
-  let bestWall: { gap: number; pos: Vec2; face: [Vec2, Vec2] } | null = null;
-  for (const wall of hanging ? [] : Object.values(plan.walls)) {
+  /** How `wall` sits against the object at `at`: the gap to its face, the way out from it, and where the face is. */
+  const fit = (wall: Wall, at: Vec2) => {
     const a = plan.corners[wall.a];
     const b = plan.corners[wall.b];
     const ab = sub(b, a);
     const l = len(ab);
-    if (l === 0) continue;
+    if (l === 0) return null;
     const dir = scale(ab, 1 / l);
-    const rel = sub(target, a);
+    const rel = sub(at, a);
     const along = dot(rel, dir);
     const reach = halfAlong(dir);
-    if (along < -reach || along > l + reach) continue;
-    const side = Math.sign(cross(dir, rel)) || 1;
-    const n = scale(perp(dir), side);
-    const want = wall.thickness / 2 + halfAlong(n);
-    const gap = Math.abs(Math.abs(cross(dir, rel)) - want);
-    if (gap > radius || (bestWall && gap >= bestWall.gap)) continue;
-    const foot = add(a, scale(dir, along));
+    if (along < -reach || along > l + reach) return null;
+    const n = scale(perp(dir), Math.sign(cross(dir, rel)) || 1);
+    // A machine stops at its safety distance from the wall, not flush against it.
+    const want = wall.thickness / 2 + halfAlong(n) + safetyToward(moving, scale(n, -1));
+    const off = dot(rel, n);
     const faceOffset = scale(n, wall.thickness / 2);
-    bestWall = {
-      gap,
-      pos: add(foot, scale(n, want)),
-      face: [add(a, faceOffset), add(b, faceOffset)],
-    };
-  }
-  if (bestWall) {
-    pos = bestWall.pos;
-    guides.push({ from: bestWall.face[0], to: bestWall.face[1] });
+    return { dir, n, want, off, gap: Math.abs(off - want), face: [add(a, faceOffset), add(b, faceOffset)] as [Vec2, Vec2] };
+  };
+  // Walls: the nearest face, then a second face across it, so a thing slides into a corner touching both.
+  const walls = hanging ? [] : Object.values(plan.walls);
+  const nearest = (at: Vec2, ok: (f: NonNullable<ReturnType<typeof fit>>) => boolean) => {
+    let best: NonNullable<ReturnType<typeof fit>> | null = null;
+    for (const wall of walls) {
+      const f = fit(wall, at);
+      if (f && f.gap <= radius && ok(f) && (!best || f.gap < best.gap)) best = f;
+    }
+    return best;
+  };
+  /** Directions a wall has already fixed; a neighbour does not pull the object off them. */
+  const held: Vec2[] = [];
+  const first = nearest(target, () => true);
+  if (first) {
+    pos = add(pos, scale(first.n, first.want - first.off));
+    guides.push({ from: first.face[0], to: first.face[1] });
+    held.push(first.n);
+    const second = nearest(pos, (f) => Math.abs(cross(first.dir, f.dir)) > 0.5);
+    if (second) {
+      // Slide along the first wall until the second one is touched too.
+      pos = add(pos, scale(first.dir, (second.want - second.off) / dot(first.dir, second.n)));
+      guides.push({ from: second.face[0], to: second.face[1] });
+      held.push(second.n);
+    }
   }
 
+  // Neighbours turned the same way (or a quarter turn off): on each side, touch them or line up with their edges.
   const u = fromAngle(rotation);
   const v = perp(u);
+  const free = (axis: Vec2) => held.every((n) => Math.abs(dot(n, axis)) < 0.7);
+  let bestU: { d: number; edge: Vec2; o: Vec2; span: number } | null = null;
+  let bestV: { d: number; edge: Vec2; o: Vec2; span: number } | null = null;
   for (const o of others) {
     if (o.id === moving.id) continue;
-    if (Math.abs(wrapAngle(o.rotation - rotation)) > (2 * Math.PI) / 180) continue;
-    const rel = sub(pos, { x: o.x, y: o.y });
+    const turn = Math.abs(wrapAngle(o.rotation - rotation)) % (Math.PI / 2);
+    if (Math.min(turn, Math.PI / 2 - turn) > (2 * Math.PI) / 180) continue;
+    // The neighbour's size along this object's own axes.
+    const ou2 = fromAngle(o.rotation);
+    const ow = Math.abs(dot(ou2, u)) * o.size.w + Math.abs(dot(perp(ou2), u)) * o.size.d;
+    const od = Math.abs(dot(ou2, v)) * o.size.w + Math.abs(dot(perp(ou2), v)) * o.size.d;
+    const c = { x: o.x, y: o.y };
+    const rel = sub(pos, c);
     const ox = dot(rel, u);
     const oy = dot(rel, v);
-    const touch = (o.size.w + width) / 2;
-    if (Math.abs(oy) > (o.size.d + depth) / 2 || Math.abs(Math.abs(ox) - touch) > radius) continue;
     const sx = Math.sign(ox) || 1;
-    // Align back faces so a run of cabinets reads as one line.
-    const backAligned = (depth - o.size.d) / 2;
-    const ny = Math.abs(oy - backAligned) <= radius ? backAligned : oy;
-    pos = add({ x: o.x, y: o.y }, add(scale(u, sx * touch), scale(v, ny)));
-    const contact = add({ x: o.x, y: o.y }, scale(u, (sx * o.size.w) / 2));
-    guides.push({ from: add(contact, scale(v, -o.size.d / 2)), to: add(contact, scale(v, o.size.d / 2)) });
-    break;
+    const sy = Math.sign(oy) || 1;
+    const besideU = Math.abs(oy) < (od + depth) / 2;
+    const besideV = Math.abs(ox) < (ow + width) / 2;
+    // Two machines facing each other keep the larger of their two safety distances between them.
+    const keepU = Math.max(safetyToward(moving, scale(u, -sx)), safetyToward(o, scale(u, sx)));
+    const keepV = Math.max(safetyToward(moving, scale(v, -sy)), safetyToward(o, scale(v, sy)));
+    const touchU = sx * ((ow + width) / 2 + keepU);
+    const touchV = sy * ((od + depth) / 2 + keepV);
+    // Along u: side to side when beside it, or the same left/right edge when in front of or behind it.
+    for (const t of [...(besideU ? [touchU] : []), ...(besideV ? [(ow - width) / 2, -(ow - width) / 2] : [])]) {
+      const d = t - ox;
+      if (Math.abs(d) <= radius && (!bestU || Math.abs(d) < Math.abs(bestU.d))) {
+        const edgeSide = t === touchU ? sx : Math.sign(t) || 1;
+        bestU = { d, edge: add(c, scale(u, (edgeSide * ow) / 2)), o: c, span: od };
+      }
+    }
+    // Along v: front to back when in line with it, or the same front/back face when beside it.
+    for (const t of [...(besideV ? [touchV] : []), ...(besideU ? [(od - depth) / 2, -(od - depth) / 2] : [])]) {
+      const d = t - oy;
+      if (Math.abs(d) <= radius && (!bestV || Math.abs(d) < Math.abs(bestV.d))) {
+        const edgeSide = t === touchV ? sy : Math.sign(t) || 1;
+        bestV = { d, edge: add(c, scale(v, (edgeSide * od) / 2)), o: c, span: ow };
+      }
+    }
+  }
+  if (bestU && free(u)) {
+    pos = add(pos, scale(u, bestU.d));
+    guides.push({ from: add(bestU.edge, scale(v, -bestU.span / 2 - depth)), to: add(bestU.edge, scale(v, bestU.span / 2 + depth)) });
+  }
+  if (bestV && free(v)) {
+    pos = add(pos, scale(v, bestV.d));
+    guides.push({ from: add(bestV.edge, scale(u, -bestV.span / 2 - width)), to: add(bestV.edge, scale(u, bestV.span / 2 + width)) });
   }
 
   // An object lifted into the air on purpose (a wall cabinet) keeps its height; one sitting on something follows the surface.

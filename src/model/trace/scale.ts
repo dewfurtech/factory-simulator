@@ -4,11 +4,11 @@ import { detectPlan, DOOR_OPENING, type TracedPlan, type TraceOptions } from './
 import { shrink, type Gray } from './raster';
 
 /**
- * How walls are drawn: filled or hatched dark, as two outlines with paper (or sparse hatching) between, or sketched
- * by hand in pencil, two wavering and broken outlines.
+ * How walls are drawn: filled or hatched dark, as two outlines with paper (or sparse hatching) between, as single
+ * thin lines (a CAD print of a hall), or sketched by hand in pencil, two wavering and broken outlines.
  */
-export type WallStyle = 'solid' | 'hollow' | 'sketch';
-export const WALL_STYLES: WallStyle[] = ['solid', 'hollow', 'sketch'];
+export type WallStyle = 'solid' | 'hollow' | 'thin' | 'sketch';
+export const WALL_STYLES: WallStyle[] = ['solid', 'hollow', 'thin', 'sketch'];
 
 export function traceOptions(mmPerPx: number, style: WallStyle): TraceOptions {
   const px = (mm: Mm) => mm / mmPerPx;
@@ -16,10 +16,11 @@ export function traceOptions(mmPerPx: number, style: WallStyle): TraceOptions {
     minThick: px(80),
     maxThick: px(400),
     minLen: px(400),
-    hollowGap: style === 'solid' ? 0 : px(style === 'sketch' ? 200 : 150),
+    hollowGap: style === 'solid' ? 0 : px(style === 'sketch' ? 200 : style === 'thin' ? 300 : 150),
     minOpening: px(450),
     maxOpening: px(2600),
     bridge: style === 'sketch' ? Math.max(2, Math.round(px(150))) : 0,
+    thin: style === 'thin' || undefined,
   };
 }
 
@@ -55,14 +56,19 @@ const wallLength = (t: TracedPlan) => t.walls.reduce((sum, w) => sum + dist(w.a,
  * Solid unless it misses most of what hollow finds. Read as hollow, solid walls come out the same, but so do pairs of
  * lines that aren't walls (furniture edges, window frames), so hollow is taken only when solid finds little.
  */
-function pickStyle(traces: { style: WallStyle; traced: TracedPlan }[]) {
+function pickStyle(traces: { style: WallStyle; traced: TracedPlan }[], span: number) {
   const solid = traces.find((t) => t.style === 'solid');
   const hollow = traces.find((t) => t.style === 'hollow');
+  const thin = traces.find((t) => t.style === 'thin');
   const sketch = traces.find((t) => t.style === 'sketch');
   const drawn = !solid || !hollow ? (solid ?? hollow) : wallLength(solid.traced) >= wallLength(hollow.traced) * 0.5 ? solid : hollow;
   // Read as a sketch, a drawn plan comes out about the same; taken only when the drawn styles miss a good part of it.
-  if (!drawn || (sketch && wallLength(drawn.traced) < wallLength(sketch.traced) * 0.75)) return sketch ?? drawn!;
-  return drawn;
+  const pick = !drawn || (sketch && wallLength(drawn.traced) < wallLength(sketch.traced) * 0.75) ? (sketch ?? drawn) : drawn;
+  // Read as thin lines, every long line is a wall (grid and dimension lines too), so thin is taken only when the
+  // other styles found less wall than the image is wide and high: walls drawn as single lines are all but
+  // invisible to them, and a plan's walls add up to more than that.
+  if (!pick || (thin && wallLength(pick.traced) < span && wallLength(thin.traced) > wallLength(pick.traced))) return thin ?? pick!;
+  return pick;
 }
 
 /**
@@ -75,8 +81,9 @@ export function autoTrace(gray: Gray, given?: number, styles: WallStyle[] = WALL
   let doors = 0;
   let candidates = styles;
   if (mmPerPx === undefined) {
-    // A sketch's doors are drawn too loosely to measure: the scale is read the drawn ways only.
-    const searched = styles.length > 1 ? styles.filter((st) => st !== 'sketch') : styles;
+    // A sketch's doors are drawn too loosely to measure, and read as thin lines every symbol is a door: the scale is
+    // read the drawn ways only.
+    const searched = styles.length > 1 ? styles.filter((st) => st !== 'sketch' && st !== 'thin') : styles;
     const f = Math.max(1, Math.ceil(Math.max(gray.w, gray.h) / SEARCH_PX));
     const small = shrink(gray, f);
     const long = Math.max(small.w, small.h);
@@ -94,7 +101,7 @@ export function autoTrace(gray: Gray, given?: number, styles: WallStyle[] = WALL
     }
     if (!best || best.n < MIN_DOORS) return null;
     const guess = best.scale / f;
-    candidates = styles.includes('sketch') && best.style !== 'sketch' ? [best.style, 'sketch'] : [best.style];
+    candidates = [best.style, ...styles.filter((st) => st !== best.style && (st === 'sketch' || st === 'thin'))];
     // Read the doors again at full size, where their edges are sharper than in the search, and keep the scale only if they agree.
     const full = singleDoorWidths(detectPlan(gray, { ...traceOptions(guess, best.style), wallDoors: false }))
       .map((w) => DOOR_OPENING / w)
@@ -104,6 +111,6 @@ export function autoTrace(gray: Gray, given?: number, styles: WallStyle[] = WALL
     doors = full.length;
   }
   const traces = candidates.map((style) => ({ style, traced: detectPlan(gray, traceOptions(mmPerPx!, style)) }));
-  const pick = pickStyle(traces);
+  const pick = pickStyle(traces, gray.w + gray.h);
   return { traced: pick.traced, mmPerPx, style: pick.style, doors };
 }

@@ -254,27 +254,4 @@ function addSecondFloor(p: Project) {
     { x: topX + 350, y: midY, level: 1, z: UPPER },
   ];
   p.upper = { z: UPPER, plan, stair, voids: [rect(wx, hole.y0, hole.x1, hole.y1)] };
-
-  // Furniture upstairs, and who works there.
-  const item = (assetId: string, x: Mm, y: Mm, rotation = 0, name?: string, w?: Mm): Id => {
-    const it = catalogItem(assetId)!;
-    const o: PlacedObject = { id: newId('obj'), assetId, name: name ?? it.label, x, y, z: UPPER, rotation, size: { ...it.size, ...(w && { w }) } };
-    p.objects.push(o);
-    return o.id;
-  };
-  for (const [x, y] of [
-    [1800, 42700],
-    [4400, 42700],
-    [1800, 45600],
-    [4400, 45600],
-  ])
-    item('desk', x, y);
-  item('cabinet', 3100, 47800, N);
-  item('desk', 18600, 42400, 0, 'โต๊ะผู้จัดการ');
-  item('sofa', 21600, 43900, N);
-  item('cabinet', 22400, 41300, W);
-  item('meeting-table', 19100, 46450, 0, 'โต๊ะประชุมชั้น 2', 4800);
-  item('plant', 22600, 47800);
-  item('water', 13700, 41300, W);
-  item('plant', 13600, 47800);
 }

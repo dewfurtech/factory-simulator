@@ -6,7 +6,7 @@ import { obbCorners, objectObb } from '../model/objects';
 import { wallFootprints } from '../model/miter';
 import { openingOffsetAt, roomLabelPoint, roomPolygon, roomStats, setWallLength, wallDir, wallLength } from '../model/plan';
 import { OPENING_PRESETS, openingSymbol, type OpeningSymbol } from '../model/openings';
-import type { Column, Id, PlacedObject, Plan, Project, Underlay, Vec2, Wall } from '../model/types';
+import type { Column, Id, Mm, PlacedObject, Plan, Project, Underlay, Vec2, Wall } from '../model/types';
 import { add, bounds, lerp, perp, scale, signedArea } from '../model/vec';
 import { zoneColor } from '../model/zones';
 import { fmtArea, fmtLen, fmtSize } from '../format';
@@ -16,13 +16,18 @@ import { CalibrateBanner, CalibrateInput, CalibrateOverlay, UnderlayImage } from
 import { underlayRect } from '../model/underlay';
 import { locate } from '../model/locate';
 import { areaCenter, areaStats, boxOutline, extendOutline, planAreas } from '../model/areas';
-import { AISLE_KIND_IDS, AISLE_KINDS, aisleLabel, aisleOutline, arrowHead, defaultWidth, isArrow, LINE_COLOR, LINE_WIDTH, offsetLine, planAisles } from '../model/aisles';
+import { AISLE_KINDS, aisleLabel, aisleOutline, defaultWidth, LINE_COLOR, LINE_WIDTH, offsetLine, planAisles } from '../model/aisles';
+import { walkwaysOf } from '../model/walkways';
 import type { Aisle } from '../model/types';
 import { columnOutline, hitTest, isCrossing, isOutdoor, SNAP_PX } from './hit';
-import { addDoorAt, columnGridPoints, dispatchPointer, finishArea, finishAisle, objectAt, placeObjectAt, roomOutline } from './tools';
+import { addDoorAt, carryObject, columnGridPoints, deleteSelection, dispatchPointer, finishArea, finishAisle, objectAt, placeObjectAt, roomOutline, rotateObject, setObjectRotation } from './tools';
 import { ensureGuides, guideLines, useGuides } from './planGuides';
 import { checkClearance, type Issue } from '../model/clearance';
+import { safetyBox, safetyOf } from '../model/safety';
 import { HelpButton } from '../ui/HelpButton';
+import { ObjectActions } from './ObjectActions';
+import { CATALOG_KEY, keyLetter, SHORTCUTS } from './shortcuts';
+import { Icon } from './Toolbar';
 import { IssuesChip } from '../panels/IssuesChip';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
 
@@ -60,6 +65,10 @@ export function PlanEditor() {
   const [view, setView] = useState<View>(() => initialView(project));
   const [editing, setEditing] = useState<{ wallId: Id; x: number; y: number; value: string } | null>(null);
   const pan = useRef<{ x: number; y: number; view: View; moved: boolean } | null>(null);
+  /** The right-click menu, at a spot in the plan's box; a right-drag pans instead. */
+  const customer = useUi((s) => !!s.customer);
+  /** The right-click menu: where it opened on screen and the machine under it, if one. */
+  const [menu, setMenu] = useState<{ x: number; y: number; picked: boolean; objectId: Id | null } | null>(null);
   const [drawScale, setDrawScale] = useState(view.s);
   useEffect(() => {
     const t = setTimeout(() => setDrawScale(view.s), 150);
@@ -212,6 +221,32 @@ export function PlanEditor() {
     }
     dispatchPointer('move', input(e));
   };
+  /** A right-click picks what is under it (keeping a box selection it is part of) and offers its details. */
+  const openMenu = (e: React.PointerEvent) => {
+    if (useUi.getState().tool.kind !== 'select') return;
+    const i = input(e);
+    const hit = hitTest(project, i.p, i.radius);
+    const ui = useUi.getState();
+    if (hit && !ui.boxed.some((b) => b.id === hit.id)) ui.set({ selection: hit, boxed: [] });
+    const r = wrapRef.current!.getBoundingClientRect();
+    const one = hit?.kind === 'object' && !useUi.getState().boxed.length ? hit.id : null;
+    setMenu({ x: e.clientX - r.left, y: e.clientY - r.top, picked: !!hit || ui.boxed.length > 0, objectId: one });
+  };
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: Event) => {
+      if (!(e.target instanceof Element && e.target.closest('.ctx-menu'))) setMenu(null);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(null);
+    window.addEventListener('pointerdown', close, true);
+    window.addEventListener('wheel', close, true);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerdown', close, true);
+      window.removeEventListener('wheel', close, true);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menu]);
   const onPointerUp = (e: React.PointerEvent) => {
     if (e.pointerType === 'touch') {
       touches.current.delete(e.pointerId);
@@ -230,7 +265,9 @@ export function PlanEditor() {
       releaseHeld(true);
     }
     if (pan.current) {
+      const click = e.button === 2 && !pan.current.moved;
       pan.current = null;
+      if (click) openMenu(e);
       return;
     }
     dispatchPointer('up', input(e));
@@ -295,6 +332,21 @@ export function PlanEditor() {
   };
 
   const zoom = (k: number) => setView({ ...view, s: Math.min(2, Math.max(0.004, view.s * k)) });
+  // Shift+Z fits the whole plan on screen, as in SketchUp.
+  const fitRef = useRef(() => undefined as void);
+  fitRef.current = () => setView(initialView(project, size));
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
+      if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && keyLetter(e) === 'z') {
+        e.preventDefault();
+        fitRef.current();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <div ref={wrapRef} className="plan-wrap" onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
@@ -309,7 +361,7 @@ export function PlanEditor() {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onDoubleClick={onDoubleClick}
-        onPointerLeave={() => useUi.getState().set({ cursor: null })}
+        onPointerLeave={() => useUi.getState().set({ cursor: null, hoverId: null })}
         onContextMenu={(e) => e.preventDefault()}
         style={{ cursor: tool.kind === 'select' ? 'default' : tool.kind === 'moveUnderlay' ? 'move' : 'crosshair' }}
       >
@@ -331,8 +383,10 @@ export function PlanEditor() {
             <ObjectLayer objects={objects} outdoor {...shared} />
           </g>
           <PlanBase {...shared} />
+          <WalkwayLayer project={project} px={px} />
           <AisleLayer {...shared} />
           <ObjectLayer objects={objects} outdoor={false} {...shared} />
+          <SafetyLayer objects={objects} px={px} issues={issues} />
           <AreaLayer {...shared} />
           <ColumnLayer columns={columns} {...shared} />
           <PlanLabels onEditDim={onEditDim} {...shared} />
@@ -342,8 +396,8 @@ export function PlanEditor() {
           <GuideLayer underlay={project.underlay} px={livePx} />
           <ToolOverlay px={livePx} />
           {dragGhost && (
-            <g opacity={0.7} pointerEvents="none" data-testid="drag-ghost">
-              <ObjectShape o={dragGhost} px={livePx} sel />
+            <g data-testid="drag-ghost">
+              <PlaceGhost o={dragGhost} px={livePx} />
             </g>
           )}
           <BoxOverlay px={livePx} />
@@ -354,7 +408,41 @@ export function PlanEditor() {
       </svg>
       <CalibrateInput toScreen={toScreen} />
       <CalibrateBanner />
+      {menu && (
+        <div className="ctx-menu glass" role="menu" style={{ left: menu.x, top: menu.y }} data-testid="context-menu">
+          {menu.objectId && (
+            <>
+              <button role="menuitem" onClick={() => (carryObject(menu.objectId!), setMenu(null))} data-testid="menu-move">
+                ย้าย<kbd>M</kbd>
+              </button>
+              <button role="menuitem" onClick={() => (rotateObject(menu.objectId!, Math.PI / 2), setMenu(null))} data-testid="menu-rotate">
+                หมุนขวา 90°<kbd>R</kbd>
+              </button>
+              <button role="menuitem" onClick={() => (rotateObject(menu.objectId!, -Math.PI / 2), setMenu(null))} data-testid="menu-rotate-back">
+                หมุนซ้าย 90°<kbd>Shift+R</kbd>
+              </button>
+            </>
+          )}
+          {menu.picked && !customer && (
+            <button role="menuitem" className="danger" onClick={() => (deleteSelection(), setMenu(null))} data-testid="menu-delete">
+              ลบ<kbd>Delete</kbd>
+            </button>
+          )}
+          {menu.picked && <div className="ctx-sep" />}
+          <button
+            role="menuitem"
+            onClick={() => {
+              useUi.getState().set({ panelOpen: true });
+              setMenu(null);
+            }}
+            data-testid="menu-details"
+          >
+            {menu.picked ? 'รายละเอียด' : 'รายละเอียดโรงงาน'}
+          </button>
+        </div>
+      )}
       <DrawEntry toScreen={toScreen} size={size} />
+      <RotateHandles toScreen={toScreen} toPlan={toPlan} />
       {editing && (
         <input
           className="dim-input"
@@ -474,27 +562,56 @@ function EntranceMark({ plan, wall, offset, px }: { plan: Plan; wall: Wall; offs
 const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim }: LayerProps & { onEditDim: (w: Wall, at: Vec2) => void }) {
   const rooms = useMemo(() => Object.values(plan.rooms).map((r) => ({ r, c: roomLabelPoint(plan, r), st: roomStats(plan, r) })), [plan]);
   const selCorner = selId(selection, 'corner');
+  const selWallId = selId(selection, 'wall');
+  const selWall: Wall | undefined = selWallId ? plan.walls[selWallId] : undefined;
+  const selRoomId = selId(selection, 'room');
+  const selRoom = selRoomId ? plan.rooms[selRoomId] : undefined;
+  // Zoomed out, a dot on every corner only clutters the plan: they show once a metre is ~40 px on screen, and always on what is picked.
+  const allCorners = px < 25;
+  const keyCorners = new Set<Id>([...(selCorner ? [selCorner] : []), ...(selWall ? [selWall.a, selWall.b] : []), ...(selRoom?.cornerIds ?? [])]);
   return (
     <>
+      {selWall && !selWall.hidden && (
+        // The picked wall stands out at any zoom: a line at least a few pixels wide over a white halo, whatever its real thickness.
+        <g data-export="skip" pointerEvents="none">
+          {[
+            { w: Math.max(selWall.thickness, 6 * px) + 4 * px, c: '#fff' },
+            { w: Math.max(selWall.thickness, 6 * px), c: 'var(--select)' },
+          ].map(({ w, c }) => (
+            <line
+              key={c}
+              x1={plan.corners[selWall.a].x}
+              y1={plan.corners[selWall.a].y}
+              x2={plan.corners[selWall.b].x}
+              y2={plan.corners[selWall.b].y}
+              stroke={c}
+              strokeWidth={w}
+              strokeLinecap="round"
+            />
+          ))}
+        </g>
+      )}
       {Object.values(plan.walls).map((w) => {
         if (w.hidden) return null;
+        const picked = w.id === selWall?.id;
         const a = plan.corners[w.a];
         const b = plan.corners[w.b];
         const n = perp(wallDir(plan, w));
         const at = add(lerp(a, b, 0.5), scale(n, w.thickness / 2 + 14 * px));
         let angle = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
         if (angle > 90 || angle < -90) angle += 180;
-        if (wallLength(plan, w) < 110 * px) return null;
+        if (!picked && wallLength(plan, w) < 110 * px) return null;
         return (
           <text
             key={w.id}
             x={at.x}
             y={at.y}
-            fontSize={11 * px}
+            fontSize={(picked ? 13 : 11) * px}
+            fontWeight={picked ? 700 : undefined}
             textAnchor="middle"
             dominantBaseline="middle"
             transform={`rotate(${angle} ${at.x} ${at.y})`}
-            fill="var(--ink-2)"
+            fill={picked ? 'var(--select)' : 'var(--ink-2)'}
             stroke="var(--canvas)"
             strokeWidth={3 * px}
             paintOrder="stroke"
@@ -524,28 +641,31 @@ const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim }: 
           </g>
         ))}
       <g data-export="skip">
-        {Object.values(plan.corners).map((c) => (
-          <circle key={c.id} cx={c.x} cy={c.y} r={(selCorner === c.id ? 5 : 2.5) * px} fill={selCorner === c.id ? 'var(--select)' : '#fff'} stroke="#18181b" strokeWidth={px} />
-        ))}
+        {Object.values(plan.corners)
+          .filter((c) => allCorners || keyCorners.has(c.id))
+          .map((c) => {
+            const key = keyCorners.has(c.id);
+            return (
+              <circle
+                key={c.id}
+                cx={c.x}
+                cy={c.y}
+                r={(selCorner === c.id ? 5 : key ? 4 : 2.5) * px}
+                fill={selCorner === c.id ? 'var(--select)' : '#fff'}
+                stroke={key ? 'var(--select)' : '#18181b'}
+                strokeWidth={(key ? 1.5 : 1) * px}
+              />
+            );
+          })}
       </g>
     </>
   );
 });
 
-/** An aisle as it is painted: a tinted strip between two yellow edge lines. A flow arrow is a line with an arrowhead. */
+/** A walkway drawn by hand, as it is painted: a tinted strip between two yellow edge lines. */
 export function AisleShape({ a, px, sel }: { a: Pick<Aisle, 'points' | 'width' | 'kind'> & Partial<Aisle>; px: number; sel?: boolean }) {
   if (a.points.length < 2) return null;
   const info = AISLE_KINDS[a.kind];
-  if (isArrow(a.kind)) {
-    const w = Math.max(a.width, 2.5 * px);
-    return (
-      <g>
-        <polyline points={pts(a.points)} fill="none" stroke={info.fill} strokeWidth={w} strokeLinejoin="round" strokeLinecap="round" opacity={sel ? 1 : 0.85} />
-        <polygon points={pts(arrowHead({ points: a.points, width: w }))} fill={info.fill} stroke={info.fill} strokeWidth={px} strokeLinejoin="round" />
-        {sel && <polygon points={pts(aisleOutline({ points: a.points, width: w + 8 * px }))} fill="none" stroke="var(--select)" strokeWidth={1.5 * px} strokeLinejoin="round" />}
-      </g>
-    );
-  }
   const line = Math.max(LINE_WIDTH, 1.5 * px);
   const edge = a.width / 2 - LINE_WIDTH / 2;
   return (
@@ -575,8 +695,8 @@ const AisleLayer = memo(function AisleLayer({ plan, selection, marked, px }: Lay
       {aisles.map((a) => {
         const sel = selAisle === a.id || marked.has(a.id);
         const label = aisleLabel(a);
-        const fs = isArrow(a.kind) ? 11 * px : Math.min(11 * px, a.width * 0.45);
-        const text = isArrow(a.kind) ? a.name : `${a.name} · ${fmtLen(a.width)}`;
+        const fs = Math.min(11 * px, a.width * 0.45);
+        const text = `${a.name} · ${fmtLen(a.width)}`;
         const fits = label.length > text.length * fs * 0.62;
         return (
           <g key={a.id} opacity={a.hidden ? 0.15 : undefined} data-testid={`aisle-${a.id}`}>
@@ -584,7 +704,7 @@ const AisleLayer = memo(function AisleLayer({ plan, selection, marked, px }: Lay
             {fits && (
               <text
                 x={label.at.x}
-                y={label.at.y - (isArrow(a.kind) ? 7 * px : 0)}
+                y={label.at.y}
                 fontSize={fs}
                 fontWeight={700}
                 textAnchor="middle"
@@ -684,12 +804,124 @@ const ObjectLayer = memo(function ObjectLayer({ plan, selection, marked, px, obj
   const selObject = selId(selection, 'object');
   return (
     <>
+      {/* A machine's safety distances show in red when a wall or something else is inside them; otherwise the walkway layer paints them. */}
+      <g pointerEvents="none" data-testid="safety-zones">
+        {shown.map((o) => {
+          const zone = !o.hidden && levelOf(o) === level ? safetyBox(o) : null;
+          if (!zone || !issues.get(o.id)?.some((i) => i.kind === 'safety')) return null;
+          const c = 'var(--danger)';
+          return (
+            <polygon
+              key={o.id}
+              points={pts(obbCorners(zone))}
+              fill={c}
+              fillOpacity={0.06}
+              stroke={c}
+              strokeOpacity={0.6}
+              strokeWidth={px}
+              strokeDasharray={`${5 * px} ${4 * px}`}
+            />
+          );
+        })}
+      </g>
       {shown.map((o) => (
         <ObjectShape key={o.id} o={o} px={px} sel={selObject === o.id || marked.has(o.id)} above={levelOf(o) > level} bad={issues.has(o.id)} />
       ))}
     </>
   );
 });
+
+/**
+ * A machine's safety distances as a dashed frame around it, with a dimension on every side that has one: for the
+ * machine under the pointer, the ones picked and the one being dragged, or for all of them when the walkway menu says
+ * so. A frame already painted red for a clash is not drawn twice.
+ */
+function SafetyLayer({ objects, px, issues }: { objects: PlacedObject[]; px: number; issues: Map<Id, Issue[]> }) {
+  const level = useProject((s) => s.level);
+  const all = useUi((s) => s.safetyAll);
+  const hoverId = useUi((s) => s.hoverId);
+  const selection = useUi((s) => s.selection);
+  const boxed = useUi((s) => s.boxed);
+  const dragId = useUi((s) => (s.tool.kind === 'select' && s.tool.drag?.kind === 'object' ? s.tool.drag.id : null));
+  const focus = new Set<string>([hoverId, dragId, selId(selection, 'object'), ...boxed.map((b) => (b.kind === 'object' ? b.id : null))].filter((x): x is string => !!x));
+  if (!all && !focus.size) return null;
+  return (
+    <g pointerEvents="none" data-testid="safety-dims">
+      {objects.map((o) =>
+        o.hidden || levelOf(o) !== level || (!all && !focus.has(o.id)) ? null : (
+          <SafetyFrame key={o.id} o={o} px={px} bad={issues.get(o.id)?.some((i) => i.kind === 'safety')} />
+        ),
+      )}
+    </g>
+  );
+}
+
+/** One machine's clear frame and the distance on each side; red when something is inside it (the frame is then painted elsewhere). */
+function SafetyFrame({ o, px, bad }: { o: PlacedObject; px: number; bad?: boolean }) {
+  const s = safetyOf(o.assetId);
+  const zone = safetyBox(o);
+  if (!s || !zone) return null;
+  const c = '#0f766e';
+  const b = objectObb(o);
+  // Each side: the direction out of the machine and the distance to keep clear that way.
+  const sides: [Vec2, Mm, Mm][] = [
+    [b.v, b.hv, s.front],
+    [scale(b.v, -1), b.hv, s.back],
+    [b.u, b.hu, s.right],
+    [scale(b.u, -1), b.hu, s.left],
+  ];
+  return (
+    <g>
+      {!bad && <polygon points={pts(obbCorners(zone))} fill="none" stroke={c} strokeOpacity={0.7} strokeWidth={px} strokeDasharray={`${5 * px} ${4 * px}`} />}
+      {sides.map(([dir, half, d], i) => (d > 0 ? <SafetyDim key={i} from={add(b.c, scale(dir, half))} dir={dir} d={d} px={px} color={bad ? 'var(--danger)' : c} /> : null))}
+    </g>
+  );
+}
+
+/** A machine about to be put down: drawn as it will stand on the plan, with the room it needs around it. */
+function PlaceGhost({ o, px }: { o: PlacedObject; px: number }) {
+  return (
+    <g pointerEvents="none" data-testid="place-ghost">
+      <SafetyFrame o={o} px={px} />
+      <g opacity={0.85}>
+        <ObjectShape o={o} px={px} sel={false} />
+      </g>
+    </g>
+  );
+}
+
+/** One safety distance: a dimension line from the machine's edge out to the clear frame, with its length. */
+function SafetyDim({ from, dir, d, px, color }: { from: Vec2; dir: Vec2; d: Mm; px: number; color: string }) {
+  const to = add(from, scale(dir, d));
+  const n = perp(dir);
+  const mid = lerp(from, to, 0.5);
+  const at = add(mid, scale(n, -9 * px));
+  let angle = (Math.atan2(dir.y, dir.x) * 180) / Math.PI;
+  if (angle > 90 || angle <= -90) angle += 180;
+  const tick = (p: Vec2) => <line x1={p.x - n.x * 5 * px} y1={p.y - n.y * 5 * px} x2={p.x + n.x * 5 * px} y2={p.y + n.y * 5 * px} stroke={color} strokeWidth={1.2 * px} />;
+  return (
+    <g data-testid="safety-dim">
+      <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={color} strokeWidth={1.2 * px} />
+      {tick(from)}
+      {tick(to)}
+      <text
+        x={at.x}
+        y={at.y}
+        fontSize={10 * px}
+        fontWeight={600}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        transform={`rotate(${angle} ${at.x} ${at.y})`}
+        fill={color}
+        stroke="var(--canvas)"
+        strokeWidth={3 * px}
+        paintOrder="stroke"
+      >
+        {fmtLen(d)}
+      </text>
+    </g>
+  );
+}
 
 /** A red badge at the object's corner: it clashes with something or does not fit (see model/clearance). */
 function IssueBadge({ at, px }: { at: Vec2; px: number }) {
@@ -908,6 +1140,7 @@ function BoxOverlay({ px }: { px: number }) {
 function ToolOverlay({ px }: { px: number }) {
   const tool = useUi((s) => s.tool);
   const cursor = useUi((s) => s.cursor);
+  const placeGhost = useUi((s) => s.placeGhost);
   if (!cursor) return null;
   const p = cursor.point;
   const ghost = { fill: '#18181b', fillOpacity: 0.08, stroke: '#18181b', strokeWidth: px, strokeDasharray: `${6 * px} ${4 * px}`, pointerEvents: 'none' as const };
@@ -990,11 +1223,7 @@ function ToolOverlay({ px }: { px: number }) {
       </g>
     );
   }
-  if (tool.kind === 'placeObject') {
-    const item = catalogItem(tool.assetId);
-    if (!item) return null;
-    return <polygon points={pts(obbCorners(objectObb({ x: p.x, y: p.y, z: 0, rotation: 0, size: item.size })))} {...ghost} />;
-  }
+  if (tool.kind === 'placeObject') return placeGhost?.assetId === tool.assetId ? <PlaceGhost o={placeGhost} px={px} /> : null;
   if (tool.kind === 'addOpening' && cursor.wallId) {
     const plan = editProject().plan;
     const wall = plan.walls[cursor.wallId];
@@ -1066,6 +1295,96 @@ function DrawEntry({ toScreen, size }: { toScreen: (p: Vec2) => Vec2; size: { w:
   );
 }
 
+/**
+ * Turning the picked object. A strip above it: 90° buttons either side of its angle, and the angle itself scrubs
+ * (drag it sideways). And a handle on a stalk from its centre: drag it around the object to face any way. Both
+ * turn in 15° steps, or freely with Alt. Laid out in screen pixels, so it is the same size at any zoom.
+ */
+function RotateHandles({ toScreen, toPlan }: { toScreen: (p: Vec2) => Vec2; toPlan: (x: number, y: number) => Vec2 }) {
+  const id = useUi((s) => (s.tool.kind === 'select' && !s.tool.drag && s.selection?.kind === 'object' ? s.selection.id : null));
+  const level = useProject((s) => s.level);
+  const o = useProject((s) => (id ? s.project?.objects.find((x) => x.id === id) : undefined));
+  const drag = useRef<{ kind: 'scrub'; x: number; rotation: number } | { kind: 'knob' } | null>(null);
+  const [turning, setTurning] = useState(false);
+  if (!o || o.hidden || !onLevel(o, level)) return null;
+  const c = toScreen(o);
+  const corners = obbCorners(objectObb(o)).map(toScreen);
+  const r = Math.max(...corners.map((p) => Math.hypot(p.x - c.x, p.y - c.y))) + 30;
+  const front = o.rotation + Math.PI / 2;
+  const knob = { x: c.x + r * Math.cos(front), y: c.y + r * Math.sin(front) };
+  // The buttons sit above the machine, and above the knob too when the machine faces up, so neither hides the other.
+  const above = c.y - Math.max(...corners.map((p) => Math.abs(p.y - c.y)), 24) - 34;
+  const top = knob.y < c.y && Math.abs(knob.x - c.x) < 130 ? Math.min(above, knob.y - 36) : above;
+  const deg = Math.round(((((o.rotation * 180) / Math.PI) % 360) + 360) % 360);
+
+  const grab = (kind: 'scrub' | 'knob') => (e: React.PointerEvent<HTMLElement>) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = kind === 'scrub' ? { kind, x: e.clientX, rotation: o.rotation } : { kind };
+    useProject.getState().beginGesture();
+    setTurning(true);
+  };
+  const turn = (e: React.PointerEvent<HTMLElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    if (d.kind === 'scrub') {
+      // One degree per pixel: a hand's width turns it a quarter round.
+      setObjectRotation(o.id, d.rotation + ((e.clientX - d.x) * Math.PI) / 180, e.altKey);
+    } else {
+      const p = toPlan(e.clientX, e.clientY);
+      if (Math.hypot(p.x - o.x, p.y - o.y) < 1) return;
+      setObjectRotation(o.id, Math.atan2(p.y - o.y, p.x - o.x) - Math.PI / 2, e.altKey);
+    }
+  };
+  const drop = () => {
+    if (!drag.current) return;
+    drag.current = null;
+    setTurning(false);
+    useProject.getState().endGesture();
+  };
+  return (
+    <>
+      <ObjectActions
+        key={o.id}
+        id={o.id}
+        onMove={() => carryObject(o.id)}
+        className={`rot-ctl${turning ? ' turning' : ''}`}
+        style={{ left: c.x, top }}
+        testId="rotate-handles"
+      >
+        <span
+          className="rot-deg"
+          onPointerDown={grab('scrub')}
+          onPointerMove={turn}
+          onPointerUp={drop}
+          onPointerCancel={drop}
+          title="ลากซ้าย-ขวาเพื่อหมุน (Alt = ไม่สแนป)"
+          data-testid="rotate-scrub"
+        >
+          {deg}°
+        </span>
+      </ObjectActions>
+      <svg className="rot-stalk" aria-hidden>
+        <line x1={c.x} y1={c.y} x2={knob.x} y2={knob.y} />
+      </svg>
+      <button
+        className={`rot-knob${turning ? ' turning' : ''}`}
+        style={{ left: knob.x, top: knob.y }}
+        onPointerDown={grab('knob')}
+        onPointerMove={turn}
+        onPointerUp={drop}
+        onPointerCancel={drop}
+        title="ลากรอบเครื่องเพื่อหมุน (Alt = ไม่สแนป)"
+        aria-label="ลากเพื่อหมุน"
+        data-testid="rotate-knob"
+      >
+        <Icon name="rotate" />
+      </button>
+    </>
+  );
+}
+
 function OpeningShape({ symbol, px, stroke }: { symbol: OpeningSymbol; px: number; stroke: string }) {
   return (
     <g>
@@ -1092,7 +1411,7 @@ function OpeningShape({ symbol, px, stroke }: { symbol: OpeningSymbol; px: numbe
 
 /** What each tool is called and how it is used: shown by the "?" button beside the zoom controls. */
 const HINTS: Record<string, { name: string; tips: string[] }> = {
-  select: { name: 'เลือก / ย้าย', tips: ['คลิกเพื่อเลือก', 'ลากเพื่อย้าย', 'R หมุน 90°', 'Ctrl+D ทำสำเนา', 'ดับเบิลคลิกผนังเพื่อใส่ประตู', 'Alt ค้างไว้ = ไม่ดูดเข้าหาผนัง'] },
+  select: { name: 'เลือก / ย้าย', tips: ['คลิกเพื่อเลือก', 'ลากเพื่อย้าย', 'R หมุน 90° • Q / E หมุน 15°', 'Ctrl+D ทำสำเนา', 'ดับเบิลคลิกผนังเพื่อใส่ประตู', 'Alt ค้างไว้ = ไม่ดูดเข้าหาผนัง'] },
   drawWall: { name: 'วาดผนัง', tips: ['คลิกเพื่อวางจุด', 'พิมพ์ความยาว (ซม.) แล้ว Enter', 'Tab แล้วพิมพ์มุม (°)', 'Esc จบ'] },
   drawRoomRect: { name: 'วาดห้อง', tips: ['คลิกมุมแรก แล้วคลิกมุมตรงข้าม', 'หรือพิมพ์กว้าง • Tab • ลึก (ซม.) แล้ว Enter', 'มีภาพแปลน: มุมดูดเข้าหาเส้นในรูป'] },
   drawArea: {
@@ -1103,17 +1422,28 @@ const HINTS: Record<string, { name: string; tips: string[] }> = {
     name: 'ทางเดิน / ทิศทางงาน',
     tips: ['คลิกวางจุดตามแนวกลางทาง', 'ลูกศรชี้ไปทางจุดสุดท้าย', 'พิมพ์ความยาว (ซม.) • Tab มุม', 'Enter / ดับเบิลคลิก / คลิกจุดเดิม จบเส้น', 'ปรับความกว้างที่แผงขวา'],
   },
-  placeObject: { name: 'วางเครื่อง', tips: ['คลิกเพื่อวาง (ติดผนังให้เอง)', 'วางต่อได้หลายตัว', 'Alt ค้างไว้ = ไม่ติดผนัง', 'Esc จบ'] },
+  placeObject: { name: 'วางเครื่อง', tips: ['คลิกเพื่อวาง (ติดผนังให้เอง) วางแล้วกลับเป็นเมาส์ปกติ', 'Alt ค้างไว้ = ไม่ติดผนัง', 'Esc ยกเลิก'] },
   addOpening: { name: 'ประตู / หน้าต่าง', tips: ['คลิกบนผนังเพื่อวาง', 'ขยับเมาส์ไปฝั่งที่ต้องการให้ประตูเปิด', 'F สลับด้านบานพับ'] },
   placeColumn: { name: 'เสา', tips: ['คลิกเพื่อวางเสา (ติดตาราง)', 'วางต่อได้หลายต้น', 'Esc จบ'] },
   columnGrid: { name: 'ตารางเสา', tips: ['คลิกมุมแรก แล้วคลิกมุมตรงข้าม', 'ปรับระยะห่างที่แผงขวา', 'Esc จบ'] },
-  calibrate: { name: 'วัดสเกลแปลน', tips: ['คลิก 2 จุดบนแปลนที่รู้ระยะจริง', 'จุดจะดูดเข้าเส้นและมุมในรูปแปลน (วงส้ม)', 'พิมพ์ระยะจริง', 'Shift = แนวตรง • Alt = ไม่ดูด • Esc ยกเลิก'] },
+  calibrate: {
+    name: 'วัดสเกลแปลน',
+    tips: ['คลิก 2 จุดบนแปลนที่รู้ระยะจริง', 'จุดจะดูดเข้าเส้นและมุมในรูปแปลน (วงส้ม)', 'พิมพ์ระยะจริง', 'Shift = แนวตรง • Alt = ไม่ดูด • Esc ยกเลิก'],
+  },
   measure: { name: 'วัดระยะ', tips: ['คลิกจุดแรก แล้วคลิกจุดที่สอง', 'วัดต่อได้หลายเส้น', 'ดูดเข้าหามุม ผนัง และขอบเครื่อง', 'Shift = แนวตรง • Backspace ลบเส้นล่าสุด'] },
   moveUnderlay: { name: 'ย้ายภาพแปลน', tips: ['ลากเพื่อย้ายแปลนพื้นหลัง', 'Esc จบ'] },
 };
 
 /** What works whatever the tool. */
 const GENERAL_TIPS = ['Ctrl+Z เลิกทำ • Ctrl+Y ทำซ้ำ', 'Delete ลบที่เลือก', 'Esc ยกเลิกเครื่องมือ', 'ลูกกลิ้งซูม • คลิกขวาลากเลื่อนแปลน', 'กดค้าง \ เพื่อดูแปลนใต้ภาพวาด'];
+
+/** The one-key tools, as the help lists them. */
+const SHORTCUT_TIPS = [
+  ...SHORTCUTS.filter((x) => x.key !== 'm').map((x) => `${x.key === 'space' ? 'Space / M' : x.key.toUpperCase()} ${x.label}`),
+  `${CATALOG_KEY.toUpperCase()} เปิด/ปิดคลังเครื่องจักร`,
+  'R หมุน 90° • Q / E หมุน 15° • M ยกไปวางที่ใหม่ (เมื่อเลือกเครื่อง)',
+  'Shift+Z พอดีจอ',
+];
 
 const NO_TAPES: readonly { a: Vec2; b: Vec2 }[] = [];
 
@@ -1190,24 +1520,42 @@ function TapesChip() {
   );
 }
 
-/** What each aisle colour means, for the kinds on this floor: shown whenever the plan has aisles. */
+/** What the floor markings mean: shown whenever the plan has walkways drawn by hand. */
 function AisleLegend({ plan }: { plan: Plan }) {
-  const shown = new Set(
-    planAisles(plan)
-      .filter((a) => !a.hidden)
-      .map((a) => a.kind),
-  );
-  if (!shown.size) return null;
+  const shown = planAisles(plan).some((a) => !a.hidden);
+  if (!shown) return null;
   return (
     <div className="aisle-legend glass" data-testid="aisle-legend">
       <div className="aisle-legend-title">เส้นบนพื้น</div>
-      {AISLE_KIND_IDS.filter((k) => shown.has(k)).map((k) => (
-        <div key={k} className="aisle-legend-row">
-          <span className={`aisle-swatch${isArrow(k) ? ' arrow' : ''}`} style={{ '--kind': AISLE_KINDS[k].fill } as React.CSSProperties} />
-          <span>{isArrow(k) ? 'ทิศทางงาน' : AISLE_KINDS[k].label}</span>
-        </div>
-      ))}
+      <div className="aisle-legend-row">
+        <span className="aisle-swatch" style={{ '--kind': AISLE_KINDS.walk.fill } as React.CSSProperties} />
+        <span>ทางเดิน (วาดเอง)</span>
+      </div>
     </div>
+  );
+}
+
+/**
+ * The walkways the app finds by itself: the floor clear of walls, columns and everything standing, where a strip of
+ * the walkway width fits. Painted under the hand-drawn ones; a machine the walkway cannot reach gets a red badge.
+ */
+function WalkwayLayer({ project, px }: { project: Project; px: number }) {
+  const level = useProject((s) => s.level);
+  const hidden = useUi((s) => s.walkwaysHidden);
+  const w = useMemo(() => (hidden ? null : walkwaysOf(project, level)), [project, level, hidden]);
+  if (!w?.loops.length) return null;
+  const d = w.loops.map((loop) => `M ${loop.map((p) => `${p.x} ${p.y}`).join(' L ')} Z`).join(' ');
+  // The yellow line is painted inside the edge, as on a real floor: the stroke is clipped to the walkway itself.
+  return (
+    <g data-testid="walkways" pointerEvents="none">
+      <defs>
+        <clipPath id="walkways-clip" clipPathUnits="userSpaceOnUse">
+          <path d={d} clipRule="evenodd" />
+        </clipPath>
+      </defs>
+      <path d={d} fill={AISLE_KINDS.walk.fill} fillOpacity={0.1} fillRule="evenodd" />
+      <path d={d} fill="none" stroke={LINE_COLOR} strokeWidth={2 * Math.max(LINE_WIDTH, 1.2 * px)} strokeLinejoin="miter" clipPath="url(#walkways-clip)" />
+    </g>
   );
 }
 
@@ -1225,6 +1573,7 @@ function PlanHelp() {
       sections={[
         { title: hint.name, items: hint.tips },
         { title: 'ทั่วไป', items: GENERAL_TIPS },
+        { title: 'คีย์ลัด (ใช้ได้ทั้งแป้นไทยและอังกฤษ)', items: SHORTCUT_TIPS },
       ]}
     />
   );

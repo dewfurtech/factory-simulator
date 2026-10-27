@@ -19,6 +19,7 @@ export function ModelForm({ model, onClose }: Props) {
   const [shape, setShape] = useState<CustomModel['shape']>(model?.shape ?? 'box');
   const [tags, setTags] = useState((model?.tags ?? []).join(', '));
   const [note, setNote] = useState(model?.note ?? '');
+  const [price, setPrice] = useState(model?.price === undefined ? '' : String(model.price));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const known = allTags(models).filter((t) => !parseTags(tags).some((x) => x.toLowerCase() === t.toLowerCase()));
@@ -40,7 +41,8 @@ export function ModelForm({ model, onClose }: Props) {
     if (!(size.w > 0 && size.d > 0 && size.h > 0)) return setError('ขนาดต้องมากกว่า 0');
     setSaving(true);
     try {
-      const draft = { name: n, size, color, shape, tags: parseTags(tags), note: note.trim() || undefined };
+      const baht = parseFloat(price);
+      const draft = { name: n, size, color, shape, tags: parseTags(tags), note: note.trim() || undefined, price: Number.isFinite(baht) && baht >= 0 ? baht : undefined };
       if (model) {
         await useLibrary.getState().update(model.id, draft);
         // Its picture in the library is taken again with the new look.
@@ -128,6 +130,10 @@ export function ModelForm({ model, onClose }: Props) {
         <label className="mf-field">
           <span>หมายเหตุ</span>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ผู้ผลิต รุ่น หรือข้อสังเกต" />
+        </label>
+        <label className="mf-field">
+          <span>ราคา (บาท) — ใส่แล้วขึ้นใบเสนอราคา</span>
+          <input type="number" min={0} step={1000} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="เว้นว่างถ้าไม่เสนอราคา" data-testid="mf-price" />
         </label>
         {error && <div className="error-note">{error}</div>}
         <div className="dialog-actions">

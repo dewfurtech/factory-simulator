@@ -8,8 +8,10 @@ import { projectFacts } from '../model/project';
 import type { Area, Column, DoorStyle, OpeningKind, PlacedObject, Project, ZoneKind } from '../model/types';
 import { ZONE_IDS, ZONES } from '../model/zones';
 import { AREA_COLORS, areaStats } from '../model/areas';
-import { AISLE_KIND_IDS, AISLE_KINDS, aisleLength, isArrow, setAisleKind } from '../model/aisles';
-import type { Aisle, AisleKind } from '../model/types';
+import { AISLE_KINDS, aisleLength } from '../model/aisles';
+import { DEFAULT_WALKWAY } from '../model/walkways';
+import { addonsPrice, fmtBaht, listPrice, objectPrice } from '../model/quote';
+import type { Aisle } from '../model/types';
 import { applyEdit, useEditProject } from '../store/project';
 import { useUi, type Selection } from '../store/ui';
 import { Icon } from '../editor2d/Toolbar';
@@ -92,7 +94,7 @@ export function PropertiesPanel() {
   );
 }
 
-const closePanel = () => useUi.getState().set({ selection: null, panelOpen: false });
+const closePanel = () => useUi.getState().set({ panelOpen: false });
 
 function Header({ icon, title, sub, actions }: { icon: string; title: string; sub?: string; actions?: boolean }) {
   return (
@@ -290,40 +292,20 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
       const a = plan.aisles?.[sel.id];
       if (!a) return null;
       const info = AISLE_KINDS[a.kind];
-      const arrow = isArrow(a.kind);
       const length = aisleLength(a);
       const set = (recipe: (x: Aisle) => void) =>
         applyEdit((d) => {
           const x = d.plan.aisles?.[sel.id];
           if (x) recipe(x);
         });
-      const icon = { walk: 'aisleWalk', forklift: 'aisleForklift', flow: 'flowArrow' }[a.kind];
       return (
         <>
-          <Header icon={icon} title={a.name} sub={arrow ? info.label : `${info.label} · กว้าง ${fmtLen(a.width)}`} actions />
+          <Header icon="aisleWalk" title={a.name} sub={`${info.label} · กว้าง ${fmtLen(a.width)}`} actions />
           <div className="panel-body">
-            <TextField label={arrow ? 'ชื่อ (เช่น วัตถุดิบเข้า, ส่งออก)' : 'ชื่อทางเดิน'} value={a.name} onChange={(v) => set((x) => void (x.name = v))} />
-            <SelectField
-              label="ประเภท"
-              value={a.kind}
-              options={AISLE_KIND_IDS.map((k) => ({ id: k, label: AISLE_KINDS[k].label }))}
-              onChange={(v: AisleKind) => set((x) => setAisleKind(x, v))}
-              testId="aisle-kind"
-            />
-            {!arrow && (
-              <div className="two">
-                <NumberField
-                  label="กว้างทางเดิน"
-                  value={a.width}
-                  scale={10}
-                  step={10}
-                  suffix="ซม."
-                  min={30}
-                  testId="aisle-width"
-                  onChange={(v) => set((x) => void (x.width = v))}
-                />
-              </div>
-            )}
+            <TextField label="ชื่อทางเดิน" value={a.name} onChange={(v) => set((x) => void (x.name = v))} />
+            <div className="two">
+              <NumberField label="กว้างทางเดิน" value={a.width} scale={10} step={10} suffix="ซม." min={30} testId="aisle-width" onChange={(v) => set((x) => void (x.width = v))} />
+            </div>
             <div className="stats">
               <div>
                 <b>{fmtLen(length)}</b>
@@ -337,7 +319,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
             <button className="btn btn-sm" onClick={duplicateSelection} title="Ctrl+D">
               <Icon name="copy" /> ทำสำเนา
             </button>
-            <p className="muted small">{arrow ? 'ลูกศรชี้ไปทางจุดสุดท้ายที่คลิก · ลากบนแปลนเพื่อย้าย' : 'ลากบนแปลนเพื่อย้าย · ของที่วางทับทางเดินจะขึ้นเตือนสีแดง'}</p>
+            <p className="muted small">ลากบนแปลนเพื่อย้าย · ของที่วางทับทางเดินจะขึ้นเตือนสีแดง</p>
           </div>
         </>
       );
@@ -468,6 +450,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
               item?.summary && <p className="muted small">{item.summary}</p>
             )}
             {(machine || o.assetId === 'box') && <MachineModelPicker o={o} />}
+            <PriceField o={o} machine={machine} set={set} />
             <h5>บนผัง</h5>
             <TextField label="ชื่อ" value={o.name} onChange={(v) => set((x) => void (x.name = v))} />
             <div className="two">
@@ -495,6 +478,74 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
       );
     }
   }
+}
+
+/**
+ * What a placed piece goes on the quotation at. A machine shows its list price and takes a different one for this
+ * piece alone; anything else is left off the quotation until a price is typed. A customer sees, never edits.
+ */
+function PriceField({ o, machine, set }: { o: PlacedObject; machine: boolean; set: (recipe: (x: PlacedObject) => void) => void }) {
+  const customer = useUi((s) => !!s.customer);
+  const list = listPrice(o.assetId);
+  const price = objectPrice(o);
+  const own = typeof o.price === 'number';
+  const extra = addonsPrice(o);
+  // Machine plus the priced add-ons ticked on it: what this piece adds to the quotation.
+  const withAddons =
+    extra > 0 && typeof price === 'number' ? (
+      <p className="price-line" data-testid="object-price-total">
+        รวมอุปกรณ์เสริม (+{fmtBaht(extra)}) <b>{fmtBaht(price + extra)}</b>
+      </p>
+    ) : null;
+  if (customer) {
+    if (price === undefined) return null;
+    return (
+      <>
+        <p className="price-line" data-testid="object-price">
+          ราคา{extra > 0 ? 'เครื่อง' : ''} <b>{price === null ? 'สอบถาม' : fmtBaht(price)}</b>
+        </p>
+        {withAddons}
+      </>
+    );
+  }
+  const note = own
+    ? list === undefined
+      ? 'ใส่เองสำหรับชิ้นนี้'
+      : `ใส่เองสำหรับชิ้นนี้ · รายการราคา ${list === null ? 'ไม่มีราคา' : fmtBaht(list)}`
+    : list === null
+      ? 'ไม่มีในรายการราคา: ไม่รวมในยอด จนกว่าจะใส่'
+      : list === undefined
+        ? machine
+          ? undefined
+          : 'ใส่ราคาแล้วชิ้นนี้จะขึ้นใบเสนอราคา'
+        : 'ตามรายการราคา';
+  return (
+    <>
+      <NumberField
+        label={own ? 'ราคาชิ้นนี้' : 'ราคา'}
+        value={price ?? 0}
+        step={1000}
+        min={0}
+        suffix="บาท"
+        testId="object-price"
+        onChange={(v) => set((x) => void (x.price = v))}
+      />
+      {(note || own) && (
+        <p className="muted small price-note">
+          {note}
+          {own && (
+            <>
+              {' '}
+              <button type="button" className="link" onClick={() => set((x) => void delete x.price)} data-testid="object-price-reset">
+                {list === undefined ? 'เอาราคาออก' : 'ใช้ตามรายการ'}
+              </button>
+            </>
+          )}
+        </p>
+      )}
+      {withAddons}
+    </>
+  );
 }
 
 /** With nothing selected: the factory's own name and totals. */
@@ -533,6 +584,16 @@ function ProjectProps({ project }: { project: Project }) {
           </div>
         </div>
         <TextField label="ชื่อโครงการ" value={project.name} onChange={(v) => applyEdit((d) => void (d.name = v))} />
+        <NumberField
+          label="กว้างทางเดินขั้นต่ำ (ใช้ตรวจว่าเดินถึงเครื่อง)"
+          value={project.walkwayWidth ?? DEFAULT_WALKWAY}
+          scale={10}
+          step={10}
+          suffix="ซม."
+          min={60}
+          testId="walkway-width"
+          onChange={(v) => applyEdit((d) => void (d.walkwayWidth = v))}
+        />
         {tool.kind === 'columnGrid' && (
           <NumberField
             label="ระยะห่างเสา (ตาราง)"
