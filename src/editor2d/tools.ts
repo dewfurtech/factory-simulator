@@ -19,7 +19,7 @@ import {
   wallDir,
 } from '../model/plan';
 import { snapPoint, snapToLines, type SnapResult } from '../model/snap';
-import { clearSpan, onSideB, OPENING_PRESETS } from '../model/openings';
+import { clearSpan, onSideB, OPENING_PRESETS, type OpeningPresetId } from '../model/openings';
 import type { Column, Id, Mm, PlacedObject, Project, Vec2 } from '../model/types';
 import { dist, dot, perp, projectOnSegment, sub } from '../model/vec';
 import { alignToWalls, parallelWallOffset, weldPlan } from '../model/weld';
@@ -730,13 +730,13 @@ export function placeObjectAt(assetId: string, p: Vec2, radius: Mm, free = false
  * Puts a plain swing door in the wall under p (or in `wallId` at its centre), opening toward the side p is on,
  * kept clear of the walls at its ends and narrowed to fit a short wall. Selects the new door.
  */
-export function addDoorAt(p: Vec2 | null, radius: Mm, wallId?: Id): Id | null {
+export function addDoorAt(p: Vec2 | null, radius: Mm, wallId?: Id, presetId: OpeningPresetId = 'door'): Id | null {
   const plan = project().plan;
   const hit = wallId ? { wallId } : p ? wallAt(plan, p, Math.max(radius, 200)) : null;
   const wall = hit && plan.walls[hit.wallId];
   if (!wall) return null;
   const [lo, hi] = clearSpan(plan, wall);
-  const preset = OPENING_PRESETS.door;
+  const preset = OPENING_PRESETS[presetId];
   const width = Math.min(preset.width, Math.max(300, hi - lo - 100));
   const at = p ? openingOffsetAt(plan, wall, p, width) : (lo + hi) / 2;
   const offset = Math.round(Math.min(Math.max(at, lo + width / 2), Math.max(lo + width / 2, hi - width / 2)) / 10) * 10;
@@ -745,12 +745,12 @@ export function addDoorAt(p: Vec2 | null, radius: Mm, wallId?: Id): Id | null {
     d.plan.openings[id] = {
       id,
       wallId: wall.id,
-      kind: 'door',
-      doorStyle: 'swing',
+      kind: preset.kind,
+      doorStyle: preset.doorStyle,
       offset,
       width,
       height: preset.height,
-      sill: 0,
+      sill: preset.sill,
       hingeEnd: false,
       openB: p ? onSideB(d.plan, wall, p) : false,
     };
@@ -895,9 +895,9 @@ export function rotateObject(id: Id, by: number): void {
   });
 }
 
-/** Turns the object to face `rotation` (radians), its stack with it; snapped to 15° steps unless `free`. */
+/** Turns the object to face `rotation` (radians), its stack with it; snapped to 5° steps unless `free`. */
 export function setObjectRotation(id: Id, rotation: number, free = false): void {
-  const step = Math.PI / 12;
+  const step = Math.PI / 36;
   const r = free ? rotation : Math.round(rotation / step) * step;
   edit((d) => {
     const o = d.objects.find((x) => x.id === id);

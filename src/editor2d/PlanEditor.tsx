@@ -5,13 +5,13 @@ import { levelOf, onLevel } from '../model/levels';
 import { obbCorners, objectObb } from '../model/objects';
 import { wallFootprints } from '../model/miter';
 import { openingOffsetAt, roomLabelPoint, roomPolygon, roomStats, setWallLength, wallDir, wallLength } from '../model/plan';
-import { OPENING_PRESETS, openingSymbol, type OpeningSymbol } from '../model/openings';
+import { OPENING_PRESETS, openingSymbol, type OpeningPresetId, type OpeningSymbol } from '../model/openings';
 import type { Column, Id, Mm, PlacedObject, Plan, Project, Underlay, Vec2, Wall } from '../model/types';
 import { add, bounds, lerp, perp, scale, signedArea } from '../model/vec';
 import { zoneColor } from '../model/zones';
 import { fmtArea, fmtLen, fmtSize } from '../format';
 import { editProject, useEditProject, useProject } from '../store/project';
-import { useUi, type Selection, type Tool } from '../store/ui';
+import { toggleGrid, useUi, type Selection, type Tool } from '../store/ui';
 import { CalibrateBanner, CalibrateInput, CalibrateOverlay, UnderlayImage } from './Underlay';
 import { underlayRect } from '../model/underlay';
 import { locate } from '../model/locate';
@@ -25,11 +25,14 @@ import { ensureGuides, guideLines, useGuides } from './planGuides';
 import { checkClearance, type Issue } from '../model/clearance';
 import { safetyBox, safetyOf } from '../model/safety';
 import { HelpButton } from '../ui/HelpButton';
-import { ObjectActions } from './ObjectActions';
+import { ObjectActions, RotateScrub } from './ObjectActions';
 import { CATALOG_KEY, keyLetter, SHORTCUTS } from './shortcuts';
 import { Icon } from './Toolbar';
 import { IssuesChip } from '../panels/IssuesChip';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
+
+/** The doors a right-click on a wall offers. */
+const DOOR_PRESETS: OpeningPresetId[] = ['door', 'doubleDoor', 'slidingDoor', 'slidingDoubleDoor', 'rollingDoor'];
 
 export const ASSET_MIME = 'application/x-factory-asset';
 
@@ -68,7 +71,7 @@ export function PlanEditor() {
   /** The right-click menu, at a spot in the plan's box; a right-drag pans instead. */
   const customer = useUi((s) => !!s.customer);
   /** The right-click menu: where it opened on screen and the machine under it, if one. */
-  const [menu, setMenu] = useState<{ x: number; y: number; picked: boolean; objectId: Id | null } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; picked: boolean; objectId: Id | null; wall: { p: Vec2; radius: number; id: Id } | null } | null>(null);
   const [drawScale, setDrawScale] = useState(view.s);
   useEffect(() => {
     const t = setTimeout(() => setDrawScale(view.s), 150);
@@ -230,7 +233,9 @@ export function PlanEditor() {
     if (hit && !ui.boxed.some((b) => b.id === hit.id)) ui.set({ selection: hit, boxed: [] });
     const r = wrapRef.current!.getBoundingClientRect();
     const one = hit?.kind === 'object' && !useUi.getState().boxed.length ? hit.id : null;
-    setMenu({ x: e.clientX - r.left, y: e.clientY - r.top, picked: !!hit || ui.boxed.length > 0, objectId: one });
+    // On a wall, the menu also offers a door there, of the kind picked from it.
+    const wall = hit?.kind === 'wall' && !ui.customer ? { p: i.p, radius: i.radius, id: hit.id } : null;
+    setMenu({ x: e.clientX - r.left, y: e.clientY - r.top, picked: !!hit || ui.boxed.length > 0, objectId: one, wall });
   };
   useEffect(() => {
     if (!menu) return;
@@ -319,6 +324,7 @@ export function PlanEditor() {
   const px = 1 / drawScale;
   const vb = `${view.cx - size.w / 2 / view.s} ${view.cy - size.h / 2 / view.s} ${size.w / view.s} ${size.h / view.s}`;
   const drawingNow = useUi((s) => DRAWING_TOOLS.has(s.tool.kind) || s.tool.kind === 'calibrate');
+  const gridOn = useUi((s) => s.gridOn);
   const grid = view.s > 0.08 ? 100 : 1000;
   // What cannot stand where it is put (clashes, through a wall, over the ceiling, no room for the operator), by object.
   const issues = useMemo(() => checkClearance(project), [project]);
@@ -374,8 +380,8 @@ export function PlanEditor() {
             <path d={`M ${grid * 10} 0 L 0 0 0 ${grid * 10}`} fill="none" stroke="var(--grid-major)" strokeWidth={livePx} />
           </pattern>
         </defs>
-        {/* The grid shows only while drawing, where it helps place corners; otherwise the plan stands on a plain ground. */}
-        {drawingNow && <rect x={-1e7} y={-1e7} width={2e7} height={2e7} fill="url(#grid-major)" data-export="skip" />}
+        {/* The grid shows while drawing, where it helps place corners, and all the time when turned on. */}
+        {(drawingNow || gridOn) &&<rect x={-1e7} y={-1e7} width={2e7} height={2e7} fill="url(#grid-major)" data-export="skip" />}
         <UnderlayImage px={px} peek={peek} />
         {/* Peeking at the plan image, the drawing fades to an outline over it. */}
         <g opacity={peek ? 0.18 : undefined} data-testid="drawing" data-peek={peek || undefined}>
@@ -423,6 +429,17 @@ export function PlanEditor() {
               </button>
             </>
           )}
+          {menu.wall && (
+            <>
+              <div className="ctx-label">ใส่ประตูตรงนี้</div>
+              {DOOR_PRESETS.map((id) => (
+                <button key={id} role="menuitem" onClick={() => (addDoorAt(menu.wall!.p, menu.wall!.radius, menu.wall!.id, id), setMenu(null))} data-testid={`menu-door-${id}`}>
+                  {OPENING_PRESETS[id].label}
+                </button>
+              ))}
+              <div className="ctx-sep" />
+            </>
+          )}
           {menu.picked && !customer && (
             <button role="menuitem" className="danger" onClick={() => (deleteSelection(), setMenu(null))} data-testid="menu-delete">
               ลบ<kbd>Delete</kbd>
@@ -461,6 +478,18 @@ export function PlanEditor() {
       )}
       <div className="zoom-ctl glass">
         <PlanHelp />
+        <button
+          className={gridOn ? 'on' : undefined}
+          onClick={toggleGrid}
+          aria-label={gridOn ? 'ซ่อนตาราง' : 'แสดงตาราง'}
+          aria-pressed={gridOn}
+          title={gridOn ? 'ซ่อนตาราง' : 'แสดงตาราง'}
+          data-testid="grid-toggle"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" aria-hidden>
+            <path d="M4 4h16v16H4z M4 9.3h16 M4 14.7h16 M9.3 4v16 M14.7 4v16" />
+          </svg>
+        </button>
         <button onClick={() => zoom(1.25)} aria-label="ซูมเข้า">
           +
         </button>
@@ -1298,13 +1327,13 @@ function DrawEntry({ toScreen, size }: { toScreen: (p: Vec2) => Vec2; size: { w:
 /**
  * Turning the picked object. A strip above it: 90° buttons either side of its angle, and the angle itself scrubs
  * (drag it sideways). And a handle on a stalk from its centre: drag it around the object to face any way. Both
- * turn in 15° steps, or freely with Alt. Laid out in screen pixels, so it is the same size at any zoom.
+ * turn in 5° steps, or freely with Alt. Laid out in screen pixels, so it is the same size at any zoom.
  */
 function RotateHandles({ toScreen, toPlan }: { toScreen: (p: Vec2) => Vec2; toPlan: (x: number, y: number) => Vec2 }) {
   const id = useUi((s) => (s.tool.kind === 'select' && !s.tool.drag && s.selection?.kind === 'object' ? s.selection.id : null));
   const level = useProject((s) => s.level);
   const o = useProject((s) => (id ? s.project?.objects.find((x) => x.id === id) : undefined));
-  const drag = useRef<{ kind: 'scrub'; x: number; rotation: number } | { kind: 'knob' } | null>(null);
+  const drag = useRef<{ kind: 'knob' } | null>(null);
   const [turning, setTurning] = useState(false);
   if (!o || o.hidden || !onLevel(o, level)) return null;
   const c = toScreen(o);
@@ -1315,27 +1344,20 @@ function RotateHandles({ toScreen, toPlan }: { toScreen: (p: Vec2) => Vec2; toPl
   // The buttons sit above the machine, and above the knob too when the machine faces up, so neither hides the other.
   const above = c.y - Math.max(...corners.map((p) => Math.abs(p.y - c.y)), 24) - 34;
   const top = knob.y < c.y && Math.abs(knob.x - c.x) < 130 ? Math.min(above, knob.y - 36) : above;
-  const deg = Math.round(((((o.rotation * 180) / Math.PI) % 360) + 360) % 360);
 
-  const grab = (kind: 'scrub' | 'knob') => (e: React.PointerEvent<HTMLElement>) => {
+  const grab = (e: React.PointerEvent<HTMLElement>) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = kind === 'scrub' ? { kind, x: e.clientX, rotation: o.rotation } : { kind };
+    drag.current = { kind: 'knob' };
     useProject.getState().beginGesture();
     setTurning(true);
   };
   const turn = (e: React.PointerEvent<HTMLElement>) => {
-    const d = drag.current;
-    if (!d) return;
-    if (d.kind === 'scrub') {
-      // One degree per pixel: a hand's width turns it a quarter round.
-      setObjectRotation(o.id, d.rotation + ((e.clientX - d.x) * Math.PI) / 180, e.altKey);
-    } else {
-      const p = toPlan(e.clientX, e.clientY);
-      if (Math.hypot(p.x - o.x, p.y - o.y) < 1) return;
-      setObjectRotation(o.id, Math.atan2(p.y - o.y, p.x - o.x) - Math.PI / 2, e.altKey);
-    }
+    if (!drag.current) return;
+    const p = toPlan(e.clientX, e.clientY);
+    if (Math.hypot(p.x - o.x, p.y - o.y) < 1) return;
+    setObjectRotation(o.id, Math.atan2(p.y - o.y, p.x - o.x) - Math.PI / 2, e.altKey);
   };
   const drop = () => {
     if (!drag.current) return;
@@ -1353,17 +1375,7 @@ function RotateHandles({ toScreen, toPlan }: { toScreen: (p: Vec2) => Vec2; toPl
         style={{ left: c.x, top }}
         testId="rotate-handles"
       >
-        <span
-          className="rot-deg"
-          onPointerDown={grab('scrub')}
-          onPointerMove={turn}
-          onPointerUp={drop}
-          onPointerCancel={drop}
-          title="ลากซ้าย-ขวาเพื่อหมุน (Alt = ไม่สแนป)"
-          data-testid="rotate-scrub"
-        >
-          {deg}°
-        </span>
+        <RotateScrub id={o.id} rotation={o.rotation} onTurning={setTurning} />
       </ObjectActions>
       <svg className="rot-stalk" aria-hidden>
         <line x1={c.x} y1={c.y} x2={knob.x} y2={knob.y} />
@@ -1371,7 +1383,7 @@ function RotateHandles({ toScreen, toPlan }: { toScreen: (p: Vec2) => Vec2; toPl
       <button
         className={`rot-knob${turning ? ' turning' : ''}`}
         style={{ left: knob.x, top: knob.y }}
-        onPointerDown={grab('knob')}
+        onPointerDown={grab}
         onPointerMove={turn}
         onPointerUp={drop}
         onPointerCancel={drop}
@@ -1404,6 +1416,9 @@ function OpeningShape({ symbol, px, stroke }: { symbol: OpeningSymbol; px: numbe
       ))}
       {symbol.lines.map(([a, b], i) => (
         <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={stroke} strokeWidth={1.2 * px} strokeLinecap="round" />
+      ))}
+      {symbol.dashed?.map(([a, b], i) => (
+        <line key={`d${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={stroke} strokeWidth={px} strokeDasharray={`${5 * px} ${3 * px}`} />
       ))}
     </g>
   );

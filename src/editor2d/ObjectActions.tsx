@@ -1,7 +1,8 @@
-import type { CSSProperties, ReactNode, Ref } from 'react';
+import { useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
 import { Icon } from './Toolbar';
-import { deleteSelection, rotateObject } from './tools';
+import { deleteSelection, rotateObject, setObjectRotation } from './tools';
 import { useUi } from '../store/ui';
+import { useProject } from '../store/project';
 import type { Id } from '../model/types';
 
 /**
@@ -55,5 +56,85 @@ export function ObjectActions({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * The machine's angle between the turn buttons: drag it sideways to turn the machine, a degree per pixel, in 5° steps
+ * (freely with Alt); double-click it to type the angle. One undo step per drag. `onTurning` says when a drag starts and ends.
+ */
+export function RotateScrub({ id, rotation, onTurning }: { id: Id; rotation: number; onTurning?: (on: boolean) => void }) {
+  const drag = useRef<{ x: number; rotation: number; started: boolean } | null>(null);
+  const [typing, setTyping] = useState(false);
+  const deg = Math.round(((((rotation * 180) / Math.PI) % 360) + 360) % 360);
+  const drop = () => {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    onTurning?.(false);
+    if (d.started) useProject.getState().endGesture();
+  };
+  if (typing) {
+    const done = (input: HTMLInputElement, keep: boolean) => {
+      // Enter or Escape closes the box, and its blur on the way out must not apply it a second time.
+      if (input.dataset.closed) return;
+      input.dataset.closed = '1';
+      setTyping(false);
+      const v = Number(input.value.replace(/[°\s]/g, ''));
+      if (keep && input.value.trim() && Number.isFinite(v)) setObjectRotation(id, (v * Math.PI) / 180, true);
+    };
+    return (
+      <span className="rot-deg typing">
+        <input
+          autoFocus
+          defaultValue={deg}
+          inputMode="decimal"
+          aria-label="มุม (องศา)"
+          data-testid="rotate-input"
+          onFocus={(e) => e.currentTarget.select()}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') done(e.currentTarget, true);
+            if (e.key === 'Escape') done(e.currentTarget, false);
+          }}
+          onBlur={(e) => done(e.currentTarget, true)}
+        />
+        °
+      </span>
+    );
+  }
+  return (
+    <span
+      className="rot-deg"
+      onPointerDown={(e) => {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        drag.current = { x: e.clientX, rotation, started: false };
+      }}
+      onPointerMove={(e) => {
+        const d = drag.current;
+        if (!d) return;
+        // The undo step starts with the first real move, so a click or double-click leaves none behind.
+        if (!d.started) {
+          if (Math.abs(e.clientX - d.x) < 2) return;
+          d.started = true;
+          useProject.getState().beginGesture();
+          onTurning?.(true);
+        }
+        setObjectRotation(id, d.rotation + ((e.clientX - d.x) * Math.PI) / 180, e.altKey);
+      }}
+      onPointerUp={drop}
+      onPointerCancel={drop}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        setTyping(true);
+      }}
+      title="ลากซ้าย-ขวาเพื่อหมุน ทีละ 5° (Alt = ไม่สแนป) · ดับเบิลคลิกเพื่อพิมพ์มุม"
+      data-testid="rotate-scrub"
+    >
+      {deg}°
+    </span>
   );
 }

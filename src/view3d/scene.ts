@@ -11,6 +11,9 @@ import { PERSON_ID, personObject } from './person3d';
 import { machineFootprint } from '../model/catalog';
 import { FLOW_IN, FLOW_OUT, flowArrows } from '../model/flow';
 import { disposeTree, FLAT, LABEL_LAYER, textSprite } from './lowpoly';
+import { safetyBox, safetyOf } from '../model/safety';
+import { objectObb } from '../model/objects';
+import { fmtLen } from '../format';
 
 FLAT.userData.shared = true;
 
@@ -104,6 +107,7 @@ export class FactoryScene {
     if (before.cutaway !== this.opts.cutaway && this.project) {
       this.rebuildBuilding(this.project);
       for (const [id, node] of this.objectMeshes) node.visible = this.shows(this.objectKeys.get(id)!);
+      this.updateSafety();
     }
     this.areas.visible = this.opts.areas;
     this.dirty = true;
@@ -210,6 +214,7 @@ export class FactoryScene {
     }
     this.updateSelectionBox();
     this.updateTroubled();
+    this.updateSafety();
   }
 
   /** Rebuilds every placed copy of the given catalog items: a model in the library was edited or removed. */
@@ -391,6 +396,67 @@ export class FactoryScene {
   select(object: Id | null) {
     this.selectedObject = object;
     this.updateSelectionBox();
+    this.updateSafety();
+    this.dirty = true;
+  }
+
+  private safety = new THREE.Group();
+  private safetyAll = false;
+  private safetyBad = new Set<Id>();
+
+  /**
+   * Machines' safety distances as a dashed frame on the floor, as on the plan: the picked machine always (with the
+   * distance on each side), every machine when `all`; red where a wall or another thing is inside it.
+   */
+  setSafety(all: boolean, bad: Id[]) {
+    this.safetyAll = all;
+    this.safetyBad = new Set(bad);
+    this.updateSafety();
+  }
+
+  private updateSafety() {
+    for (const c of [...this.safety.children]) {
+      this.safety.remove(c);
+      disposeTree(c);
+    }
+    if (!this.safety.parent) this.overlay.add(this.safety);
+    for (const o of this.objectKeys.values()) {
+      const picked = o.id === this.selectedObject;
+      if ((!this.safetyAll && !picked) || !this.shows(o)) continue;
+      const zone = safetyBox(o);
+      const s = safetyOf(o.assetId);
+      if (!zone || !s) continue;
+      const bad = this.safetyBad.has(o.id);
+      const y = (zone.z0 + 20) * M;
+      const at = (x: number, z: number) => new THREE.Vector3(x * M, y, z * M);
+      const corners = [
+        [-1, -1],
+        [1, -1],
+        [1, 1],
+        [-1, 1],
+      ].map(([a, b]) => at(zone.c.x + zone.u.x * zone.hu * a + zone.v.x * zone.hv * b, zone.c.y + zone.u.y * zone.hu * a + zone.v.y * zone.hv * b));
+      const fill = new THREE.Mesh(new THREE.BufferGeometry().setFromPoints([corners[0], corners[1], corners[2], corners[0], corners[2], corners[3]]), bad ? SAFE_FILL_BAD : SAFE_FILL);
+      fill.renderOrder = 1;
+      const frame = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(corners), bad ? SAFE_LINE_BAD : SAFE_LINE);
+      frame.computeLineDistances();
+      this.safety.add(fill, frame);
+      if (!picked) continue;
+      // The distance on each side, written halfway out from the machine's edge.
+      const b = objectObb(o);
+      const sides: [number, number, number, number][] = [
+        [b.v.x, b.v.y, b.hv, s.front],
+        [-b.v.x, -b.v.y, b.hv, s.back],
+        [b.u.x, b.u.y, b.hu, s.right],
+        [-b.u.x, -b.u.y, b.hu, s.left],
+      ];
+      for (const [dx, dy, half, d] of sides) {
+        if (d <= 0) continue;
+        const tag = textSprite(fmtLen(d), { height: 0.5, color: bad ? '#dc2626' : '#0f766e' });
+        tag.position.copy(at(b.c.x + dx * (half + d / 2), b.c.y + dy * (half + d / 2)));
+        tag.position.y += 0.2;
+        this.safety.add(tag);
+      }
+    }
     this.dirty = true;
   }
 
@@ -559,4 +625,9 @@ const GROUND = '#d5dbd2';
 const SEL_LINE = new THREE.LineBasicMaterial({ color: '#2563eb' });
 const BAD_LINE = new THREE.LineBasicMaterial({ color: '#dc2626' });
 BAD_LINE.userData.shared = true;
+const SAFE_LINE = new THREE.LineDashedMaterial({ color: '#0f766e', dashSize: 0.25, gapSize: 0.18 });
+const SAFE_LINE_BAD = new THREE.LineDashedMaterial({ color: '#dc2626', dashSize: 0.25, gapSize: 0.18 });
+const SAFE_FILL = new THREE.MeshBasicMaterial({ color: '#14b8a6', transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide });
+const SAFE_FILL_BAD = new THREE.MeshBasicMaterial({ color: '#dc2626', transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide });
+for (const m of [SAFE_LINE, SAFE_LINE_BAD, SAFE_FILL, SAFE_FILL_BAD]) m.userData.shared = true;
 SEL_LINE.userData.shared = true;

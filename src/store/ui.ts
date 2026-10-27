@@ -88,6 +88,25 @@ export function setSnapReach(r: SnapReach): void {
   }
 }
 
+const GRID_KEY = 'plan.grid';
+function readGridOn(): boolean {
+  try {
+    return localStorage.getItem(GRID_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+/** Turns the 2D grid on or off and remembers it in this browser. */
+export function toggleGrid(): void {
+  const on = !useUi.getState().gridOn;
+  useUi.getState().set({ gridOn: on });
+  try {
+    localStorage.setItem(GRID_KEY, on ? 'on' : 'off');
+  } catch {
+    /* private window: the choice just isn't remembered */
+  }
+}
+
 interface UiState {
   view: ViewMode;
   /** Set while a shared link is open; null in the full editor. */
@@ -116,6 +135,8 @@ interface UiState {
   areasHidden: boolean;
   /** The app's own walkways taken off the plan. */
   walkwaysHidden: boolean;
+  /** The 2D grid kept on the plan all the time, not only while drawing. Remembered in this browser. */
+  gridOn: boolean;
   /** Every machine's safety distances drawn with their dimensions, not only the one under the pointer or picked. */
   safetyAll: boolean;
   /** The object under the pointer on the plan while selecting, whose safety distances are shown. */
@@ -159,6 +180,7 @@ export const useUi = create<UiState>((set) => ({
   floorCentre: null,
   areasHidden: false,
   walkwaysHidden: false,
+  gridOn: readGridOn(),
   safetyAll: false,
   hoverId: null,
   bannerClosed: false,

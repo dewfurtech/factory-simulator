@@ -6,7 +6,7 @@ import type { Underlay } from '../model/types';
 import { activeUnderlay, placeUnderlay } from '../model/underlay';
 import { NumberField } from '../panels/fields';
 import { applyEdit, useProject } from '../store/project';
-import { useUi } from '../store/ui';
+import { SELECT, useUi } from '../store/ui';
 import { useImport } from '../store/importProgress';
 import { buildFromVector, scaleFromVector, vectorPlanFor } from './pdfVector';
 import { RailButton } from './Toolbar';
@@ -60,6 +60,11 @@ export function UnderlayMenu() {
   const u = useProject((s) => activeUnderlay(s.project!));
   const tool = useUi((s) => s.tool);
   const hasWalls = useProject((s) => Object.keys(s.project!.plan.walls).length > 0);
+  // Anything built off the plan (walls, rooms or drawn areas): the plan has done its job and can go.
+  const hasDrawn = useProject((s) => {
+    const p = s.project!.plan;
+    return Object.keys(p.walls).length + Object.keys(p.rooms).length + Object.keys(p.areas ?? {}).length > 0;
+  });
   // Furniture can be read only off a vector PDF; a picture has no symbols to read.
   const imageId = useProject((s) => s.project!.underlay?.imageId);
   const [hasVector, setHasVector] = useState(false);
@@ -244,6 +249,17 @@ export function UnderlayMenu() {
   const guides = useGuides((s) => (s.key?.startsWith(u?.imageId ?? '—') ? s.lines.length : 0));
 
   const [more, setMore] = useState(false);
+
+  /** The last step: the plan image is taken off (undo brings it back) and the panel closes. */
+  const finish = () => {
+    applyEdit((d) => void delete d.underlay);
+    setStatus({ kind: 'idle' });
+    setMore(false);
+    setOpen(false);
+    useUi.getState().setTool(SELECT);
+  };
+  const step = !u ? 0 : !u.calibrated ? 1 : !hasDrawn ? 2 : 3;
+
   // While the span is being measured, the banner over the plan says what to do; the note would repeat it.
   const note = status.kind === 'needScale' && tool.kind === 'calibrate' ? null : statusNote(status);
 
@@ -311,6 +327,16 @@ export function UnderlayMenu() {
             ลบภาพแปลน
           </button>
         </div>
+      )}
+      {u && status.kind !== 'choose' && (
+        <ol className="ul-steps" aria-label="ขั้นตอนใช้แปลน" data-testid="underlay-steps">
+          {['ตั้งสเกล', 'วาดห้อง / สร้างผนัง', 'เสร็จ เอาแปลนออก'].map((label, i) => (
+            <li key={label} className={i + 1 < step ? 'done' : i + 1 === step ? 'now' : undefined}>
+              <span className="ul-step-n">{i + 1 < step ? '✓' : i + 1}</span>
+              {label}
+            </li>
+          ))}
+        </ol>
       )}
       <div className="ul-bar glass" role="toolbar" aria-label="แปลนพื้นหลัง" data-testid="underlay-flyout">
         {!u ? (
@@ -422,6 +448,17 @@ export function UnderlayMenu() {
             >
               <Glyph name="more" />
             </button>
+            <span className="ul-sep" />
+            <button
+              className={`ul-btn ul-wide ul-finish${step === 3 ? ' ready' : ''}`}
+              onClick={finish}
+              disabled={busy || !hasDrawn}
+              data-tip={hasDrawn ? 'ใช้แปลนเสร็จแล้ว เอาภาพแปลนออก (กดเลิกทำเพื่อเอากลับ)' : 'วาดห้องหรือสร้างผนังก่อน แล้วค่อยเอาแปลนออก'}
+              data-testid="underlay-finish"
+            >
+              <Glyph name="check" />
+              <span>เสร็จแล้ว เอาแปลนออก</span>
+            </button>
           </>
         )}
         <span className="ul-sep" />
@@ -520,6 +557,7 @@ const GLYPHS: Record<string, string> = {
   image: 'M4 5h16v14H4z M4 15l5-5 4 4 2-2 5 5 M15 9h.01',
   more: 'M5 12h.01 M12 12h.01 M19 12h.01',
   close: 'M6 6l12 12 M18 6L6 18',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
 };
 
 function Glyph({ name }: { name: keyof typeof GLYPHS }) {

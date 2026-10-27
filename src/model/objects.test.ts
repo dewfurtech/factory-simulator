@@ -51,4 +51,12 @@ describe('snapObject', () => {
     expect(s.x).toBeCloseTo(4000);
     expect(s.y).toBeCloseTo(3600);
   });
+
+  it('ignores a neighbour far away, even with its edge nearly lined up', () => {
+    const p = room();
+    const other = block('o', 2000, 1000);
+    const s = snapObject(p.plan, [other], block('m', 0, 0), { x: 2000 + 100, y: 1000 + 3000 }, 300);
+    expect(s.x).toBeCloseTo(2100);
+    expect(s.guides).toHaveLength(0);
+  });
 });

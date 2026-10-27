@@ -10,7 +10,7 @@ export function useTroubled() {
   return useMemo(() => {
     if (!project) return [];
     const issues = checkClearance(project);
-    return project.objects.filter((o) => issues.has(o.id)).map((o) => ({ id: o.id as Id, name: o.name, why: issues.get(o.id)!.map(issueText) }));
+    return project.objects.filter((o) => issues.has(o.id)).map((o) => ({ id: o.id as Id, name: o.name, why: issues.get(o.id)!.map(issueText), safety: issues.get(o.id)!.some((i) => i.kind === 'safety') }));
   }, [project]);
 }
 

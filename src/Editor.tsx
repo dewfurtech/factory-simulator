@@ -18,6 +18,9 @@ import { shareDialog } from './ui/Dialog';
 import { Loading3D } from './ui/Loading3D';
 const View3D = lazy(() => import('./view3d/View3D'));
 
+/** The floor switch (ชั้น 1 / ชั้น 2) on the plan; hidden for the MVP. */
+const LEVELS_ON = false;
+
 function isTyping(e: KeyboardEvent) {
   const t = e.target as HTMLElement;
   return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable;
@@ -353,7 +356,8 @@ export function Editor() {
   const panelOpen = useUi((s) => s.panelOpen);
   const hasSelection = useUi((s) => !!s.selection || s.boxed.length > 0);
   const level = useProject((s) => s.level);
-  const hasUpper = useProject((s) => !!s.project!.upper);
+  // Floors are off for the MVP: the plan always shows floor 1. Set LEVELS_ON to bring the floor switch back.
+  const hasUpper = useProject((s) => LEVELS_ON && !!s.project!.upper);
   const customer = useUi((s) => !!s.customer);
   const set = useUi.getState().set;
   // Measuring the scale is the one thing to do then: the panels and other tools step aside until it is done or skipped.

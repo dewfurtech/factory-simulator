@@ -921,6 +921,14 @@ input[type='color'] {
 .zoom-ctl button:hover {
   background: rgba(15, 23, 42, 0.06);
 }
+.zoom-ctl button svg {
+  display: block;
+  margin: auto;
+}
+.zoom-ctl button.on {
+  background: #fff7ed;
+  color: var(--accent);
+}
 /* The hint for the tool in hand: quiet text along the bottom, not another panel. */
 .hud {
   position: absolute;
@@ -995,6 +1003,19 @@ input[type='color'] {
   font-variant-numeric: tabular-nums;
   cursor: ew-resize;
   touch-action: none;
+}
+.rot-ctl .rot-deg.typing {
+  cursor: text;
+  box-shadow: inset 0 0 0 2px #2563eb;
+}
+.rot-ctl .rot-deg input {
+  width: 34px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: right;
 }
 .rot-ctl .rot-deg:hover,
 .rot-ctl.turning .rot-deg {
@@ -1445,6 +1466,56 @@ input[type='color'] {
   pointer-events: none;
   z-index: 10;
 }
+.ul-finish.ready,
+.ul-finish.ready:hover:not(:disabled) {
+  background: #16a34a;
+  color: #fff;
+}
+.ul-steps {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+.ul-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  background: #f4f4f5;
+  color: #71717a;
+}
+.ul-steps li.now {
+  background: #fff7ed;
+  color: #c2410c;
+  font-weight: 600;
+}
+.ul-steps li.done {
+  background: #dcfce7;
+  color: #15803d;
+}
+.ul-step-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #e4e4e7;
+  font-size: 11px;
+  font-weight: 700;
+}
+.ul-steps li.now .ul-step-n {
+  background: var(--accent);
+  color: #fff;
+}
+.ul-steps li.done .ul-step-n {
+  background: #16a34a;
+  color: #fff;
+}
 .ul-note {
   max-width: 100%;
   padding: 5px 12px;
@@ -1837,10 +1908,11 @@ input[type='color'] {
   display: block;
   outline: none;
 }
+/* Bottom right of the 3D view; the "?" button is its last item. */
 .view-tools {
   position: absolute;
   right: 12px;
-  top: 12px;
+  bottom: 12px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -3191,6 +3263,10 @@ body:has(.home) {
   margin: 3px 4px;
   background: var(--line-2);
 }
+/* The "?" in the 3D tool column looks like the buttons around it. */
+.tools-help .help-btn {
+  font-size: 14px;
+}
 
 /* The share banner's close button, at its top right. */
 .share-close {
@@ -3644,25 +3720,7 @@ body:has(.home) {
   font-size: 12.5px;
   color: var(--ink-2);
 }
-.view-help {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  z-index: 6;
-}
-.view-help .help-btn {
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: var(--shadow);
-  border: 1px solid var(--line);
-}
-.view-help .help-btn:hover,
-.view-help .help-btn.on {
-  background: var(--ink);
-}
 @media (max-width: 640px) {
-  .view-help {
-    bottom: 76px;
-  }
   .help-pop {
     width: min(280px, calc(100vw - 80px));
   }
@@ -4102,23 +4160,29 @@ button,
   .share-banner .share-from {
     display: none;
   }
-  /* The 3D view's buttons run along the bottom as one row, ending with the panel toggles. */
+  /* The 3D view's buttons are a bar along the bottom edge, the full width, ending with the panel toggles. */
   .view-tools {
     top: auto;
-    right: auto;
-    left: 8px;
-    bottom: calc(8px + env(safe-area-inset-bottom));
+    left: 0;
+    right: 0;
+    bottom: 0;
     flex-direction: row;
+    justify-content: space-around;
     gap: 2px;
+    padding: 5px 8px calc(5px + env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: 0;
+    box-shadow: none;
   }
   .view-tools .view-tools-sep {
     width: 1px;
     height: 24px;
     margin: auto 2px;
   }
-  .view-help,
-  .panes.view-3d .view-help {
-    bottom: calc(64px + env(safe-area-inset-bottom));
+  .tools-help .help-pop {
+    right: auto;
+    left: 0;
+    bottom: calc(100% + 10px);
   }
   /* With something selected, the bin comes back to the top bar: a phone has no Delete key. */
   .topbar .ib.tb-trash:not(:disabled) {
@@ -4176,7 +4240,6 @@ button,
   .issues-chip-wrap,
   .tapes-chip,
   .aisle-legend,
-  .view-help,
   .ul-dock {
     margin-bottom: env(safe-area-inset-bottom);
   }
@@ -4437,6 +4500,11 @@ button,
 }
 .ctx-sep {
   height: 4px;
+}
+.ctx-label {
+  padding: 6px 10px 2px;
+  font-size: 11.5px;
+  color: var(--ink-3);
 }
 /* The round buttons over a picked machine (plan and 3D): flat circles on a light pill, delete in red. */
 .obj-actions.rot-ctl {

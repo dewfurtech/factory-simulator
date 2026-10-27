@@ -39,6 +39,9 @@ export const isSliding = (style: DoorStyle | undefined) => style === 'sliding' |
 export const isHanded = (style: DoorStyle | undefined) => style !== 'double' && style !== 'slidingDouble' && style !== 'rolling';
 
 const LEAF: Mm = 40;
+/** A rolling door's guide rail, and the depth of its roll box out from the wall face (a 4 m door's roll is about 40 cm). */
+const RAIL: Mm = 100;
+const ROLL_BOX: Mm = 450;
 
 export interface Arc {
   from: Vec2;
@@ -58,6 +61,8 @@ export interface OpeningSymbol {
   panels: Vec2[][];
   /** Swing paths, drawn dashed. */
   arcs: Arc[];
+  /** Things overhead, above the plan's cut (a rolling door's roll box): drawn dashed. */
+  dashed?: [Vec2, Vec2][];
 }
 
 type SymbolInput = Pick<Opening, 'kind' | 'offset' | 'width' | 'doorStyle' | 'hingeEnd' | 'openB'>;
@@ -98,7 +103,39 @@ export function openingSymbol(plan: Plan, wall: Wall, o: SymbolInput): OpeningSy
   const style = o.doorStyle ?? 'swing';
   const [h, f] = o.hingeEnd ? [p1, p0] : [p0, p1];
   const along = scale(sub(f, h), 1 / o.width);
-  if (style === 'rolling') return { cut, lines: [...jambs, [at(p0, 0.35), at(p1, 0.35)], [at(p0, -0.35), at(p1, -0.35)]], panels: [], arcs: [] };
+  if (style === 'rolling') {
+    // As usually drawn: the curtain as one line across the opening on the face it rolls down, a guide rail at each
+    // jamb, and the roll box over the opening dashed, since it hangs above the plan's cut.
+    const face = (p: Vec2, k: Mm) => add(p, scale(s, t + k));
+    const rail = (p: Vec2, inward: Vec2): [Vec2, Vec2][] => {
+      const q = add(p, scale(inward, RAIL));
+      return [
+        [face(p, 0), face(p, RAIL)],
+        [face(p, RAIL), face(q, RAIL)],
+        [face(q, RAIL), face(q, 0)],
+      ];
+    };
+    const b0 = add(p0, scale(d, -RAIL));
+    const b1 = add(p1, scale(d, RAIL));
+    const corners = [face(b0, 0), face(b1, 0), face(b1, ROLL_BOX), face(b0, ROLL_BOX)];
+    // An arrow from the curtain into the box: the door rolls up into it.
+    const mid = lerp(p0, p1, 0.5);
+    const tip = face(mid, ROLL_BOX - 60);
+    const head = Math.min(150, o.width / 6);
+    const back = face(mid, ROLL_BOX - 60 - head);
+    const arrow: [Vec2, Vec2][] = [
+      [face(mid, RAIL), tip],
+      [tip, add(back, scale(d, head * 0.6))],
+      [tip, add(back, scale(d, -head * 0.6))],
+    ];
+    return {
+      cut,
+      lines: [...jambs, [face(p0, RAIL / 2), face(p1, RAIL / 2)], ...rail(p0, d), ...rail(p1, scale(d, -1)), ...arrow],
+      panels: [],
+      arcs: [],
+      dashed: corners.map((c, i) => [c, corners[(i + 1) % 4]] as [Vec2, Vec2]),
+    };
+  }
   if (isSliding(style)) {
     // Panels hang on the wall face of the opening side; each arrow shows the way its panel slides clear.
     const face = (p: Vec2, k: Mm) => add(p, scale(s, t + k));

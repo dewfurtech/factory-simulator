@@ -92,6 +92,9 @@ export interface ObjectSnap {
  * is dropped on. A ceiling light skips the wall, lines up only with other ceiling lights (so linear
  * bars join end to end), and hangs from the ceiling of the room it is over.
  */
+/** How far past their safety distances (mm) two machines still snap to each other; any further apart, they ignore each other. */
+const NEAR: Mm = 1000;
+
 export function snapObject(plan: Plan, others: readonly PlacedObject[], moving: PlacedObject, target: Vec2, radius: Mm): ObjectSnap {
   let pos = { ...target };
   const rotation = moving.rotation;
@@ -173,6 +176,10 @@ export function snapObject(plan: Plan, others: readonly PlacedObject[], moving: 
     // Two machines facing each other keep the larger of their two safety distances between them.
     const keepU = Math.max(safetyToward(moving, scale(u, -sx)), safetyToward(o, scale(u, sx)));
     const keepV = Math.max(safetyToward(moving, scale(v, -sy)), safetyToward(o, scale(v, sy)));
+    // Only a neighbour close by counts: further than its safety distance plus NEAR, it is not looked at at all.
+    const gapU = Math.abs(ox) - (ow + width) / 2;
+    const gapV = Math.abs(oy) - (od + depth) / 2;
+    if (Math.max(gapU, gapV) > Math.max(keepU, keepV) + NEAR) continue;
     const touchU = sx * ((ow + width) / 2 + keepU);
     const touchV = sy * ((od + depth) / 2 + keepV);
     // Along u: side to side when beside it, or the same left/right edge when in front of or behind it.

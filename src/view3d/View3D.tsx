@@ -13,7 +13,7 @@ import { download } from '../editor2d/exportImage';
 import { IssuesChip, useTroubled } from '../panels/IssuesChip';
 import { HelpButton } from '../ui/HelpButton';
 import { Loading3D } from '../ui/Loading3D';
-import { ObjectActions } from '../editor2d/ObjectActions';
+import { ObjectActions, RotateScrub } from '../editor2d/ObjectActions';
 
 /** The 3D pane: the factory, with the picked object highlighted. */
 export default function View3D() {
@@ -94,6 +94,9 @@ export default function View3D() {
   // Things that cannot stand where they are get a red frame in 3D, as they get a red outline on the plan.
   const troubled = useTroubled();
   useEffect(() => sceneRef.current?.markTroubled(troubled.map((t) => t.id)), [troubled, started]);
+  // Safety distances: the picked machine's always, every machine's with the switch (the same one as on the plan).
+  const safetyAll = useUi((s) => s.safetyAll);
+  useEffect(() => sceneRef.current?.setSafety(safetyAll, troubled.filter((t) => t.safety).map((t) => t.id)), [safetyAll, troubled, started]);
   useEffect(() => sceneRef.current?.setOptions({ cutaway, areas }), [cutaway, areas]);
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
 
@@ -218,6 +221,15 @@ export default function View3D() {
         )}
         <span className="view-tools-sep" />
         <button
+          className={`ib sm${safetyAll ? ' on' : ''}`}
+          onClick={() => useUi.getState().set({ safetyAll: !safetyAll })}
+          title={safetyAll ? 'ระยะปลอดภัย: แสดงทุกเครื่อง · คลิกเพื่อแสดงเฉพาะเครื่องที่เลือก' : 'แสดงระยะปลอดภัยรอบทุกเครื่อง'}
+          aria-pressed={safetyAll}
+          data-testid="safety-3d"
+        >
+          <Icon name="shield" />
+        </button>
+        <button
           className={`ib sm${cutaway ? ' on' : ''}`}
           onClick={() => useUi.getState().set({ cutaway: !cutaway })}
           title="ผนังเตี้ย (เปิด/ปิด): ลดผนังลงเกือบติดพื้น เห็นห้องและประตูชัด"
@@ -270,22 +282,23 @@ export default function View3D() {
         >
           <Icon name="props" />
         </button>
+        <span className="view-tools-sep" />
+        <HelpButton
+          className="tools-help"
+          sections={[
+            moving
+              ? { title: 'โหมดย้ายเครื่อง', items: ['ลากเครื่องเพื่อย้าย', 'R หรือปุ่มหมุน หมุน 90°', 'ลากพื้นว่างเพื่อหมุนมุมมอง', 'ลากการ์ดจากคลังมาวางบนพื้นได้'] }
+              : top
+                ? { title: 'มุมมองด้านบน', items: ['ลากเพื่อเลื่อน'] }
+                : { title: 'มุมมอง 3D', items: ['ลากเพื่อหมุน', 'คลิกขวาลากเพื่อเลื่อน'] },
+            { title: 'ทั่วไป', items: ['ลูกกลิ้งซูม', 'คลิกเครื่องเพื่อดูรูปและขนาด', 'ดับเบิลคลิกเพื่อซูมไปจุดนั้น', 'ปุ่มน้ำเงินด้านขวาล่าง = โหมดย้ายเครื่อง'] },
+          ]}
+        />
       </div>
       {started && selection?.kind === 'object' && sceneRef.current && (
         <Actions3D key={selection.id} scene={sceneRef.current} id={selection.id} moving={moving} onMove={() => setMoving(!moving)} />
       )}
       <IssuesChip />
-      <HelpButton
-        className="view-help"
-        sections={[
-          moving
-            ? { title: 'โหมดย้ายเครื่อง', items: ['ลากเครื่องเพื่อย้าย', 'R หรือปุ่มหมุน หมุน 90°', 'ลากพื้นว่างเพื่อหมุนมุมมอง', 'ลากการ์ดจากคลังมาวางบนพื้นได้'] }
-            : top
-              ? { title: 'มุมมองด้านบน', items: ['ลากเพื่อเลื่อน'] }
-              : { title: 'มุมมอง 3D', items: ['ลากเพื่อหมุน', 'คลิกขวาลากเพื่อเลื่อน'] },
-          { title: 'ทั่วไป', items: ['ลูกกลิ้งซูม', 'คลิกเครื่องเพื่อดูรูปและขนาด', 'ดับเบิลคลิกเพื่อซูมไปจุดนั้น', 'ปุ่มน้ำเงินด้านขวาบน = โหมดย้ายเครื่อง'] },
-        ]}
-      />
     </div>
   );
 }
@@ -313,5 +326,10 @@ function Actions3D({ scene, id, moving, onMove }: { scene: FactoryScene; id: Id;
       if (scene.onFrame === place) scene.onFrame = null;
     };
   }, [scene, id, rotation]);
-  return <ObjectActions id={id} onMove={onMove} moving={moving} className="rot-ctl in3d" style={{ visibility: 'hidden' }} testId="actions-3d" boxRef={box} />;
+  const [turning, setTurning] = useState(false);
+  return (
+    <ObjectActions id={id} onMove={onMove} moving={moving} className={`rot-ctl in3d${turning ? ' turning' : ''}`} style={{ visibility: 'hidden' }} testId="actions-3d" boxRef={box}>
+      {rotation !== undefined && <RotateScrub id={id} rotation={rotation} onTurning={setTurning} />}
+    </ObjectActions>
+  );
 }
