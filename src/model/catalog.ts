@@ -84,10 +84,13 @@ const builtins: CatalogItem[] = [
   { id: 'workbench', label: 'โต๊ะช่าง', group: 'production', size: S(1800, 750, 900), use: 'bench' },
   { id: 'qc-table', label: 'โต๊ะตรวจ QC', group: 'production', size: S(1600, 800, 900), use: 'qc' },
   { id: 'tool-cabinet', label: 'ตู้เครื่องมือช่าง', group: 'production', size: S(1200, 500, 1800), use: 'tools' },
+  { id: 'mdb', label: 'ตู้ไฟ MDB', group: 'production', size: S(1200, 600, 2000), summary: 'คลิกตู้เพื่อดูเบรกเกอร์ สาย 5 เส้น และของที่ต้องใช้' },
   { id: 'conveyor', label: 'สายพานลำเลียง', group: 'production', size: S(3000, 700, 800) },
   { id: 'rack', label: 'ชั้นวางพาเลท', group: 'storage', size: S(2700, 1100, 3000), use: 'storage' },
   { id: 'shelf', label: 'ชั้นวางของ', group: 'storage', size: S(1800, 600, 2000), use: 'storage' },
   { id: 'pallet', label: 'พาเลทวางแผ่นไม้', group: 'storage', size: S(2500, 1250, 600), use: 'storage' },
+  { id: 'panel-cart', label: 'รถเข็นพักงาน', group: 'storage', size: S(1200, 800, 1000), summary: 'พักชิ้นงานระหว่างเครื่อง: งานที่ตัดแล้วรอปิดขอบ ที่ปิดขอบแล้วรอเจาะ' },
+  { id: 'finished-pallet', label: 'พาเลทงานเสร็จ / รอแพ็ก', group: 'storage', size: S(1200, 1000, 1200), use: 'storage' },
   { id: 'forklift', label: 'รถโฟล์คลิฟท์ (จอด)', group: 'storage', size: S(2300, 1100, 2100) },
   { id: 'time-clock', label: 'เครื่องสแกนเข้างาน', group: 'amenity', size: S(500, 300, 1500), use: 'clock' },
   { id: 'locker', label: 'ตู้ล็อกเกอร์', group: 'amenity', size: S(1800, 500, 1800), use: 'locker', seats: 4 },
@@ -122,6 +125,9 @@ export const catalogItem = (id: string): CatalogItem | undefined => BY_ID.get(id
 export const isMachine = (o: Pick<PlacedObject, 'assetId'>) => BY_ID.get(o.assetId)?.use === 'machine';
 /** A machine someone has to run. */
 export const needsOperator = (o: Pick<PlacedObject, 'assetId'>) => isMachine(o) && !BY_ID.get(o.assetId)?.unattended;
+/** Pallets and trolleys that stand in a machine's waiting spot on purpose: not in its way. */
+export const STAGING_ITEMS: ReadonlySet<string> = new Set(['pallet', 'panel-cart', 'finished-pallet']);
+export const isStaging = (o: Pick<PlacedObject, 'assetId'>) => STAGING_ITEMS.has(o.assetId);
 export const useOf = (o: Pick<PlacedObject, 'assetId'>): UseKind | undefined => catalogItem(o.assetId)?.use;
 
 /** A Mastrox machine's brochure data, from machines/data.js: what the panel shows beside its photo. */

@@ -158,23 +158,32 @@ export function ProjectList() {
   return (
     <div className={`home${dragging ? ' dragging' : ''}`} onDragEnter={onDragEnter} onDragOver={(e) => e.preventDefault()} onDragLeave={onDragLeave} onDrop={onDrop}>
       <nav className="home-nav">
-        <div className="home-brand">
-          <span className="brand">
-            <Icon name="factory" />
-          </span>
-          <b>Factory Simulator</b>
+        <div className="home-brand nf-logo">
+          <i>[</i>neofurtech<i>]</i>
         </div>
+        <a className="btn btn-sm" href="#/admin" data-testid="home-admin">
+          <Icon name="settings" />
+          ตั้งค่า
+        </a>
       </nav>
 
       <section className="hero">
-        <button className={`upload-card${reading ? ' busy' : ''}`} onClick={() => planRef.current?.click()} disabled={!!reading} data-testid="new-from-plan">
-          <span className="upload-icon">
-            <Icon name={reading ? 'clock' : 'upload'} />
-          </span>
-          <b>{reading ? `กำลังอ่านแปลน… (${reading})` : 'อัปโหลดแปลนของลูกค้า'}</b>
-          <span className="upload-what">วาดห้องทับ วางเครื่อง Mastrox ตามขนาดจริง แล้วส่งลิงก์ให้ลูกค้าลองขยับเองและส่งกลับ</span>
-          <span className="upload-how">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือก · PDF จาก CAD อ่านสเกลให้เอง · PNG / JPG ก็ได้</span>
-        </button>
+        <div className="home-head">
+          <div>
+            <div className="home-eyebrow">Mastrox Factory Simulator</div>
+            <h1 className="home-title">
+              วางผังโรงงาน
+              <span>ด้วยเครื่องจริง</span>
+            </h1>
+          </div>
+          <button className={`upload-card${reading ? ' busy' : ''}`} onClick={() => planRef.current?.click()} disabled={!!reading} data-testid="new-from-plan">
+            <span className="upload-icon">
+              <Icon name={reading ? 'clock' : 'upload'} />
+            </span>
+            <b>{reading ? `กำลังอ่านแปลน… (${reading})` : 'อัปโหลดแปลนของลูกค้า'}</b>
+            <span className="upload-how">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือก · PDF จาก CAD อ่านสเกลให้เอง · PNG / JPG ก็ได้</span>
+          </button>
+        </div>
 
         <div className="start-row">
           <button className="start-blank-btn" onClick={() => void create(newProject('โรงงานใหม่'))} data-testid="new-blank">

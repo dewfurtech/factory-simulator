@@ -146,8 +146,8 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
         <>
           <Header icon="drawWall" title="มุมผนัง" actions />
           <div className="panel-body two">
-            <NumberField label="X" value={c.x} scale={10} suffix="ซม." onChange={(v) => applyEdit((d) => moveCorner(d.plan, sel.id, { x: v, y: c.y }))} />
-            <NumberField label="Y" value={c.y} scale={10} suffix="ซม." onChange={(v) => applyEdit((d) => moveCorner(d.plan, sel.id, { x: c.x, y: v }))} />
+            <NumberField label="X" value={c.x} scale={1000} step={0.1} suffix="ม." onChange={(v) => applyEdit((d) => moveCorner(d.plan, sel.id, { x: v, y: c.y }))} />
+            <NumberField label="Y" value={c.y} scale={1000} step={0.1} suffix="ม." onChange={(v) => applyEdit((d) => moveCorner(d.plan, sel.id, { x: c.x, y: v }))} />
           </div>
         </>
       );
@@ -162,9 +162,9 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
           <Header icon={w.glass ? 'glassWall' : 'drawWall'} title={w.glass ? 'ผนังกระจก' : 'ผนัง'} sub={fmtLen(wallLength(plan, w))} actions />
           <div className="panel-body">
             <div className="two">
-              <NumberField label="ความยาว" value={wallLength(plan, w)} scale={10} suffix="ซม." min={1} onChange={(v) => applyEdit((d) => setWallLength(d.plan, sel.id, v))} />
-              <NumberField label="ความหนา" value={w.thickness} scale={10} suffix="ซม." min={1} onChange={(v) => set((x) => void (x.thickness = v))} />
-              <NumberField label="ความสูง" value={w.height} scale={10} suffix="ซม." min={10} onChange={(v) => set((x) => void (x.height = v))} />
+              <NumberField label="ความยาว" value={wallLength(plan, w)} scale={1000} step={0.1} suffix="ม." min={0.01} onChange={(v) => applyEdit((d) => setWallLength(d.plan, sel.id, v))} />
+              <NumberField label="ความหนา" value={w.thickness} scale={1000} step={0.05} suffix="ม." min={0.01} onChange={(v) => set((x) => void (x.thickness = v))} />
+              <NumberField label="ความสูง" value={w.height} scale={1000} step={0.1} suffix="ม." min={0.1} onChange={(v) => set((x) => void (x.height = v))} />
             </div>
             <label className="check">
               <input type="checkbox" checked={!!w.glass} onChange={(e) => set((x) => void (x.glass = e.target.checked || undefined))} /> ผนังกระจก
@@ -283,7 +283,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
             <button className="btn btn-sm" onClick={duplicateSelection} title="Ctrl+D">
               <Icon name="copy" /> ทำสำเนา
             </button>
-            <p className="muted small">ลากพื้นที่บนแปลนเพื่อย้าย · ซ่อน/ล็อกได้ที่แผงเลเยอร์ · ปุ่ม "พื้นที่" บนแถบเครื่องมือซ่อนพื้นที่ทั้งหมดได้</p>
+            <p className="muted small">ลากพื้นที่บนแปลนเพื่อย้าย · ซ่อน/ล็อกได้ที่รายการในผัง</p>
           </div>
         </>
       );
@@ -304,7 +304,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
           <div className="panel-body">
             <TextField label="ชื่อทางเดิน" value={a.name} onChange={(v) => set((x) => void (x.name = v))} />
             <div className="two">
-              <NumberField label="กว้างทางเดิน" value={a.width} scale={10} step={10} suffix="ซม." min={30} testId="aisle-width" onChange={(v) => set((x) => void (x.width = v))} />
+              <NumberField label="กว้างทางเดิน" value={a.width} scale={1000} step={0.05} suffix="ม." min={0.3} testId="aisle-width" onChange={(v) => set((x) => void (x.width = v))} />
             </div>
             <div className="stats">
               <div>
@@ -347,10 +347,10 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
               />
             )}
             <div className="two">
-              <NumberField label="กว้าง" value={o.width} scale={10} suffix="ซม." min={30} onChange={(v) => set((x) => void (x.width = v))} />
-              <NumberField label="สูง" value={o.height} scale={10} suffix="ซม." min={30} onChange={(v) => set((x) => void (x.height = v))} />
-              {o.kind === 'window' && <NumberField label="สูงจากพื้น" value={o.sill} scale={10} suffix="ซม." min={0} onChange={(v) => set((x) => void (x.sill = v))} />}
-              <NumberField label="ระยะจากปลายผนัง" value={o.offset} scale={10} suffix="ซม." onChange={(v) => set((x) => void (x.offset = v))} />
+              <NumberField label="กว้าง" value={o.width} scale={1000} step={0.1} suffix="ม." min={0.3} onChange={(v) => set((x) => void (x.width = v))} />
+              <NumberField label="สูง" value={o.height} scale={1000} step={0.1} suffix="ม." min={0.3} onChange={(v) => set((x) => void (x.height = v))} />
+              {o.kind === 'window' && <NumberField label="สูงจากพื้น" value={o.sill} scale={1000} step={0.1} suffix="ม." min={0} onChange={(v) => set((x) => void (x.sill = v))} />}
+              <NumberField label="ระยะจากปลายผนัง" value={o.offset} scale={1000} step={0.1} suffix="ม." onChange={(v) => set((x) => void (x.offset = v))} />
             </div>
             {o.kind === 'door' && (
               <Field label="ทิศการเปิด">
@@ -376,7 +376,7 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
       const set = (recipe: (x: Column) => void) => applyEdit((d) => recipe(d.columns[sel.id]));
       return (
         <>
-          <Header icon={c.shape === 'round' ? 'columnRound' : 'column'} title="เสา" sub={c.shape === 'round' ? `Ø${c.w / 10} ซม.` : `${c.w / 10}×${c.d / 10} ซม.`} actions />
+          <Header icon={c.shape === 'round' ? 'columnRound' : 'column'} title="เสา" sub={c.shape === 'round' ? `Ø${c.w / 1000} ม.` : `${c.w / 1000}×${c.d / 1000} ม.`} actions />
           <div className="panel-body">
             <SelectField
               label="รูปทรง"
@@ -391,16 +391,17 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
               <NumberField
                 label={c.shape === 'round' ? 'เส้นผ่านศูนย์กลาง' : 'กว้าง'}
                 value={c.w}
-                scale={10}
-                suffix="ซม."
-                min={5}
+                scale={1000}
+                step={0.05}
+                suffix="ม."
+                min={0.05}
                 onChange={(v) => set((x) => void ((x.w = v), x.shape === 'round' && (x.d = v)))}
               />
-              {c.shape === 'rect' && <NumberField label="ลึก" value={c.d} scale={10} suffix="ซม." min={5} onChange={(v) => set((x) => void (x.d = v))} />}
-              <NumberField label="สูง" value={c.h} scale={10} suffix="ซม." min={10} onChange={(v) => set((x) => void (x.h = v))} />
+              {c.shape === 'rect' && <NumberField label="ลึก" value={c.d} scale={1000} step={0.1} suffix="ม." min={0.05} onChange={(v) => set((x) => void (x.d = v))} />}
+              <NumberField label="สูง" value={c.h} scale={1000} step={0.1} suffix="ม." min={0.1} onChange={(v) => set((x) => void (x.h = v))} />
               <NumberField label="หมุน" value={Math.round(deg(c.rotation))} suffix="°" onChange={(v) => set((x) => void (x.rotation = rad(v)))} />
-              <NumberField label="X" value={c.x} scale={10} suffix="ซม." onChange={(v) => set((x) => void (x.x = v))} />
-              <NumberField label="Y" value={c.y} scale={10} suffix="ซม." onChange={(v) => set((x) => void (x.y = v))} />
+              <NumberField label="X" value={c.x} scale={1000} step={0.1} suffix="ม." onChange={(v) => set((x) => void (x.x = v))} />
+              <NumberField label="Y" value={c.y} scale={1000} step={0.1} suffix="ม." onChange={(v) => set((x) => void (x.y = v))} />
             </div>
             <button className="btn btn-sm" onClick={duplicateSelection}>
               <Icon name="copy" /> ทำสำเนา (Ctrl+D)
@@ -454,8 +455,8 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
             <h5>บนผัง</h5>
             <TextField label="ชื่อ" value={o.name} onChange={(v) => set((x) => void (x.name = v))} />
             <div className="two">
-              <NumberField label="X" value={o.x} scale={10} suffix="ซม." onChange={(v) => set((x) => void (x.x = v))} />
-              <NumberField label="Y" value={o.y} scale={10} suffix="ซม." onChange={(v) => set((x) => void (x.y = v))} />
+              <NumberField label="X" value={o.x} scale={1000} step={0.1} suffix="ม." onChange={(v) => set((x) => void (x.x = v))} />
+              <NumberField label="Y" value={o.y} scale={1000} step={0.1} suffix="ม." onChange={(v) => set((x) => void (x.y = v))} />
               <NumberField label="หมุน" value={Math.round(deg(o.rotation))} suffix="°" onChange={(v) => set((x) => void (x.rotation = rad(v)))} />
             </div>
             <div className="row gap">
@@ -468,9 +469,9 @@ function SelectionProps({ sel, project }: { sel: Selection; project: Project }) 
             </div>
             {!machine && (
               <div className="two">
-                <NumberField label="กว้าง" value={o.size.w} scale={10} suffix="ซม." min={10} onChange={(v) => set((x) => void (x.size.w = v))} />
-                <NumberField label="ลึก" value={o.size.d} scale={10} suffix="ซม." min={10} onChange={(v) => set((x) => void (x.size.d = v))} />
-                <NumberField label="สูง" value={o.size.h} scale={10} suffix="ซม." min={1} onChange={(v) => set((x) => void (x.size.h = v))} />
+                <NumberField label="กว้าง" value={o.size.w} scale={1000} step={0.1} suffix="ม." min={0.1} onChange={(v) => set((x) => void (x.size.w = v))} />
+                <NumberField label="ลึก" value={o.size.d} scale={1000} step={0.1} suffix="ม." min={0.1} onChange={(v) => set((x) => void (x.size.d = v))} />
+                <NumberField label="สูง" value={o.size.h} scale={1000} step={0.1} suffix="ม." min={0.01} onChange={(v) => set((x) => void (x.size.h = v))} />
               </div>
             )}
           </div>
@@ -587,10 +588,10 @@ function ProjectProps({ project }: { project: Project }) {
         <NumberField
           label="กว้างทางเดินขั้นต่ำ (ใช้ตรวจว่าเดินถึงเครื่อง)"
           value={project.walkwayWidth ?? DEFAULT_WALKWAY}
-          scale={10}
-          step={10}
-          suffix="ซม."
-          min={60}
+          scale={1000}
+          step={0.05}
+          suffix="ม."
+          min={0.6}
           testId="walkway-width"
           onChange={(v) => applyEdit((d) => void (d.walkwayWidth = v))}
         />
@@ -601,7 +602,7 @@ function ProjectProps({ project }: { project: Project }) {
             scale={1000}
             step={0.5}
             suffix="ม."
-            min={1}
+            min={0.01}
             onChange={(v) => useUi.getState().set({ tool: { ...tool, spacing: v } })}
           />
         )}

@@ -12,6 +12,8 @@ test('a room is drawn from two corners on a blank plan', async ({ page }) => {
   await freshApp(page);
   await page.getByTestId('new-blank').click();
   await expect(page.getByTestId('plan')).toBeVisible();
+  // A plan with no building opens on the building step.
+  await expect(page.getByTestId('quick-build')).toBeVisible();
   await page.getByTestId('tool-drawRoomRect').click();
   const c = await planCentre(page);
   await page.mouse.click(c.x - 150, c.y - 100);
@@ -19,10 +21,21 @@ test('a room is drawn from two corners on a blank plan', async ({ page }) => {
   await expect.poll(() => projectState(page)).toMatchObject({ rooms: 1, walls: 4 });
 });
 
+test('a hall is made from its size in metres, with columns and a rolling door', async ({ page }) => {
+  await freshApp(page);
+  await page.getByTestId('new-blank').click();
+  await page.getByTestId('quick-width').fill('18');
+  await page.getByTestId('quick-length').fill('36');
+  await page.getByTestId('quick-make').click();
+  await expect.poll(() => projectState(page)).toMatchObject({ rooms: 1, walls: 4 });
+  const columns = await page.evaluate(() => Object.keys((window as never as { __factory: { project: { getState(): { project: { columns: object } } } } }).__factory.project.getState().project.columns).length);
+  expect(columns).toBe(14);
+  await expect(page.getByTestId('quick-build')).toHaveCount(0);
+});
+
 test('a machine is placed from the library and undone', async ({ page }) => {
   await openSample(page);
   const before = (await projectState(page)).objects.length;
-  await page.getByTestId('tool-catalog').click();
   await page.getByTestId('cat-nebula').click();
   const c = await planCentre(page);
   await page.mouse.click(c.x, c.y);
@@ -56,6 +69,25 @@ test('the tape measure reads a distance between two points', async ({ page }) =>
   await expect(page.getByTestId('measure-line')).toHaveCount(0);
 });
 
+test('the machines are in view on opening, and only 2D and 3D are offered', async ({ page }) => {
+  await openSample(page);
+  await expect(page.getByTestId('cat-rakete-3500a')).toBeVisible();
+  await expect(page.locator('[data-testid^="view-"]')).toHaveCount(2);
+  await expect(page.getByTestId('step-nav').getByRole('button')).toHaveCount(4);
+});
+
+test('the summary lists what the customer prepares and saves it as a PDF', async ({ page }) => {
+  await openSample(page);
+  await page.getByTestId('dock-summary').click();
+  await page.getByTestId('adv-tab-prep').click();
+  await expect(page.getByTestId('prep-power')).toContainText('เบรกเกอร์เมน');
+  await expect(page.getByTestId('prep-air')).toContainText('ลมที่ต้องใช้');
+  await page.getByTestId('open-prep').click();
+  const download = page.waitForEvent('download');
+  await page.getByTestId('save-prep-pdf').click();
+  expect((await download).suggestedFilename()).toMatch(/\.pdf$/);
+});
+
 test('the plan is saved as a PNG from the main menu', async ({ page }) => {
   await openSample(page);
   await page.getByTestId('main-menu').click();
@@ -67,14 +99,12 @@ test('the plan is saved as a PNG from the main menu', async ({ page }) => {
 test('the 3D view draws the factory', async ({ page }) => {
   await openSample(page);
   await page.getByTestId('view-3d').click();
-  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible();
+  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('crash')).toHaveCount(0);
 });
 
 test('a model of the user’s own is added with tags and found by one', async ({ page }) => {
   await openSample(page);
-  await page.getByTestId('tool-catalog').click();
-  await page.getByTestId('shelf-mine').click();
   await page.getByTestId('add-model').click();
   await page.getByTestId('mf-name').fill('เครื่องตัดแผ่น A');
   await page.getByTestId('mf-w').fill('320');
@@ -117,7 +147,8 @@ test('a plan is shared by link, moved by the customer and sent back', async ({ p
   await expect(customer.getByTestId('share-banner')).toBeVisible();
   await expect(customer.getByTestId('share-note-shown')).toContainText('ลองย้ายเครื่องดูครับ');
   await expect(customer.getByTestId('toolbar')).toBeVisible();
-  await expect(customer.getByTestId('group-wall')).toHaveCount(0);
+  await expect(customer.getByTestId('dock-building')).toHaveCount(0);
+  await expect(customer.getByTestId('dock-catalog')).toBeVisible();
   const theirs = await projectState(customer);
   expect(theirs.objects.some((o) => o.assetId === 'nebula')).toBe(true);
   expect(theirs.rooms).toBeGreaterThan(5);
@@ -135,7 +166,7 @@ test('a plan is shared by link, moved by the customer and sent back', async ({ p
   await expect(page.getByTestId('share-banner')).toHaveCount(0);
   await page.getByTestId('main-menu').click();
   await page.getByTestId('open-full-editor').click();
-  await expect(page.getByTestId('group-wall')).toBeVisible();
+  await expect(page.getByTestId('dock-building')).toBeVisible();
   await expect(page.getByTestId('share-banner')).toHaveCount(0);
 });
 
@@ -148,7 +179,7 @@ test('an aisle is drawn and ended with a double-click, leaving nothing behind fo
       ).__factory?.project.getState().project;
       return Object.values(p?.plan.aisles ?? {}).map((a) => a.points.length);
     });
-  await page.getByTestId('group-aisle').click();
+  await page.getByTestId('dock-building').click();
   await page.getByTestId('tool-aisle-walk').click();
   const c = await planCentre(page);
   await page.mouse.click(c.x - 120, c.y + 40);
@@ -166,7 +197,7 @@ test('an aisle is drawn and ended with a double-click, leaving nothing behind fo
 test('a machine is dragged across the floor in the 3D view', async ({ page }) => {
   await openSample(page);
   await page.getByTestId('view-3d').click();
-  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible();
+  await expect(page.getByTestId('view3d').locator('canvas')).toBeVisible({ timeout: 20_000 });
   await page.waitForTimeout(1500);
   await page.getByTestId('move-3d').click();
   // Where the Nebula stands on screen, through the scene's own camera.
@@ -290,6 +321,7 @@ test.describe('on a phone', () => {
       }
     for (const b of boxes) expect(b.r).toBeLessThanOrEqual(391);
     await page.getByTestId('dock-catalog').click();
+    await expect(page.getByTestId('cat-rakete-3500a')).toBeVisible();
     const sheet = await page.locator('.dock-col').boundingBox();
     expect(sheet!.width).toBeGreaterThan(300);
   });

@@ -1,4 +1,4 @@
-import { catalogItem, machineFootprint, machineOptions } from '../model/catalog';
+import { catalogItem } from '../model/catalog';
 import { keyLetter } from './shortcuts';
 import { newId } from '../model/id';
 import { incidentWalls } from '../model/miter';
@@ -25,6 +25,8 @@ import { dist, dot, perp, projectOnSegment, sub } from '../model/vec';
 import { alignToWalls, parallelWallOffset, weldPlan } from '../model/weld';
 import { addArea, boxOutline, closedOutline, extendOutline, moveArea } from '../model/areas';
 import { addAisle, cleanLine, moveAisle } from '../model/aisles';
+import { addRun } from '../model/utilityRuns';
+import { flowMachines, routeIds } from '../model/route';
 import { editProject, useProject } from '../store/project';
 import { levelZ } from '../model/levels';
 import { SELECT, SNAP_REACH, useUi, type ColumnSpec, type Drag, type Selection, type Tool, type ToolKind } from '../store/ui';
@@ -173,6 +175,20 @@ export function finishAisle(): boolean {
   return false;
 }
 
+/** Ends the cable or pipe being drawn where it stands; the tool stays on for the next one. */
+export function finishRun(): boolean {
+  const tool = ui().tool;
+  if (tool.kind !== 'drawRun') return false;
+  const line = cleanLine(tool.points);
+  if (line.length >= 2) {
+    edit((d) => void addRun(d, tool.run, line.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) }))));
+    setTool({ ...tool, points: [], entry: EMPTY_ENTRY });
+    return true;
+  }
+  if (tool.points.length) setTool({ ...tool, points: [], entry: EMPTY_ENTRY });
+  return false;
+}
+
 /** Columns filling the rectangle a–b at the spacing, one at every grid node (corners included). */
 export function columnGridPoints(a: Vec2, b: Vec2, spacing: Mm): Vec2[] {
   const x0 = Math.min(a.x, b.x);
@@ -220,7 +236,10 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
         drag = { kind: 'object', id: hit.id, grab: sub(input.p, { x: o.x, y: o.y }) };
       } else if (hit.kind === 'column') drag = { kind: 'column', id: hit.id, grab: sub(input.p, p.columns[hit.id]) };
       else if (hit.kind === 'area' || hit.kind === 'aisle') drag = { kind: hit.kind, id: hit.id, origin: input.p, applied: { x: 0, y: 0 } };
-      else drag = { kind: hit.kind, id: hit.id };
+      else if (hit.kind === 'run') {
+        // A point moves; pulling on a stretch puts a new point there once the pointer has gone a little way.
+        drag = hit.node !== undefined ? { kind: 'runNode', id: hit.id, index: hit.node, origin: input.p } : { kind: 'runNode', id: hit.id, index: (hit.seg ?? 0) + 1, origin: input.p, insert: true };
+      } else drag = { kind: hit.kind, id: hit.id };
       useProject.getState().beginGesture();
       setTool({ ...tool, drag });
     },
@@ -274,6 +293,18 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
           edit((d) => (drag.kind === 'area' ? moveArea : moveAisle)(d.plan, drag.id, by));
           setTool({ ...tool, drag: { ...drag, applied: target } });
         }
+      } else if (drag.kind === 'runNode') {
+        if (drag.origin) {
+          if (Math.hypot(input.p.x - drag.origin.x, input.p.y - drag.origin.y) < dead) return;
+          if (drag.insert) edit((d) => void d.runs?.find((r) => r.id === drag.id)?.points.splice(drag.index, 0, { ...drag.origin! }));
+          setTool({ ...tool, drag: { kind: 'runNode', id: drag.id, index: drag.index } });
+          ui().set({ selection: { kind: 'run', id: drag.id, node: drag.index } });
+        }
+        const at = runNodeSnap(p, drag.id, input);
+        edit((d) => {
+          const r = d.runs?.find((x) => x.id === drag.id);
+          if (r?.points[drag.index]) r.points[drag.index] = { x: Math.round(at.x), y: Math.round(at.y) };
+        });
       } else if (drag.kind === 'column') {
         const at = sub(input.p, drag.grab);
         const step = snapping(input) ? ui().grid : 1;
@@ -287,7 +318,7 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
         const target = sub(input.p, drag.grab);
         const s = !snapping(input)
           ? { x: target.x, y: target.y, z: o.z, rotation: o.rotation, guides: [] }
-          : snapObject(p.plan, p.objects, o, target, objectSnapRadius(input.radius));
+          : snapObject(p.plan, p.objects, o, target, objectSnapRadius(input.radius), Object.values(p.columns ?? {}));
         ui().set({ objectGuides: s.guides });
         edit((d) => moveWithStack(d.objects, drag.id, s));
       }
@@ -303,6 +334,18 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
         }
       } else if (tool.drag) {
         if (tool.drag.kind === 'corner' || tool.drag.kind === 'wall') edit((d) => weldPlan(d.plan));
+        if (tool.drag.kind === 'runNode') {
+          const id = tool.drag.id;
+          // A point dropped on its neighbour goes; a run left with one point goes too.
+          edit((d) => {
+            const r = d.runs?.find((x) => x.id === id);
+            if (!r) return;
+            r.points = r.points.filter((q, i) => !i || dist(q, r.points[i - 1]) > 50);
+            if (r.points.length < 2) d.runs = d.runs!.filter((x) => x.id !== id);
+          });
+          const sel = ui().selection;
+          if (sel?.kind === 'run' && !project().runs?.some((r) => r.id === sel.id)) ui().set({ selection: null });
+        }
         useProject.getState().endGesture();
         const sel = ui().selection;
         if (sel?.kind === 'wall' && !project().plan.walls[sel.id]) ui().set({ selection: null });
@@ -470,6 +513,62 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
     },
   },
 
+  drawRun: {
+    down(tool, input) {
+      const last = tool.points[tool.points.length - 1];
+      const s = snap(input, { from: last });
+      const p = last && hasTyped(tool.entry) ? wallEnd(last, s.point, tool.entry) : s.point;
+      if (last && dist(last, p) < input.radius) {
+        finishRun();
+        return;
+      }
+      setTool({ ...tool, points: [...tool.points, p], entry: EMPTY_ENTRY });
+    },
+    move(tool, input) {
+      ui().set({ cursor: snap(input, { from: tool.points[tool.points.length - 1] }) });
+    },
+    key(tool, e) {
+      if (e.key === 'Escape') {
+        if (!finishRun()) setTool(tool.points.length ? { ...tool, points: [], entry: EMPTY_ENTRY } : SELECT);
+        return true;
+      }
+      if (e.key === 'Enter' && !hasTyped(tool.entry)) return finishRun();
+      const last = tool.points[tool.points.length - 1];
+      if (!last) return false;
+      const entry = entryKey(tool.entry, ENTRY_FIELDS.drawWall, e);
+      if (entry) {
+        setTool({ ...tool, entry });
+        return true;
+      }
+      if (e.key === 'Enter' && hasTyped(tool.entry)) {
+        const p = wallEnd(last, ui().cursor?.point ?? last, tool.entry);
+        setTool({ ...tool, points: [...tool.points, p], entry: EMPTY_ENTRY });
+        return true;
+      }
+      return false;
+    },
+  },
+
+  pickRoute: {
+    down(tool, input) {
+      const p = project();
+      const hit = hitTest(p, input.p, input.radius);
+      if (hit?.kind !== 'object' || !flowMachines(p).some((o) => o.id === hit.id)) return;
+      // The first machine clicked starts a new order; clicking one already in it takes it out again.
+      const order = tool.started ? routeIds(p).ids : [];
+      edit((d) => void (d.route = order.includes(hit.id) ? order.filter((id) => id !== hit.id) : [...order, hit.id]));
+      setTool({ ...tool, started: true });
+    },
+    move(_tool, input) {
+      ui().set({ cursor: { point: input.p, kind: 'free', guides: [] } });
+    },
+    key(_tool, e) {
+      if (e.key !== 'Escape' && e.key !== 'Enter') return false;
+      setTool(SELECT);
+      return true;
+    },
+  },
+
   placeObject: {
     down(tool, input) {
       placeObjectAt(tool.assetId, input.p, input.radius, !snapping(input));
@@ -480,7 +579,7 @@ const TOOLS: { [K in ToolKind]: ToolHandler<K> } = {
       // The ghost stands where a click would put it: pulled onto walls and neighbours, with the line it lines up on.
       const free = !snapping(input);
       const o = objectAt(tool.assetId, input.p, input.radius, free);
-      const guides = free ? [] : snapObject(project().plan, project().objects, o, input.p, objectSnapRadius(input.radius)).guides;
+      const guides = free ? [] : snapObject(project().plan, project().objects, o, input.p, objectSnapRadius(input.radius), Object.values(project().columns ?? {})).guides;
       ui().set({ cursor: { point: { x: o.x, y: o.y }, kind: 'free', guides }, placeGhost: o });
     },
     key(_tool, e) {
@@ -696,21 +795,11 @@ export function objectAt(assetId: string, p: Vec2, radius: Mm, free = false): Pl
     rotation: 0,
     size: item ? { ...item.size } : { w: 1000, d: 1000, h: 1000 },
   };
-  // The add-ons ticked in the catalog come with each new machine that offers them, and lengthen it.
-  const ticked = ui().placeAddons;
-  const options = machineOptions(assetId)
-    .filter((a) => ticked.includes(a.id))
-    .map((a) => a.id);
-  if (options.length) {
-    obj.options = options;
-    const f = machineFootprint(assetId, options);
-    if (f) obj.size = f;
-  }
   // The pointer holds the top-left corner, not the middle.
   const centre = sub(p, topLeftGrab(obj));
   Object.assign(obj, centre);
   if (!free) {
-    const s = snapObject(proj.plan, proj.objects, obj, centre, objectSnapRadius(radius));
+    const s = snapObject(proj.plan, proj.objects, obj, centre, objectSnapRadius(radius), Object.values(proj.columns ?? {}));
     Object.assign(obj, { x: s.x, y: s.y, z: s.z, rotation: s.rotation });
   }
   return obj;
@@ -829,7 +918,30 @@ function deleteOne(d: Project, sel: Selection): void {
     case 'aisle':
       delete d.plan.aisles?.[sel.id];
       break;
+    case 'run': {
+      // A point picked goes alone while the run keeps two; otherwise the whole run.
+      const r = d.runs?.find((x) => x.id === sel.id);
+      if (r && sel.node !== undefined && r.points.length > 2) r.points.splice(sel.node, 1);
+      else d.runs = (d.runs ?? []).filter((x) => x.id !== sel.id);
+      break;
+    }
   }
+}
+
+/**
+ * Where a run's point lands while dragged: onto a point of another run of its kind, else onto the line of one, so
+ * the two join up; else wherever the usual snapping puts it.
+ */
+function runNodeSnap(p: Project, id: Id, input: PointerInput): Vec2 {
+  const run = p.runs?.find((r) => r.id === id);
+  const others = (p.runs ?? []).filter((r) => r.id !== id && r.kind === run?.kind);
+  for (const r of others) for (const q of r.points) if (dist(q, input.p) <= input.radius) return q;
+  for (const r of others)
+    for (let i = 1; i < r.points.length; i++) {
+      const s = projectOnSegment(input.p, r.points[i - 1], r.points[i]);
+      if (s.distance <= input.radius) return s.point;
+    }
+  return snap(input).point;
 }
 
 /** Copies of the selected objects and columns, nudged aside, selected in their place. */

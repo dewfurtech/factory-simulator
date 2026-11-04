@@ -20,7 +20,7 @@ import { AISLE_KINDS, aisleLabel, aisleOutline, defaultWidth, LINE_COLOR, LINE_W
 import { walkwaysOf } from '../model/walkways';
 import type { Aisle } from '../model/types';
 import { columnOutline, hitTest, isCrossing, isOutdoor, SNAP_PX } from './hit';
-import { addDoorAt, carryObject, columnGridPoints, deleteSelection, dispatchPointer, finishArea, finishAisle, objectAt, placeObjectAt, roomOutline, rotateObject, setObjectRotation } from './tools';
+import { addDoorAt, carryObject, columnGridPoints, deleteSelection, dispatchPointer, finishArea, finishAisle, finishRun, objectAt, placeObjectAt, roomOutline, rotateObject, setObjectRotation } from './tools';
 import { ensureGuides, guideLines, useGuides } from './planGuides';
 import { checkClearance, type Issue } from '../model/clearance';
 import { safetyBox, safetyOf } from '../model/safety';
@@ -29,6 +29,8 @@ import { ObjectActions, RotateScrub } from './ObjectActions';
 import { CATALOG_KEY, keyLetter, SHORTCUTS } from './shortcuts';
 import { Icon } from './Toolbar';
 import { IssuesChip } from '../panels/IssuesChip';
+import { AdvisorLayer, RunLayer } from './AdvisorLayer';
+import { RUN_COLOR } from '../model/utilityRuns';
 import { ENTRY_FIELDS, planDeg, rectCorner, wallEnd, type Entry, type EntryField } from './entry';
 
 /** The doors a right-click on a wall offers. */
@@ -127,6 +129,11 @@ export function PlanEditor() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  const fitN = useUi((s) => s.fitN);
+  useEffect(() => {
+    if (fitN) setView(initialView(editProject(), { w: wrapRef.current!.clientWidth, h: wrapRef.current!.clientHeight }));
+  }, [fitN]);
 
   const toPlan = (clientX: number, clientY: number): Vec2 => {
     const r = svgRef.current!.getBoundingClientRect();
@@ -286,7 +293,7 @@ export function PlanEditor() {
     const at = firstClick.current ?? input(e);
     if (e.button !== 0) return;
     // Drawing an area point by point, a double-click closes it where it stands.
-    if (finishArea() || finishAisle()) return;
+    if (finishArea() || finishAisle() || finishRun()) return;
     if (useUi.getState().tool.kind !== 'select' || useUi.getState().customer) return;
     const hit = hitTest(editProject(), at.p, at.radius);
     if (hit && hit.kind !== 'wall' && hit.kind !== 'room') return;
@@ -315,7 +322,7 @@ export function PlanEditor() {
   const editDim = useRef<(w: Wall, at: Vec2) => void>(() => undefined);
   editDim.current = (w, at) => {
     const s = toScreen(at);
-    setEditing({ wallId: w.id, x: s.x, y: s.y, value: (wallLength(project.plan, w) / 10).toFixed(1) });
+    setEditing({ wallId: w.id, x: s.x, y: s.y, value: (wallLength(project.plan, w) / 1000).toFixed(2) });
   };
   const onEditDim = useCallback((w: Wall, at: Vec2) => editDim.current(w, at), []);
 
@@ -332,8 +339,8 @@ export function PlanEditor() {
 
   const commitEdit = () => {
     if (!editing) return;
-    const cm = parseFloat(editing.value);
-    if (cm > 0) useProject.getState().apply((d) => setWallLength(d.plan, editing.wallId, cm * 10));
+    const m = parseFloat(editing.value);
+    if (m > 0) useProject.getState().apply((d) => setWallLength(d.plan, editing.wallId, Math.round(m * 1000)));
     setEditing(null);
   };
 
@@ -396,6 +403,8 @@ export function PlanEditor() {
           <AreaLayer {...shared} />
           <ColumnLayer columns={columns} {...shared} />
           <PlanLabels onEditDim={onEditDim} {...shared} />
+          <RunLayer project={project} px={px} />
+          <AdvisorLayer project={project} px={px} />
         </g>
         {/* Editing marks: a picture of the plan leaves them out. */}
         <g data-export="skip">
@@ -473,7 +482,7 @@ export function PlanEditor() {
             if (e.key === 'Escape') setEditing(null);
           }}
           onBlur={commitEdit}
-          aria-label="ความยาวผนัง (ซม.)"
+          aria-label="ความยาวผนัง (ม.)"
         />
       )}
       <div className="zoom-ctl glass">
@@ -646,7 +655,8 @@ const PlanLabels = memo(function PlanLabels({ plan, selection, px, onEditDim }: 
             paintOrder="stroke"
             style={{ cursor: 'text' }}
             onPointerDown={(e) => {
-              if (w.locked || useUi.getState().customer) return;
+              // While drawing, the press belongs to the tool: a dimension in the way must not swallow the point.
+              if (w.locked || useUi.getState().customer || useUi.getState().tool.kind !== 'select') return;
               e.stopPropagation();
               onEditDim(w, at);
             }}
@@ -1123,7 +1133,7 @@ function CursorOverlay({ px }: { px: number }) {
   );
 }
 
-const DRAWING_TOOLS = new Set<Tool['kind']>(['drawRoomRect', 'drawWall', 'drawArea', 'drawAisle', 'placeColumn', 'columnGrid']);
+const DRAWING_TOOLS = new Set<Tool['kind']>(['drawRoomRect', 'drawWall', 'drawArea', 'drawAisle', 'drawRun', 'placeColumn', 'columnGrid']);
 
 /** Most guide lines drawn: a CAD drawing has tens of thousands, which would paint over the image it came from; the image itself shows them. */
 const SHOWN_GUIDES = 600;
@@ -1215,6 +1225,13 @@ function ToolOverlay({ px }: { px: number }) {
       </g>
     );
   }
+  if (tool.kind === 'drawRun') {
+    if (!tool.points.length) return <circle cx={p.x} cy={p.y} r={5 * px} fill={RUN_COLOR[tool.run]} pointerEvents="none" />;
+    const last = tool.points[tool.points.length - 1];
+    return (
+      <polyline pointerEvents="none" points={pts([...tool.points, wallEnd(last, p, tool.entry)])} fill="none" stroke={RUN_COLOR[tool.run]} strokeWidth={3 * px} strokeLinejoin="round" />
+    );
+  }
   if (tool.kind === 'drawAisle') {
     if (!tool.points.length) return <circle cx={p.x} cy={p.y} r={defaultWidth(tool.aisle) / 2} fill={AISLE_KINDS[tool.aisle].fill} fillOpacity={0.15} pointerEvents="none" />;
     const last = tool.points[tool.points.length - 1];
@@ -1283,7 +1300,7 @@ function entryState(tool: Tool, p: Vec2): { fields: EntryField[]; entry: Entry; 
     const b = rectCorner(tool.start, p, tool.entry);
     return { fields: ENTRY_FIELDS.drawRoomRect, entry: tool.entry, live: [Math.abs(b.x - tool.start.x) / 10, Math.abs(b.y - tool.start.y) / 10], at: b };
   }
-  if (tool.kind === 'drawAisle' && tool.points.length) {
+  if ((tool.kind === 'drawAisle' || tool.kind === 'drawRun') && tool.points.length) {
     const last = tool.points[tool.points.length - 1];
     const e = wallEnd(last, p, tool.entry);
     const d = { x: e.x - last.x, y: e.y - last.y };
@@ -1427,16 +1444,18 @@ function OpeningShape({ symbol, px, stroke }: { symbol: OpeningSymbol; px: numbe
 /** What each tool is called and how it is used: shown by the "?" button beside the zoom controls. */
 const HINTS: Record<string, { name: string; tips: string[] }> = {
   select: { name: 'เลือก / ย้าย', tips: ['คลิกเพื่อเลือก', 'ลากเพื่อย้าย', 'R หมุน 90° • Q / E หมุน 15°', 'Ctrl+D ทำสำเนา', 'ดับเบิลคลิกผนังเพื่อใส่ประตู', 'Alt ค้างไว้ = ไม่ดูดเข้าหาผนัง'] },
-  drawWall: { name: 'วาดผนัง', tips: ['คลิกเพื่อวางจุด', 'พิมพ์ความยาว (ซม.) แล้ว Enter', 'Tab แล้วพิมพ์มุม (°)', 'Esc จบ'] },
-  drawRoomRect: { name: 'วาดห้อง', tips: ['คลิกมุมแรก แล้วคลิกมุมตรงข้าม', 'หรือพิมพ์กว้าง • Tab • ลึก (ซม.) แล้ว Enter', 'มีภาพแปลน: มุมดูดเข้าหาเส้นในรูป'] },
+  drawWall: { name: 'วาดผนัง', tips: ['คลิกเพื่อวางจุด', 'พิมพ์ความยาว (ม.) แล้ว Enter', 'Tab แล้วพิมพ์มุม (°)', 'Esc จบ'] },
+  drawRoomRect: { name: 'วาดห้อง', tips: ['คลิกมุมแรก แล้วคลิกมุมตรงข้าม', 'หรือพิมพ์กว้าง • Tab • ลึก (ม.) แล้ว Enter', 'มีภาพแปลน: มุมดูดเข้าหาเส้นในรูป'] },
   drawArea: {
     name: 'พื้นที่',
     tips: ['กล่อง: คลิก 2 มุม', 'ทีละจุด: คลิกวางจุด กลับมาจุดแรกเพื่อปิดรอบ', 'มีภาพแปลน: มุมดูดเข้าหาเส้นในรูป', 'Enter / ดับเบิลคลิก ปิดรอบ • Esc จบ'],
   },
   drawAisle: {
     name: 'ทางเดิน / ทิศทางงาน',
-    tips: ['คลิกวางจุดตามแนวกลางทาง', 'ลูกศรชี้ไปทางจุดสุดท้าย', 'พิมพ์ความยาว (ซม.) • Tab มุม', 'Enter / ดับเบิลคลิก / คลิกจุดเดิม จบเส้น', 'ปรับความกว้างที่แผงขวา'],
+    tips: ['คลิกวางจุดตามแนวกลางทาง', 'ลูกศรชี้ไปทางจุดสุดท้าย', 'พิมพ์ความยาว (ม.) • Tab มุม', 'Enter / ดับเบิลคลิก / คลิกจุดเดิม จบเส้น', 'ปรับความกว้างที่แผงขวา'],
   },
+  drawRun: { name: 'วาดสายไฟ / ท่อ', tips: ['คลิกวางจุดตามแนวเดิน', 'เริ่มจากตู้ MDB หรือปั๊มลม จบใกล้เครื่อง', 'พิมพ์ความยาว (ม.) • Tab มุม', 'Enter / ดับเบิลคลิก จบเส้น'] },
+  pickRoute: { name: 'กำหนดโฟลว์งาน', tips: ['คลิกเครื่องตามลำดับงาน', 'คลิกซ้ำเพื่อเอาออก', 'Enter / Esc จบ'] },
   placeObject: { name: 'วางเครื่อง', tips: ['คลิกเพื่อวาง (ติดผนังให้เอง) วางแล้วกลับเป็นเมาส์ปกติ', 'Alt ค้างไว้ = ไม่ติดผนัง', 'Esc ยกเลิก'] },
   addOpening: { name: 'ประตู / หน้าต่าง', tips: ['คลิกบนผนังเพื่อวาง', 'ขยับเมาส์ไปฝั่งที่ต้องการให้ประตูเปิด', 'F สลับด้านบานพับ'] },
   placeColumn: { name: 'เสา', tips: ['คลิกเพื่อวางเสา (ติดตาราง)', 'วางต่อได้หลายต้น', 'Esc จบ'] },
@@ -1455,7 +1474,7 @@ const GENERAL_TIPS = ['Ctrl+Z เลิกทำ • Ctrl+Y ทำซ้ำ', 'D
 /** The one-key tools, as the help lists them. */
 const SHORTCUT_TIPS = [
   ...SHORTCUTS.filter((x) => x.key !== 'm').map((x) => `${x.key === 'space' ? 'Space / M' : x.key.toUpperCase()} ${x.label}`),
-  `${CATALOG_KEY.toUpperCase()} เปิด/ปิดคลังเครื่องจักร`,
+  `${CATALOG_KEY.toUpperCase()} เปิด/ปิดแผงเครื่องจักร`,
   'R หมุน 90° • Q / E หมุน 15° • M ยกไปวางที่ใหม่ (เมื่อเลือกเครื่อง)',
   'Shift+Z พอดีจอ',
 ];

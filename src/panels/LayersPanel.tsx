@@ -129,8 +129,10 @@ export function LayersPanel() {
   return (
     <div className="dock-body" data-testid="layers">
       <div className="lyr-head">
-        <Icon name="layers" />
-        <b>เลเยอร์</b>
+        <button className="ib sm" onClick={() => useUi.getState().set({ dock: 'building' })} title="กลับ" aria-label="กลับ" data-testid="layers-back">
+          <Icon name="back" />
+        </button>
+        <b>รายการในผัง</b>
         <span className="muted">{total} รายการ</span>
       </div>
       <div className="search">

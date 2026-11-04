@@ -3,7 +3,8 @@ import { checkClearance } from './clearance';
 import { catalogItem } from './catalog';
 import { addPolygon } from './plan';
 import { newProject } from './project';
-import { safetyOf } from './safety';
+import { builtInSafety, safetyOf } from './safety';
+import { defaultUtilities, setActiveUtilities, setLinkedUtilities } from './utilities';
 import type { PlacedObject } from './types';
 
 const machine = (assetId: string, x: number, y: number): PlacedObject => {
@@ -26,6 +27,23 @@ const hall = () => {
 const safety = (p: ReturnType<typeof hall>, id: string) => (checkClearance(p).get(id as PlacedObject['id']) ?? []).filter((i) => i.kind === 'safety');
 
 describe('safety distances', () => {
+  it('takes the distances set on the admin page over Mastrox\'s, for that machine only', () => {
+    const s = defaultUtilities();
+    s.safety = { 'rakete-3500a': { front: 3000, back: 500, left: 800, right: 800 } };
+    setActiveUtilities(s);
+    try {
+      expect(safetyOf('rakete-3500a')).toEqual({ front: 3000, back: 500, left: 800, right: 800 });
+      expect(safetyOf('rakete-3500ant')).toEqual(builtInSafety('rakete-3500ant'));
+      // A plan from a share link follows the sender's settings while it is open.
+      setLinkedUtilities({ ...defaultUtilities(), safety: { 'rakete-3500a': { front: 1000, back: 0, left: 0, right: 0 } } });
+      expect(safetyOf('rakete-3500a')!.front).toBe(1000);
+    } finally {
+      setLinkedUtilities(null);
+      setActiveUtilities(defaultUtilities());
+    }
+    expect(safetyOf('rakete-3500a')!.front).toBe(2400);
+  });
+
   it('gives each machine family its own distances', () => {
     expect(safetyOf('rakete-3500a')).toEqual({ front: 2400, back: 1000, left: 2400, right: 2400 });
     expect(safetyOf('booster-e6')).toEqual({ front: 2400, back: 1500, left: 2400, right: 2400 });

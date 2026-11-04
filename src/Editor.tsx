@@ -1,18 +1,22 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { keyLetter, toolKey } from './editor2d/shortcuts';
-import { QuoteCard } from './panels/QuoteCard';
+import { BoardCard } from './panels/BoardCard';
 import { PlanEditor } from './editor2d/PlanEditor';
 import { Icon, Toolbar } from './editor2d/Toolbar';
 import { deleteSelection, dispatchKey, objectKey } from './editor2d/tools';
 import { CatalogPanel } from './panels/CatalogPanel';
+import { SummaryPanel, SystemsPanel } from './panels/AdvisorPanel';
+import { BuildingPanel } from './panels/BuildingPanel';
 import { LayersPanel } from './panels/LayersPanel';
+import { StarterDialog } from './panels/StarterDialog';
 import { PropertiesPanel } from './panels/PropertiesPanel';
 import { ProjectInfo } from './panels/ProjectInfo';
 import { download, planPicture, shownScale, svgBlob, toPng } from './editor2d/exportImage';
+import { fmtBaht, quoteOf } from './model/quote';
 import { exportProject, flushAutosave } from './store/persist';
 import { useProject } from './store/project';
 import { createShare, lastSender, shareUrl } from './store/share';
-import { SELECT, setSnapReach, SNAP_REACH, useUi, type SnapReach, type ViewMode } from './store/ui';
+import { SELECT, useUi, type Dock, type ViewMode } from './store/ui';
 import { shareDialog } from './ui/Dialog';
 
 import { Loading3D } from './ui/Loading3D';
@@ -77,57 +81,43 @@ function useKeyboard() {
 
 const VIEWS: { id: ViewMode; label: string; icon: string }[] = [
   { id: '2d', label: '2D', icon: 'view2d' },
-  { id: 'split', label: 'แบ่งจอ', icon: 'split' },
   { id: '3d', label: '3D', icon: 'view3d' },
 ];
 
-/** A small magnet that turns snapping on and off, with how far it reaches on screen beside it (5 / 10 / 20 px). */
-function SnapControl() {
-  const snapOn = useUi((s) => s.snapOn);
-  const reach = useUi((s) => s.snapReach);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
-    window.addEventListener('pointerdown', close, true);
-    return () => window.removeEventListener('pointerdown', close, true);
-  }, [open]);
+/** The four steps of a proposal, in the order the work goes. A customer on a share link gets the two that are theirs. */
+const STEPS: { id: Dock; label: string; icon: string; seller?: boolean }[] = [
+  { id: 'building', label: 'อาคาร', icon: 'factory', seller: true },
+  { id: 'catalog', label: 'เครื่องจักร', icon: 'machine' },
+  { id: 'systems', label: 'งานระบบ', icon: 'elec', seller: true },
+  { id: 'summary', label: 'สรุป', icon: 'report' },
+];
+
+function StepNav() {
+  const dock = useUi((s) => s.dock);
+  const customer = useUi((s) => !!s.customer);
   return (
-    <div className={`snap-ctl tb-desk${snapOn ? ' on' : ''}`} ref={ref}>
-      <button
-        className="snap-toggle"
-        onClick={() => useUi.getState().set({ snapOn: !snapOn })}
-        aria-pressed={snapOn}
-        title={`Snap ${snapOn ? 'เปิด' : 'ปิด'}: ดูดเข้าหากริด มุม ผนัง และเครื่องข้างๆ (กด Alt ค้างเพื่อวางอิสระ)`}
-        data-testid="snap-toggle"
-      >
-        <Icon name="snap" />
-      </button>
-      <button className="snap-reach" onClick={() => setOpen(!open)} aria-expanded={open} title="ระยะดูด: ดูดเมื่อเมาส์อยู่ใกล้กว่ากี่พิกเซลบนจอ" data-testid="snap-reach">
-        {snapOn ? SNAP_REACH[reach].label : 'ปิด'}
-      </button>
-      {open && (
-        <div className="snap-menu glass" role="menu">
-          <div className="snap-menu-title">ระยะดูด (บนจอ)</div>
-          {(Object.keys(SNAP_REACH) as SnapReach[]).map((r) => (
-            <button
-              key={r}
-              role="menuitemradio"
-              aria-checked={snapOn && reach === r}
-              className={snapOn && reach === r ? 'on' : undefined}
-              onClick={() => (setSnapReach(r), setOpen(false))}
-              data-testid={`snap-${r}`}
-            >
-              {SNAP_REACH[r].label}
-            </button>
-          ))}
-          <button role="menuitemradio" aria-checked={!snapOn} className={!snapOn ? 'on' : undefined} onClick={() => (useUi.getState().set({ snapOn: false }), setOpen(false))}>
-            ปิด
+    <nav className="step-nav" aria-label="ขั้นตอน" data-testid="step-nav">
+      {STEPS.filter((s) => !customer || !s.seller).map((s) => {
+        const on = dock === s.id || (s.id === 'building' && dock === 'layers');
+        return (
+          <button key={s.id} className={on ? 'on' : undefined} onClick={() => useUi.getState().toggleDock(s.id)} aria-pressed={on} data-testid={`dock-${s.id}`}>
+            <Icon name={s.icon} />
+            <span>{s.label}</span>
           </button>
-        </div>
-      )}
-    </div>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** What the layout comes to so far; a click opens the summary with the quotation. */
+function PriceChip() {
+  const project = useProject((s) => s.project!);
+  const total = useMemo(() => quoteOf(project).total, [project]);
+  return (
+    <button className="tb-price" onClick={() => useUi.getState().set({ dock: 'summary', summaryTab: 'score' })} title="ราคารวมเครื่องจักร" data-testid="price-chip">
+      {fmtBaht(total)}
+    </button>
   );
 }
 
@@ -245,7 +235,7 @@ function MainMenu() {
     };
   }, [open]);
   const p = useProject((s) => s.project!);
-  const hasPlan = useUi((s) => s.view !== '3d');
+  const hasPlan = useUi((s) => s.view === '2d');
   const customer = useUi((s) => !!s.customer);
   return (
     <div className="tb-menu" ref={root}>
@@ -264,6 +254,11 @@ function MainMenu() {
           <button role="menuitem" onClick={() => (setOpen(false), void shareProject())} data-testid="menu-share">
             <Icon name={customer ? 'reply' : 'share'} /> {customer ? 'ส่งการจัดวางกลับเป็นลิงก์' : 'แชร์ลิงก์ให้ลูกค้า'}
           </button>
+          {!customer && (
+            <a role="menuitem" href="#/admin" data-testid="open-admin">
+              <Icon name="settings" /> ตั้งค่าระบบลมและไฟฟ้า
+            </a>
+          )}
           <button
             role="menuitem"
             onClick={() =>
@@ -277,7 +272,7 @@ function MainMenu() {
           <button
             role="menuitem"
             disabled={!hasPlan}
-            title={hasPlan ? undefined : 'เปิดมุมมอง 2D หรือแบ่งจอก่อน'}
+            title={hasPlan ? undefined : 'เปิดมุมมอง 2D ก่อน'}
             onClick={() => void savePlanPicture(p.name, 'png').then(() => setOpen(false))}
             data-testid="export-png"
           >
@@ -286,7 +281,7 @@ function MainMenu() {
           <button
             role="menuitem"
             disabled={!hasPlan}
-            title={hasPlan ? undefined : 'เปิดมุมมอง 2D หรือแบ่งจอก่อน'}
+            title={hasPlan ? undefined : 'เปิดมุมมอง 2D ก่อน'}
             onClick={() => void savePlanPicture(p.name, 'svg').then(() => setOpen(false))}
             data-testid="export-svg"
           >
@@ -298,55 +293,6 @@ function MainMenu() {
   );
 }
 
-/**
- * The three panel toggles: library, layers, details, in the top bar. On a phone the top bar drops them and the same
- * three ride at the end of the bottom row instead (the tool rail in 2D, the view buttons in 3D).
- */
-function PanelButtons({ className }: { className: string }) {
-  const dock = useUi((s) => s.dock);
-  const panelOpen = useUi((s) => s.panelOpen);
-  const calibrating = useUi((s) => s.tool.kind === 'calibrate');
-  const customer = useUi((s) => !!s.customer);
-  const showPanel = panelOpen && !calibrating;
-  const set = useUi.getState().set;
-  return (
-    <div className={`seg seg-icons seg-panels ${className}`} role="group" aria-label="แผง">
-      <button
-        className={dock === 'catalog' ? 'on' : ''}
-        onClick={() => useUi.getState().toggleDock('catalog')}
-        aria-pressed={dock === 'catalog'}
-        title="คลังโมเดล"
-        data-testid="dock-catalog"
-      >
-        <Icon name="machine" />
-        <span>คลังโมเดล</span>
-      </button>
-      {!customer && (
-        <button
-          className={dock === 'layers' ? 'on' : ''}
-          onClick={() => useUi.getState().toggleDock('layers')}
-          aria-pressed={dock === 'layers'}
-          title="เลเยอร์: รายการห้อง ผนัง เสา เครื่องจักร ซ่อน/ล็อก และไปดูได้"
-          data-testid="dock-layers"
-        >
-          <Icon name="layers" />
-          <span>เลเยอร์</span>
-        </button>
-      )}
-      <button
-        className={showPanel ? 'on' : ''}
-        onClick={() => set({ panelOpen: !showPanel })}
-        aria-pressed={showPanel}
-        title="รายละเอียด / ตั้งค่าโรงงาน"
-        data-testid="panel-toggle"
-      >
-        <Icon name="props" />
-        <span>รายละเอียด</span>
-      </button>
-    </div>
-  );
-}
-
 export function Editor() {
   useKeyboard();
   const canUndo = useProject((s) => s.past.length > 0);
@@ -354,7 +300,6 @@ export function Editor() {
   const view = useUi((s) => s.view);
   const dock = useUi((s) => s.dock);
   const panelOpen = useUi((s) => s.panelOpen);
-  const hasSelection = useUi((s) => !!s.selection || s.boxed.length > 0);
   const level = useProject((s) => s.level);
   // Floors are off for the MVP: the plan always shows floor 1. Set LEVELS_ON to bring the floor switch back.
   const hasUpper = useProject((s) => LEVELS_ON && !!s.project!.upper);
@@ -364,33 +309,30 @@ export function Editor() {
   const calibrating = useUi((s) => s.tool.kind === 'calibrate');
   // The right panel opens only when asked for: from the right-click menu or the button in the top bar.
   const showPanel = panelOpen && !calibrating;
+  const starterOpen = useUi((s) => s.starterOpen);
 
   return (
     <div className={`editor${dock && !calibrating ? ' with-dock' : ''}${calibrating ? ' calibrating' : ''}`}>
       <header className="topbar">
         <div className="tb-group tb-left">
           <MainMenu />
-          <div className="brand tb-desk">
-            <Icon name="factory" />
+          <div className="brand nf nf-logo tb-desk">
+            <i>[</i>neofurtech<i>]</i>
           </div>
           <ProjectInfo />
           <span className="tb-sep tb-desk" />
           <BarButton icon="undo" label="เลิกทำ (Ctrl+Z)" disabled={!canUndo} onClick={() => useProject.getState().undo()} />
           <BarButton icon="redo" label="ทำซ้ำ (Ctrl+Y)" disabled={!canRedo} onClick={() => useProject.getState().redo()} className="tb-desk" />
-          <BarButton icon="trash" label="ลบที่เลือก (Delete)" disabled={!hasSelection} onClick={deleteSelection} className="tb-desk tb-trash" />
-          <span className="tb-sep tb-desk" />
-          <SnapControl />
         </div>
         <div className="tb-center">
-          {/* A plain 2D/3D switch; side by side is a small extra beside it, for wide screens. */}
           <div className="seg seg-icons seg-view" role="tablist" aria-label="มุมมอง">
-            {VIEWS.filter((v) => v.id !== 'split').map((v) => (
+            {VIEWS.map((v) => (
               <button
                 key={v.id}
                 role="tab"
                 aria-selected={view === v.id}
                 className={view === v.id ? 'on' : ''}
-                onClick={() => set({ view: v.id })}
+                onClick={() => set(v.id === '2d' ? { view: '2d', simOn: false } : { view: '3d' })}
                 title={v.label}
                 data-testid={`view-${v.id}`}
               >
@@ -399,15 +341,6 @@ export function Editor() {
               </button>
             ))}
           </div>
-          <button
-            className={`ib split-toggle tb-desk${view === 'split' ? ' on' : ''}`}
-            onClick={() => set({ view: view === 'split' ? '2d' : 'split' })}
-            aria-pressed={view === 'split'}
-            title="แบ่งจอ: แปลน 2D กับ 3D ข้างกัน"
-            data-testid="view-split"
-          >
-            <Icon name="split" />
-          </button>
           {view !== '3d' && hasUpper && (
             <div className="seg" role="tablist" aria-label="ชั้น" title="ชั้นที่แสดงในแปลน 2D">
               {['ชั้น 1', 'ชั้น 2'].map((label, i) => (
@@ -426,6 +359,7 @@ export function Editor() {
           )}
         </div>
         <div className="tb-group tb-right">
+          <PriceChip />
           <button
             className="tb-toggle tb-accent"
             onClick={() => void shareProject()}
@@ -435,30 +369,33 @@ export function Editor() {
             <Icon name={customer ? 'reply' : 'share'} />
             <span>{customer ? 'ส่งกลับ' : 'แชร์ลิงก์'}</span>
           </button>
-          <span className="tb-sep tb-desk" />
-          <PanelButtons className="tb-desk" />
         </div>
       </header>
+      {!calibrating && <StepNav />}
       {dock && !calibrating && (
         <div className="dock-col">
           {/* Phones only: the panel is a sheet over the plan, closed from its corner. */}
           <button className="ib dock-close" onClick={() => set({ dock: null })} title="ปิด" aria-label="ปิด" data-testid="dock-close">
             <Icon name="close" />
           </button>
-          {dock === 'catalog' ? <CatalogPanel /> : <LayersPanel />}
+          {dock === 'catalog' && <CatalogPanel />}
+          {dock === 'building' && <BuildingPanel />}
+          {dock === 'systems' && <SystemsPanel />}
+          {dock === 'summary' && <SummaryPanel />}
+          {dock === 'layers' && <LayersPanel />}
         </div>
       )}
       <main className="viewport">
         <ShareBanner />
-        {!calibrating && <QuoteCard />}
+        {!calibrating && <BoardCard />}
         <div className={`panes view-${view}`}>
-          {view !== '3d' && (
+          {view === '2d' && (
             <div className="pane">
               <Toolbar />
               <PlanEditor />
             </div>
           )}
-          {view !== '2d' && (
+          {view === '3d' && (
             <div className="pane">
               <Suspense fallback={<Loading3D />}>
                 <View3D />
@@ -468,6 +405,7 @@ export function Editor() {
         </div>
       </main>
       {showPanel && <PropertiesPanel />}
+      {starterOpen && <StarterDialog />}
     </div>
   );
 }

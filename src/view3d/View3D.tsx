@@ -14,6 +14,7 @@ import { IssuesChip, useTroubled } from '../panels/IssuesChip';
 import { HelpButton } from '../ui/HelpButton';
 import { Loading3D } from '../ui/Loading3D';
 import { ObjectActions, RotateScrub } from '../editor2d/ObjectActions';
+import { SimOverlay } from './SimOverlay';
 
 /** The 3D pane: the factory, with the picked object highlighted. */
 export default function View3D() {
@@ -22,10 +23,11 @@ export default function View3D() {
   const project = useProject((s) => s.project!);
   const selection = useUi((s) => s.selection);
   const cutaway = useUi((s) => s.cutaway);
-  const dock = useUi((s) => s.dock);
-  const panelOpen = useUi((s) => s.panelOpen);
-  const customer = useUi((s) => !!s.customer);
   const areas = useUi((s) => !s.areasHidden);
+  const simOn = useUi((s) => s.simOn);
+  const roofOn = useUi((s) => s.roofOn);
+  const flowOn = useUi((s) => s.flowOn);
+  const hasRuns = useProject((s) => (s.project?.runs ?? []).some((r) => r.kind !== 'dust'));
   const [top, setTop] = useState(false);
   // Move mode: dragging a machine slides it over the floor, as on the plan.
   const moving = useUi((s) => s.move3d);
@@ -65,7 +67,9 @@ export default function View3D() {
   }, []);
 
   useEffect(() => {
-    if (started) sceneRef.current?.setProject(project);
+    if (!started) return;
+    sceneRef.current?.setShowcase(true);
+    sceneRef.current?.setProject(project);
   }, [project, started]);
   useEffect(() => {
     if (!started) return;
@@ -99,6 +103,8 @@ export default function View3D() {
   useEffect(() => sceneRef.current?.setSafety(safetyAll, troubled.filter((t) => t.safety).map((t) => t.id)), [safetyAll, troubled, started]);
   useEffect(() => sceneRef.current?.setOptions({ cutaway, areas }), [cutaway, areas]);
   useEffect(() => sceneRef.current?.setTopView(top), [top]);
+  useEffect(() => sceneRef.current?.setRoof(roofOn), [roofOn, started]);
+  useEffect(() => sceneRef.current?.setFlow(flowOn), [flowOn, started]);
 
   const down = useRef<{ x: number; y: number } | null>(null);
   /** A machine being dragged over the floor: which, and where under it the pointer took hold. */
@@ -157,7 +163,7 @@ export default function View3D() {
       // Snaps flush to walls and neighbours the way the plan does, unless snapping is off or Alt is held.
       const pose =
         useUi.getState().snapOn && !e.altKey
-          ? snapObject(p.plan, p.objects, o, target, 250 * SNAP_REACH[useUi.getState().snapReach].factor)
+          ? snapObject(p.plan, p.objects, o, target, 250 * SNAP_REACH[useUi.getState().snapReach].factor, Object.values(p.columns ?? {}))
           : { ...target, z: o.z, rotation: o.rotation, guides: [] };
       moveWithStack(p.objects, d.id, pose);
     });
@@ -180,6 +186,7 @@ export default function View3D() {
     // A locked object can't be picked here either, the same as on the plan.
     const locked = hit.object && project.objects.find((o) => o.id === hit.object)?.locked;
     // A click on nothing also tucks the panel away, even when it was opened by hand.
+    if (hit.run) return useUi.getState().set({ selection: { kind: 'run', id: hit.run.id, seg: hit.run.seg } });
     useUi.getState().set(hit.object && !locked ? { selection: { kind: 'object', id: hit.object as never } } : { selection: null, panelOpen: false });
   };
   const onDouble = (e: React.MouseEvent) => {
@@ -203,6 +210,7 @@ export default function View3D() {
         onDrop={onDrop}
         data-testid="view3d"
       />
+      {simOn && started && sceneRef.current && <SimOverlay scene={sceneRef.current} project={project} />}
       <div className="view-tools glass">
         {/* The move switch sits with the view buttons but in its own colour: it changes what a drag does. */}
         <button
@@ -219,23 +227,35 @@ export default function View3D() {
             <Icon name="rotate" />
           </button>
         )}
+        <button
+          className={`ib sm sim-3d${simOn ? ' on' : ''}`}
+          onClick={() => useUi.getState().set({ simOn: !simOn })}
+          title="จำลองไลน์ผลิต"
+          aria-pressed={simOn}
+          data-testid="sim-3d"
+        >
+          <Icon name={simOn ? 'pause' : 'play'} />
+        </button>
+        {hasRuns && (
+          <button
+            className={`ib sm${flowOn ? ' on' : ''}`}
+            onClick={() => useUi.getState().set({ flowOn: !flowOn })}
+            title={flowOn ? 'หยุดแสดงการไหลของลมและไฟ' : 'แสดงการไหลของลมและไฟ'}
+            aria-pressed={flowOn}
+            data-testid="flow-3d"
+          >
+            <Icon name="elec" />
+          </button>
+        )}
         <span className="view-tools-sep" />
         <button
-          className={`ib sm${safetyAll ? ' on' : ''}`}
-          onClick={() => useUi.getState().set({ safetyAll: !safetyAll })}
-          title={safetyAll ? 'ระยะปลอดภัย: แสดงทุกเครื่อง · คลิกเพื่อแสดงเฉพาะเครื่องที่เลือก' : 'แสดงระยะปลอดภัยรอบทุกเครื่อง'}
-          aria-pressed={safetyAll}
-          data-testid="safety-3d"
+          className={`ib sm${roofOn ? ' on' : ''}`}
+          onClick={() => useUi.getState().set({ roofOn: !roofOn })}
+          title={roofOn ? 'ซ่อนคานหลังคา' : 'แสดงคานหลังคา'}
+          aria-pressed={roofOn}
+          data-testid="roof-3d"
         >
-          <Icon name="shield" />
-        </button>
-        <button
-          className={`ib sm${cutaway ? ' on' : ''}`}
-          onClick={() => useUi.getState().set({ cutaway: !cutaway })}
-          title="ผนังเตี้ย (เปิด/ปิด): ลดผนังลงเกือบติดพื้น เห็นห้องและประตูชัด"
-          aria-pressed={cutaway}
-        >
-          <Icon name="cut" />
+          <Icon name="house" />
         </button>
         <button className={`ib sm${top ? ' on' : ''}`} onClick={() => setTop(!top)} title="มุมมองจากด้านบน (Top view)" aria-pressed={top} data-testid="top-view">
           <Icon name="topView" />
@@ -251,47 +271,16 @@ export default function View3D() {
         >
           <Icon name="image" />
         </button>
-        {/* Phones only: the panel toggles from the top bar sit here, so the bottom is one row of buttons. */}
-        <span className="view-tools-sep tb-phone" />
-        <button
-          className={`ib sm tb-phone${dock === 'catalog' ? ' on' : ''}`}
-          onClick={() => useUi.getState().toggleDock('catalog')}
-          title="คลังโมเดล"
-          aria-pressed={dock === 'catalog'}
-          data-testid="dock-catalog-3d"
-        >
-          <Icon name="machine" />
-        </button>
-        {!customer && (
-          <button
-            className={`ib sm tb-phone${dock === 'layers' ? ' on' : ''}`}
-            onClick={() => useUi.getState().toggleDock('layers')}
-            title="เลเยอร์"
-            aria-pressed={dock === 'layers'}
-            data-testid="dock-layers-3d"
-          >
-            <Icon name="layers" />
-          </button>
-        )}
-        <button
-          className={`ib sm tb-phone${panelOpen ? ' on' : ''}`}
-          onClick={() => useUi.getState().set({ panelOpen: !panelOpen })}
-          title="รายละเอียด / ตั้งค่าโรงงาน"
-          aria-pressed={panelOpen}
-          data-testid="panel-toggle-3d"
-        >
-          <Icon name="props" />
-        </button>
         <span className="view-tools-sep" />
         <HelpButton
           className="tools-help"
           sections={[
             moving
-              ? { title: 'โหมดย้ายเครื่อง', items: ['ลากเครื่องเพื่อย้าย', 'R หรือปุ่มหมุน หมุน 90°', 'ลากพื้นว่างเพื่อหมุนมุมมอง', 'ลากการ์ดจากคลังมาวางบนพื้นได้'] }
+              ? { title: 'โหมดย้ายเครื่อง', items: ['ลากเครื่องเพื่อย้าย', 'R หรือปุ่มหมุน หมุน 90°', 'ลากพื้นว่างเพื่อหมุนมุมมอง', 'ลากเครื่องจากแผงซ้ายมาวางบนพื้นได้'] }
               : top
                 ? { title: 'มุมมองด้านบน', items: ['ลากเพื่อเลื่อน'] }
                 : { title: 'มุมมอง 3D', items: ['ลากเพื่อหมุน', 'คลิกขวาลากเพื่อเลื่อน'] },
-            { title: 'ทั่วไป', items: ['ลูกกลิ้งซูม', 'คลิกเครื่องเพื่อดูรูปและขนาด', 'ดับเบิลคลิกเพื่อซูมไปจุดนั้น', 'ปุ่มน้ำเงินด้านขวาล่าง = โหมดย้ายเครื่อง'] },
+            { title: 'ทั่วไป', items: ['ลูกกลิ้งซูม', 'คลิกเครื่องเพื่อดูรูปและขนาด', 'ดับเบิลคลิกเพื่อซูมไปจุดนั้น', 'ปุ่มน้ำเงิน = โหมดย้ายเครื่อง'] },
           ]}
         />
       </div>

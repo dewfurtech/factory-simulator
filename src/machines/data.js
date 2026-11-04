@@ -202,17 +202,17 @@ export const MACHINES = [
   },
   {
     id: 'vair-10', model3d: 'index.html?m=vair-10', cat: 'other', name: 'VAir 10HP set', kind: 'Air Compressor', price: 125000,
-    size: [800, 550, 740], weight: 145,
-    summary: 'ปั๊มลมสกรูอินเวอร์เตอร์ + ถัง 600 L + dryer + filter ×2',
+    size: [800, 550, 740], weight: 110,
+    summary: 'ปั๊มลมสกรูอินเวอร์เตอร์ + ถัง 600 L + dryer + filter ×3',
     look: 'สีเขียวมะนาว ลาย V ขาว (ขนาดคือตัวปั๊ม VDSD10)',
-    specs: { 'FAD': '0.54–1.35 m³/min', 'Power': '7.5 kW' },
+    specs: { 'Compressor': 'DHF-10PM', 'FAD': '0.54–1.35 m³/min', 'Pressure': '0.7 MPa (0.6–0.8)', 'Power': '7.5 kW', 'Supply': '380 V 50 Hz, inverter start', 'Outlet': 'ZG 1/2"', 'Noise': '62±2 dB(A)' },
   },
   {
     id: 'vair-20', model3d: 'index.html?m=vair-20', cat: 'other', name: 'VAir 20HP set', kind: 'Air Compressor', price: 165000,
-    size: [940, 630, 840], weight: 235,
-    summary: 'ปั๊มลมสกรูอินเวอร์เตอร์ + ถัง 600 L + dryer + filter ×2',
+    size: [940, 630, 840], weight: 200,
+    summary: 'ปั๊มลมสกรูอินเวอร์เตอร์ + ถัง 600 L + dryer + filter ×3',
     look: 'สีเขียวมะนาว ลาย V ขาว (ขนาดคือตัวปั๊ม VDSD20)',
-    specs: { 'FAD': '1.04–2.6 m³/min', 'Power': '15 kW' },
+    specs: { 'Compressor': 'DHF-20PM', 'FAD': '1.04–2.6 m³/min', 'Pressure': '0.7 MPa (0.6–0.8)', 'Power': '15 kW', 'Supply': '380 V 50 Hz, inverter start', 'Outlet': 'ZG 1"', 'Noise': '65±2 dB(A)' },
   },
 
   // Not in lineup V6

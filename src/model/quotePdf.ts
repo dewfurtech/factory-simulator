@@ -18,7 +18,7 @@ const LINE = { r: 0.87, g: 0.89, b: 0.92 };
 const COLS = { no: 0, item: 28, qty: 330, unit: 410, amount: 500 };
 
 let fontsPromise: Promise<{ regular: ArrayBuffer; bold: ArrayBuffer }> | null = null;
-const loadFonts = () =>
+export const loadFonts = () =>
   (fontsPromise ??= Promise.all(
     ['IBMPlexSansThai-Regular.ttf', 'IBMPlexSansThai-Bold.ttf'].map((f) =>
       fetch(`${import.meta.env.BASE_URL}fonts/${f}`).then((r) => {

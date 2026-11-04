@@ -1,4 +1,4 @@
-import { catalogItem, needsOperator, spotsOf } from './catalog';
+import { catalogItem, isStaging, needsOperator, spotsOf } from './catalog';
 import { levelZ, onLevel, planOf } from './levels';
 import { findCollisions, objectObb, obbOverlap, wallObb, type Obb } from './objects';
 import { roomOf, roomTop } from './plan';
@@ -6,7 +6,7 @@ import { aisleBoxes, planAisles } from './aisles';
 import { walkwaysOf } from './walkways';
 import type { Id, Mm, PlacedObject, Project } from './types';
 import { fromAngle, perp } from './vec';
-import { safetyBox } from './safety';
+import { safetyBox, safetyStrips } from './safety';
 
 /**
  * Whether what is placed on the plan can really stand there: two things in one spot, a thing through a wall, one
@@ -76,8 +76,9 @@ export function checkClearance(project: Project): Map<Id, Issue[]> {
       if (blocked) add(o.id, { kind: 'spot' });
       const zone = safetyBox(o);
       if (zone) {
-        const i = objects.findIndex((x, j) => x.id !== o.id && obbOverlap(zone, obbs[j], TOUCH));
-        if (walls.some((w) => obbOverlap(zone, w, TOUCH))) add(o.id, { kind: 'safety', what: 'ผนัง' });
+        // A pallet or trolley waiting at the machine is meant to be inside its distances.
+        const i = objects.findIndex((x, j) => x.id !== o.id && !isStaging(x) && obbOverlap(zone, obbs[j], TOUCH));
+        if (safetyStrips(o).some((strip) => walls.some((w) => obbOverlap(strip, w, TOUCH)))) add(o.id, { kind: 'safety', what: 'ผนัง' });
         else if (i >= 0) add(o.id, { kind: 'safety', what: label(objects[i]) });
       }
     }

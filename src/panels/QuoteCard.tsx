@@ -5,7 +5,7 @@ import { useProject } from '../store/project';
 import { QuotePreview } from './QuotePreview';
 
 /**
- * The layout's price, floating over the top-right of the view: every machine on the plan at its list price, and a
+ * The layout's price in the summary step: every machine on the plan at its list price, and a
  * button that opens the quotation to look over and save as a PDF file. Machines the price list has no price for are counted beside the sum, not in it.
  * A click on the machine count opens the list: each model, how many, and what they come to.
  */
@@ -35,7 +35,7 @@ export function QuoteCard() {
   }, [open]);
 
   return (
-    <aside className={`quote-card glass${open ? ' open' : ''}`} data-testid="quote-total" aria-label="ราคารวม" ref={root}>
+    <aside className={`quote-card${open ? ' open' : ''}`} data-testid="quote-total" aria-label="ราคารวม" ref={root}>
       <div className="qc-label">
         ราคารวมเครื่องจักร
         {pieces > 0 && (

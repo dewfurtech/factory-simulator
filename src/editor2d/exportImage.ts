@@ -92,7 +92,7 @@ export async function planPicture(svg: SVGSVGElement, project: Project, scale: n
   clone.setAttribute('viewBox', `${ext.min.x} ${ext.min.y} ${w} ${h}`);
   clone.setAttribute('width', String(width));
   clone.setAttribute('height', String(height));
-  clone.setAttribute('font-family', "'IBM Plex Sans Thai', 'Noto Sans Thai', system-ui, sans-serif");
+  clone.setAttribute('font-family', "Sarabun, 'Noto Sans Thai', system-ui, sans-serif");
   const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   bg.setAttribute('x', String(ext.min.x));
   bg.setAttribute('y', String(ext.min.y));
