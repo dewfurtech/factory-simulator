@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { SnapResult } from '../model/snap';
 import type { OpeningPresetId } from '../model/openings';
-import type { AisleKind, Column, Id, Mm, PlacedObject, Vec2 } from '../model/types';
+import type { AisleKind, Column, Id, Mm, PlacedObject, Vec2, UtilityKind } from '../model/types';
 import type { Entry } from '../editor2d/entry';
 
 export type Selection =
@@ -12,7 +12,9 @@ export type Selection =
   | { kind: 'object'; id: Id }
   | { kind: 'column'; id: Id }
   | { kind: 'area'; id: Id }
-  | { kind: 'aisle'; id: Id };
+  | { kind: 'aisle'; id: Id }
+  /** A cable or pipe run: the stretch clicked on, or the point picked on it. */
+  | { kind: 'run'; id: Id; seg?: number; node?: number };
 
 export type Drag =
   /** `origin` is where the press began, until the pointer has gone far enough for the corner to start moving. */
@@ -25,6 +27,8 @@ export type Drag =
   /** `carry`: picked up from the right-click menu; it follows the pointer with no button held until the next click. */
   | { kind: 'object'; id: Id; grab: Vec2; carry?: boolean }
   | { kind: 'column'; id: Id; grab: Vec2 }
+  /** A point of a run being moved; one pulled out of a stretch was added there as the drag began. */
+  | { kind: 'runNode'; id: Id; index: number; origin?: Vec2; insert?: boolean }
   | { kind: 'box'; from: Vec2; to: Vec2 };
 
 export type ColumnSpec = Pick<Column, 'shape' | 'w' | 'd' | 'h'>;
@@ -38,6 +42,9 @@ export type Tool =
   | { kind: 'drawArea'; mode: 'box' | 'poly'; start: Vec2 | null; points: Vec2[]; entry: Entry }
   /** Lays an aisle (or a flow arrow) along a centre line, point by point; Enter, a double-click or Esc ends it. */
   | { kind: 'drawAisle'; aisle: AisleKind; points: Vec2[]; entry: Entry }
+  | { kind: 'drawRun'; run: UtilityKind; points: Vec2[]; entry: Entry }
+  /** Clicking machines in the order the work goes through them. */
+  | { kind: 'pickRoute'; started: boolean }
   | { kind: 'placeObject'; assetId: string }
   | { kind: 'addOpening'; preset: OpeningPresetId; hingeEnd: boolean; openB: boolean }
   | { kind: 'placeColumn'; spec: ColumnSpec }
@@ -49,8 +56,11 @@ export type Tool =
   | { kind: 'moveUnderlay'; grab: Vec2 | null };
 
 export type ToolKind = Tool['kind'];
-export type ViewMode = '2d' | '3d' | 'split';
-export type Dock = 'catalog' | 'layers';
+export type ViewMode = '2d' | '3d';
+/** The left panel: the four steps of the work, and the list of everything on the plan reached from the building step. */
+export type Dock = 'building' | 'catalog' | 'systems' | 'summary' | 'layers';
+export type SystemTab = 'route' | 'power' | 'air' | 'dust';
+export type SummaryTab = 'score' | 'prep' | 'delivery' | 'compare';
 
 /** A plan opened from a share link: the customer view, where only the machines and equipment can be moved. */
 export interface CustomerMode {
@@ -147,8 +157,23 @@ interface UiState {
   goto: { sel: Selection; n: number } | null;
   /** Holding the peek key or button: the drawing fades so the plan image beneath it can be checked against. */
   peek: boolean;
-  /** Add-ons ticked in the catalog: every machine put down from now on that offers one comes with it. */
-  placeAddons: string[];
+  /** The pages open in the systems and summary steps; the plan draws what the page is about. */
+  systemTab: SystemTab;
+  summaryTab: SummaryTab;
+  /** The plan image's bar along the bottom of the plan. */
+  underlayOpen: boolean;
+  /** The machine whose way in from the yard the plan draws, on the delivery page. */
+  deliveryFocus: string | null;
+  /** The starter questions open over the editor. */
+  starterOpen: boolean;
+  /** The line running in the 3D view. */
+  simOn: boolean;
+  /** The roof trusses and lamps in the 3D view; off, the floor is clear to read. */
+  roofOn: boolean;
+  /** Air and current shown moving along the pipes and cables, in 2D and 3D. */
+  flowOn: boolean;
+  /** Bumped to ask the plan to fit the whole building on screen. */
+  fitN: number;
   /** Selects something and asks the open views to move to it. */
   goTo(sel: Selection): void;
   set(patch: Partial<Omit<UiState, 'set' | 'setTool' | 'toggleDock' | 'goTo'>>): void;
@@ -186,7 +211,15 @@ export const useUi = create<UiState>((set) => ({
   bannerClosed: false,
   goto: null,
   peek: false,
-  placeAddons: [],
+  systemTab: 'route',
+  summaryTab: 'score',
+  underlayOpen: false,
+  deliveryFocus: null,
+  starterOpen: false,
+  simOn: false,
+  roofOn: false,
+  flowOn: true,
+  fitN: 0,
   goTo: (sel) => set((s) => ({ selection: sel, boxed: [], goto: { sel, n: (s.goto?.n ?? 0) + 1 } })),
   set: (patch) => set('selection' in patch && !('boxed' in patch) ? { ...patch, boxed: [] } : patch),
   setTool: (tool) => set({ tool, cursor: null, placeGhost: null, objectGuides: [], hoverId: null }),

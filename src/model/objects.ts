@@ -1,4 +1,4 @@
-import type { Id, Mm, PlacedObject, Plan, Vec2, Wall } from './types';
+import type { Column, Id, Mm, PlacedObject, Plan, Vec2, Wall } from './types';
 import { add, cross, dot, fromAngle, len, perp, pointInPolygon, rotate, scale, sub, wrapAngle, norm } from './vec';
 import { safetyToward } from './safety';
 
@@ -95,7 +95,7 @@ export interface ObjectSnap {
 /** How far past their safety distances (mm) two machines still snap to each other; any further apart, they ignore each other. */
 const NEAR: Mm = 1000;
 
-export function snapObject(plan: Plan, others: readonly PlacedObject[], moving: PlacedObject, target: Vec2, radius: Mm): ObjectSnap {
+export function snapObject(plan: Plan, others: readonly PlacedObject[], moving: PlacedObject, target: Vec2, radius: Mm, columns: readonly Column[] = []): ObjectSnap {
   let pos = { ...target };
   const rotation = moving.rotation;
   const guides: ObjectSnap['guides'] = [];
@@ -149,6 +149,21 @@ export function snapObject(plan: Plan, others: readonly PlacedObject[], moving: 
       guides.push({ from: second.face[0], to: second.face[1] });
       held.push(second.n);
     }
+  }
+
+  // A column it is pushed into (one standing in a corner, say) moves it out the shorter way, to beside the column.
+  for (const c of columns) {
+    if (c.hidden) continue;
+    const cu = fromAngle(c.rotation);
+    const cv = perp(cu);
+    const half = (axis: Vec2) => (c.shape === 'round' ? c.w / 2 : (Math.abs(dot(cu, axis)) * c.w + Math.abs(dot(cv, axis)) * c.d) / 2);
+    const rel = sub(pos, c);
+    const [pu, pv] = [ou, ov].map((axis) => halfAlong(axis) + half(axis) - Math.abs(dot(rel, axis)));
+    if (pu <= 0 || pv <= 0) continue;
+    const axis = pu <= pv ? ou : ov;
+    const sign = Math.sign(dot(rel, axis)) || 1;
+    const want = halfAlong(axis) + half(axis) + safetyToward(moving, scale(axis, -sign));
+    pos = add(pos, scale(axis, sign * want - dot(rel, axis)));
   }
 
   // Neighbours turned the same way (or a quarter turn off): on each side, touch them or line up with their edges.

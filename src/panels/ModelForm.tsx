@@ -68,7 +68,7 @@ export function ModelForm({ model, onClose }: Props) {
     onClose();
   };
 
-  const num = (key: keyof Size3, v: string) => setSize({ ...size, [key]: Math.max(0, Math.round(parseFloat(v) * 10) || 0) });
+  const num = (key: keyof Size3, v: string) => setSize({ ...size, [key]: Math.max(0, Math.round(parseFloat(v) * 1000) || 0) });
 
   return (
     <div className="dialog-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()} data-testid="model-form">
@@ -89,16 +89,16 @@ export function ModelForm({ model, onClose }: Props) {
         </label>
         <div className="mf-row">
           <label className="mf-field">
-            <span>กว้าง (ซม.)</span>
-            <input type="number" min={1} step={1} value={size.w / 10} onChange={(e) => num('w', e.target.value)} data-testid="mf-w" />
+            <span>กว้าง (ม.)</span>
+            <input type="number" min={1} step={0.01} value={size.w / 1000} onChange={(e) => num('w', e.target.value)} data-testid="mf-w" />
           </label>
           <label className="mf-field">
-            <span>ลึก (ซม.)</span>
-            <input type="number" min={1} step={1} value={size.d / 10} onChange={(e) => num('d', e.target.value)} data-testid="mf-d" />
+            <span>ลึก (ม.)</span>
+            <input type="number" min={1} step={0.01} value={size.d / 1000} onChange={(e) => num('d', e.target.value)} data-testid="mf-d" />
           </label>
           <label className="mf-field">
-            <span>สูง (ซม.)</span>
-            <input type="number" min={1} step={1} value={size.h / 10} onChange={(e) => num('h', e.target.value)} data-testid="mf-h" />
+            <span>สูง (ม.)</span>
+            <input type="number" min={1} step={0.01} value={size.h / 1000} onChange={(e) => num('h', e.target.value)} data-testid="mf-h" />
           </label>
         </div>
         <div className="mf-row">

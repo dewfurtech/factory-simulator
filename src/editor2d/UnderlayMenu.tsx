@@ -9,7 +9,6 @@ import { applyEdit, useProject } from '../store/project';
 import { SELECT, useUi } from '../store/ui';
 import { useImport } from '../store/importProgress';
 import { buildFromVector, scaleFromVector, vectorPlanFor } from './pdfVector';
-import { RailButton } from './Toolbar';
 import { traceUnderlay } from './traceUnderlay';
 import { closeLooseEnds, mergeDoubledWalls } from '../model/trace/close';
 import { EMPTY_ENTRY } from './entry';
@@ -49,11 +48,13 @@ const editUnderlay = (recipe: (u: Underlay) => void) =>
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
- * Rail button for the active storey's plan image, and its panel along the bottom of the plan: upload the image and the
- * walls, doors and windows are built from it. The panel stays up while the plan is worked on, until it is closed.
+ * The active storey's plan image: its panel along the bottom of the plan, opened from the building step. Upload the
+ * image and the walls, doors and windows are built from it. The panel stays up while the plan is worked on, until it
+ * is closed.
  */
 export function UnderlayMenu() {
-  const [open, setOpen] = useState(false);
+  const open = useUi((s) => s.underlayOpen);
+  const setOpen = (on: boolean) => useUi.getState().set({ underlayOpen: on });
   const railRef = useRef<HTMLDivElement>(null);
   const [pane, setPane] = useState<Element | null>(null);
   useEffect(() => setPane(railRef.current?.closest('.pane') ?? null), []);
@@ -479,8 +480,7 @@ export function UnderlayMenu() {
   );
 
   return (
-    <div className="rail-group" ref={railRef}>
-      <RailButton icon="underlay" text="ภาพแปลน" label="แปลนพื้นหลัง (รูป / PDF)" on={open} more={!!u} onClick={() => setOpen(!open)} testId="underlay-menu" />
+    <div ref={railRef}>
       <input
         ref={fileRef}
         type="file"

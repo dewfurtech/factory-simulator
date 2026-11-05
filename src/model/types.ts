@@ -1,3 +1,5 @@
+import type { UtilitySettings } from './utilities';
+
 export type Id = string & { __brand: 'Id' };
 export type Mm = number;
 
@@ -165,6 +167,8 @@ export interface PlacedObject extends LayerFlags {
   breakdownsPerDay?: number;
   /** Baht for this one piece on the quotation, typed in place of the price list's; absent means the list's price. */
   price?: number;
+  /** Machines only: the phase cable already run to it, mm², to check against what it needs. */
+  cableMm2?: number;
 }
 
 /** An image of an existing plan placed in plan coordinates. */
@@ -198,6 +202,37 @@ export interface Project {
   walkwayWidth?: Mm;
   /** Who the plan is for: kept with the project, shown on its card, and searched by. */
   client?: Client;
+  /** The machines in the order the work goes through them; absent means the app's suggested order. */
+  route?: Id[];
+  /** Other arrangements of the same building, kept to compare with the one on the plan. */
+  variants?: LayoutVariant[];
+  /** Cable and pipe runs drawn on the plan. */
+  runs?: UtilityRun[];
+  /** What the compressed-air pipe is made of; aluminium when unset. */
+  airPipe?: PipeMaterial;
+  /** The air main already in the building, by its size label; absent means the app sizes it. */
+  airMain?: string;
+  /** The air, power and dust settings a share link was made with; absent on the seller's own projects. */
+  utilities?: UtilitySettings;
+}
+
+export type UtilityKind = 'power' | 'air' | 'dust';
+export type PipeMaterial = 'aluminium' | 'galvanized' | 'ppr';
+
+/** A cable or pipe run drawn on the plan: a line of points, running overhead. */
+export interface UtilityRun {
+  id: Id;
+  kind: UtilityKind;
+  points: Vec2[];
+}
+
+/** A saved arrangement of the machines: what goes back on the plan when it is opened again. */
+export interface LayoutVariant {
+  id: Id;
+  name: string;
+  savedAt: number;
+  objects: PlacedObject[];
+  route?: Id[];
 }
 
 /** The customer a plan is drawn for. Every field is optional; empty ones are left out. */

@@ -77,6 +77,8 @@ export interface BuildingOptions {
   cutaway: number | null;
   /** Openings in the floor (a stairwell), cut out of the rooms they fall in. */
   voids?: Vec2[][];
+  /** Columns stand their full height even with the walls cut down. */
+  tallColumns?: boolean;
 }
 
 /** Floors, walls (with doorways and windows), glazing and columns, merged into a handful of meshes. */
@@ -175,7 +177,7 @@ export function buildBuilding(plan: Plan, columns: Record<Id, Column>, opts: Bui
 
   for (const c of Object.values(columns)) {
     if (c.hidden) continue;
-    const h = cap(c.h) * M;
+    const h = (opts.tallColumns ? c.h : cap(c.h)) * M;
     const g = c.shape === 'round' ? new THREE.CylinderGeometry((c.w / 2) * M, (c.w / 2) * M, h, 8) : new THREE.BoxGeometry(c.w * M, h, c.d * M);
     g.rotateY(-c.rotation);
     g.translate(c.x * M, h / 2, c.y * M);

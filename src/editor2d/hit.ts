@@ -6,6 +6,7 @@ import type { Column, Id, Mm, PlacedObject, Plan, Project, Vec2 } from '../model
 import { add, dist, dot, fromAngle, perp, pointInPolygon, projectOnSegment, scale, segmentIntersect, signedArea, sub } from '../model/vec';
 import { planAreas } from '../model/areas';
 import { aisleOutline, onAisle, planAisles } from '../model/aisles';
+import { allRouted } from '../model/runRoute';
 import { useUi, type Selection } from '../store/ui';
 
 /** Objects whose centre sits in no room draw and hit-test beneath the rooms. */
@@ -30,6 +31,23 @@ function inColumn(c: Column, p: Vec2, radius: Mm): boolean {
 
 const off = (x: { hidden?: boolean; locked?: boolean } | undefined) => !x || x.hidden || x.locked;
 
+/** A point of the picked run under p, or else the run whose line passes nearest p, with the stretch it is on. */
+export function hitRun(project: Project, p: Vec2, radius: Mm): Extract<Selection, { kind: 'run' }> | null {
+  const sel = useUi.getState().selection;
+  const picked = sel?.kind === 'run' ? project.runs?.find((r) => r.id === sel.id) : undefined;
+  if (picked) {
+    const i = picked.points.findIndex((q) => dist(q, p) <= radius);
+    if (i >= 0) return { kind: 'run', id: picked.id, node: i };
+  }
+  let best: { sel: Extract<Selection, { kind: 'run' }>; d: Mm } | null = null;
+  for (const r of allRouted(project))
+    for (let j = 1; j < r.points.length; j++) {
+      const d = projectOnSegment(p, r.points[j - 1], r.points[j]).distance;
+      if (d <= radius * 0.8 && (!best || d < best.d)) best = { sel: { kind: 'run', id: r.id, seg: r.segOf[j - 1] }, d };
+    }
+  return best?.sel ?? null;
+}
+
 /** Topmost selectable thing under p, in the order the plan draws them; hidden and locked things are skipped. */
 export function hitTest(project: Project, p: Vec2, radius: Mm): Selection | null {
   const { plan } = project;
@@ -41,6 +59,10 @@ export function hitTest(project: Project, p: Vec2, radius: Mm): Selection | null
   };
   // A customer moves the machines and equipment only; the building stays as the seller drew it.
   if (useUi.getState().customer) return hitObject(false) ?? hitObject(true);
+  // Working on the systems, the runs hung over everything come first.
+  const systems = useUi.getState().dock === 'systems';
+  const run = hitRun(project, p, radius);
+  if (run && (systems || run.node !== undefined)) return run;
   for (const c of Object.values(plan.corners)) if (dist(c, p) <= radius) return { kind: 'corner', id: c.id };
   for (const c of Object.values(project.columns)) if (!off(c) && inColumn(c, p, radius)) return { kind: 'column', id: c.id };
   for (const o of Object.values(plan.openings)) {
@@ -78,6 +100,7 @@ export function hitTest(project: Project, p: Vec2, radius: Mm): Selection | null
   let narrowest = Infinity;
   for (const a of planAisles(plan)) if (!off(a) && a.width < narrowest && onAisle(a, p, radius / 2)) [aisle, narrowest] = [{ kind: 'aisle', id: a.id }, a.width];
   if (aisle) return aisle;
+  if (run) return run;
   let room: Selection | null = null;
   let area = Infinity;
   for (const r of Object.values(plan.rooms)) {

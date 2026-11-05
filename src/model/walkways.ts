@@ -69,7 +69,7 @@ function edt1d(f: Float64Array, n: number, out: Float64Array, v: Int32Array, z: 
 }
 
 /** Squared distance, in cells, from every cell to the nearest cell where `on` is set. */
-function distanceSq(on: Uint8Array, w: number, h: number): Float64Array {
+export function distanceSq(on: Uint8Array, w: number, h: number): Float64Array {
   const INF = 1e12;
   const d = new Float64Array(w * h);
   const n = Math.max(w, h);
@@ -146,19 +146,34 @@ function traceLoops(on: Uint8Array, w: number, h: number, x0: Mm, y0: Mm): Vec2[
   return loops;
 }
 
-/** The walkways on one level, for the walkway width the project asks for. */
-export function computeWalkways(project: Project, level: number): Walkways {
+/**
+ * The floor of one level as a raster of CELL squares: set where the floor is clear (inside a room, off the walls,
+ * through the doorways), clear where a wall, a column or `blockers` stand.
+ */
+export interface FloorRaster {
+  free: Uint8Array;
+  w: number;
+  h: number;
+  x0: Mm;
+  y0: Mm;
+  cell: Mm;
+}
+
+/**
+ * The floor raster of a level, with the given things standing on it; null with no rooms or a plan too big to rasterise.
+ * `outside` counts the ground around the building as clear too, `margin` mm of it on every side: the way in from the yard.
+ */
+export function floorRaster(project: Project, level: number, blockers: readonly PlacedObject[], { outside = false, margin = 0 } = {}): FloorRaster | null {
   const plan = planOf(project, level);
   const rooms = Object.values(plan.rooms).filter((r) => !r.outdoor && !r.hidden);
-  if (!rooms.length) return NONE;
-  const width = project.walkwayWidth ?? DEFAULT_WALKWAY;
+  if (!rooms.length) return null;
   const polys = rooms.map((r) => roomPolygon(plan, r));
   const all = polys.flat();
-  const x0 = Math.floor(Math.min(...all.map((p) => p.x)) / CELL) * CELL;
-  const y0 = Math.floor(Math.min(...all.map((p) => p.y)) / CELL) * CELL;
-  const w = Math.ceil((Math.max(...all.map((p) => p.x)) - x0) / CELL) + 1;
-  const h = Math.ceil((Math.max(...all.map((p) => p.y)) - y0) / CELL) + 1;
-  if (w * h > 4e6) return NONE;
+  const x0 = Math.floor((Math.min(...all.map((p) => p.x)) - margin) / CELL) * CELL;
+  const y0 = Math.floor((Math.min(...all.map((p) => p.y)) - margin) / CELL) * CELL;
+  const w = Math.ceil((Math.max(...all.map((p) => p.x)) + margin - x0) / CELL) + 1;
+  const h = Math.ceil((Math.max(...all.map((p) => p.y)) + margin - y0) / CELL) + 1;
+  if (w * h > 4e6) return null;
   const free = new Uint8Array(w * h);
   const paint = (poly: Vec2[], value: 0 | 1) => {
     if (poly.length < 3) return;
@@ -170,7 +185,8 @@ export function computeWalkways(project: Project, level: number): Walkways {
     const cy1 = Math.min(h - 1, Math.ceil((Math.max(...ys) - y0) / CELL));
     for (let y = cy0; y <= cy1; y++) for (let x = cx0; x <= cx1; x++) if (pointInPolygon({ x: x0 + (x + 0.5) * CELL, y: y0 + (y + 0.5) * CELL }, poly)) free[y * w + x] = value;
   };
-  for (const poly of polys) paint(poly, 1);
+  if (outside) free.fill(1);
+  else for (const poly of polys) paint(poly, 1);
   for (const id of Object.keys(plan.walls) as Id[]) if (!plan.walls[id].hidden) paint(wallFootprint(plan, id), 0);
   // A doorway is walked through: its span of the wall is floor again.
   for (const o of Object.values(plan.openings)) {
@@ -187,8 +203,22 @@ export function computeWalkways(project: Project, level: number): Walkways {
   // Columns stand on the ground floor only.
   const columns = level ? [] : Object.values(project.columns).filter((c) => !c.hidden);
   for (const c of columns) paint(columnOutline(c), 0);
-  const objects = project.objects.filter((o) => onLevel(o, level) && levelOf(o) === level && solid(o) && !o.hidden);
-  for (const o of objects) paint(obbCorners(objectObb(o)), 0);
+  for (const o of blockers) paint(obbCorners(objectObb(o)), 0);
+  return { free, w, h, x0, y0, cell: CELL };
+}
+
+/** Things standing on a level's floor: what the walkways go around. */
+export const standingOn = (project: Project, level: number): PlacedObject[] => project.objects.filter((o) => onLevel(o, level) && levelOf(o) === level && solid(o) && !o.hidden);
+
+/** The walkways on one level, for the walkway width the project asks for. */
+export function computeWalkways(project: Project, level: number): Walkways {
+  const plan = planOf(project, level);
+  const width = project.walkwayWidth ?? DEFAULT_WALKWAY;
+  const objects = standingOn(project, level);
+  const floor = floorRaster(project, level, objects);
+  if (!floor) return NONE;
+  const { free, w, h, x0, y0 } = floor;
+  const columns = level ? [] : Object.values(project.columns).filter((c) => !c.hidden);
 
   // Keep only floor where a strip of the walkway width fits: erode by half the width, then grow back.
   const r = width / 2 / CELL;
@@ -319,7 +349,19 @@ export function computeWalkways(project: Project, level: number): Walkways {
       }
   }
   const boxes = [...objects.map(objectObb), ...columns.map((c) => ({ c: { x: c.x, y: c.y }, u: fromAngle(c.rotation), v: perp(fromAngle(c.rotation)), hu: c.w / 2, hv: c.d / 2 }))];
-  return { loops: traceLoops(zone, w, h, x0, y0).map((loop) => loop.map((p) => snapToBoxes(p, boxes))), unreached };
+  return { loops: traceLoops(zone, w, h, x0, y0).map((loop) => unstep(loop.map((p) => snapToBoxes(p, boxes)))), unreached };
+}
+
+/** Drops the points of a closed loop that only make the raster's stair steps, so a slanted edge is drawn straight. */
+function unstep(loop: Vec2[]): Vec2[] {
+  if (loop.length < 8) return loop;
+  const step = CELL * 1.5;
+  const keep = loop.filter((p, i) => {
+    const a = loop[(i + loop.length - 1) % loop.length];
+    const b = loop[(i + 1) % loop.length];
+    return Math.hypot(p.x - a.x, p.y - a.y) > step || Math.hypot(b.x - p.x, b.y - p.y) > step;
+  });
+  return keep.length >= 3 ? keep : loop;
 }
 
 /**

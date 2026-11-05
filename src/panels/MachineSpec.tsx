@@ -6,9 +6,10 @@ import { machinePhoto } from '../model/photos';
 import { fmtBaht } from '../model/quote';
 import type { Size3 } from '../model/types';
 
-const mm = (n: number) => n.toLocaleString('th-TH');
+/** A machine's size in metres, as every length in the app. */
+const mm = (n: number) => (n / 1000).toFixed(2);
 
-/** The machine's footprint seen from above and its height from the side, with dimension lines in mm. */
+/** The machine's footprint seen from above and its height from the side, with dimension lines in metres. */
 function SizeDiagram({ size }: { size: [number, number, number] }) {
   const [l, w, h] = size;
   // Top view above, side view below, both to one scale; a compact machine is not blown up past ~90 px.
@@ -25,7 +26,7 @@ function SizeDiagram({ size }: { size: [number, number, number] }) {
   const H = y1 + sh + 12;
   const arrows = { markerStart: 'url(#ms-arrow)', markerEnd: 'url(#ms-arrow)' };
   return (
-    <svg className="ms-diagram" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`ขนาด ${mm(l)} × ${mm(w)} × ${mm(h)} มม.`}>
+    <svg className="ms-diagram" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`ขนาด ${mm(l)} × ${mm(w)} × ${mm(h)} ม.`}>
       <defs>
         <marker id="ms-arrow" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
           <path d="M0 0 L6 3 L0 6 z" fill="currentColor" />
@@ -162,7 +163,7 @@ export function MachineSpec({ assetId, placed, options, onOptions }: { assetId: 
           </div>
           <SizeDiagram size={size} />
           <p className="muted small">
-            หน่วย มม. {withAddons ? 'รวมอุปกรณ์เสริม' : m.size ? 'ตามโบรชัวร์' : 'วัดจากแบบเครื่อง'}
+            หน่วย ม. {withAddons ? 'รวมอุปกรณ์เสริม' : m.size ? 'ตามโบรชัวร์' : 'วัดจากแบบเครื่อง'}
             {!withAddons && m.size && placed && ` · พื้นที่ที่กันไว้บนผัง ${mm(placed.w)} × ${mm(placed.d)}`}
           </p>
         </section>

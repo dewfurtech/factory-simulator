@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { Id, PlacedObject, Project } from '../model/types';
 import { catalogItem, isMachine } from '../model/catalog';
 import { roomPolygon } from '../model/plan';
-import { bounds, pointInPolygon } from '../model/vec';
+import { bounds, pointInPolygon, projectOnSegment } from '../model/vec';
+import { routedRuns } from '../model/runRoute';
 import { buildAreas, buildBuilding, buildIsland, buildZoneLabels } from './building3d';
 import { builtinGeometry, machineBlock, plainGeometry } from './furniture3d';
 import { machineObject } from './machines3d';
@@ -11,6 +13,9 @@ import { PERSON_ID, personObject } from './person3d';
 import { machineFootprint } from '../model/catalog';
 import { FLOW_IN, FLOW_OUT, flowArrows } from '../model/flow';
 import { disposeTree, FLAT, LABEL_LAYER, textSprite } from './lowpoly';
+import { buildShowcase, cartModel, showcaseSpread } from './showcase3d';
+import { FlowFx } from './flow3d';
+import { flowTracks } from './services3d';
 import { safetyBox, safetyOf } from '../model/safety';
 import { objectObb } from '../model/objects';
 import { fmtLen } from '../format';
@@ -29,6 +34,8 @@ export interface SceneOptions {
 
 export interface Picked {
   object?: Id;
+  /** A pipe, duct or cable tray: the run, and the stretch of it, nearest where it was hit. */
+  run?: { id: Id; seg: number };
 }
 
 /**
@@ -62,6 +69,8 @@ export class FactoryScene {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     host.appendChild(this.renderer.domElement);
     this.scene.background = new THREE.Color('#e9edf1');
     this.scene.fog = new THREE.Fog('#e9edf1', 160, 420);
@@ -109,7 +118,7 @@ export class FactoryScene {
       for (const [id, node] of this.objectMeshes) node.visible = this.shows(this.objectKeys.get(id)!);
       this.updateSafety();
     }
-    this.areas.visible = this.opts.areas;
+    this.areas.visible = this.opts.areas && !this.showcaseOn;
     this.dirty = true;
   }
 
@@ -118,7 +127,10 @@ export class FactoryScene {
     this.project = p;
     if (!prev || prev.plan !== p.plan || prev.columns !== p.columns || prev.upper !== p.upper) this.rebuildBuilding(p);
     if (!prev || prev.objects !== p.objects) this.syncObjects(p.objects);
-    if (!prev || prev.plan !== p.plan || prev.columns !== p.columns || prev.upper !== p.upper || prev.objects !== p.objects) this.rebuildGround(p);
+    if (!prev || prev.plan !== p.plan || prev.columns !== p.columns || prev.upper !== p.upper || prev.objects !== p.objects || prev.runs !== p.runs || prev.route !== p.route || prev.airPipe !== p.airPipe || prev.airMain !== p.airMain) {
+      this.rebuildGround(p);
+      if (this.showcaseOn) this.queueShowcase();
+    }
     if (!this.framed) {
       this.frame();
       this.framed = true;
@@ -144,7 +156,7 @@ export class FactoryScene {
       disposeTree(g);
       g.clear();
     }
-    this.building.add(buildBuilding(p.plan, p.columns, { cutaway: this.opts.cutaway ? LOW_WALL : null }));
+    this.building.add(buildBuilding(p.plan, p.columns, { cutaway: this.opts.cutaway || this.showcaseOn ? LOW_WALL : null, tallColumns: this.showcaseOn }));
     this.areas.add(buildAreas(p.plan));
     if (p.upper) {
       const up = buildAreas(p.upper.plan);
@@ -234,6 +246,10 @@ export class FactoryScene {
 
   /** Hidden objects never show; with the walls cut down, neither does anything up on a second floor. */
   private shows(o: PlacedObject): boolean {
+    // In the simulation the trolleys on the move take the place of the ones parked at the machines.
+    if (this.carts.length && o.assetId === 'panel-cart') return false;
+    // The realistic view has its own main board, door open; the plain box stays only to be clicked.
+    if (this.showcaseOn && o.assetId === 'mdb') return false;
     return !o.hidden && !(this.opts.cutaway && o.z >= 2500);
   }
 
@@ -247,7 +263,7 @@ export class FactoryScene {
     holder.userData.objectId = o.id;
     const custom = catalogItem(o.assetId)?.custom;
     if (isMachine(o)) {
-      const blocky = machineObject(o.assetId, o.options);
+      const blocky = machineObject(o.assetId, o.options, this.showcaseOn ? 'real' : 'plain');
       const base = machineFootprint(o.assetId, o.options);
       if (blocky && base) blocky.scale.set(o.size.w / base.w, o.size.h / base.h, o.size.d / base.d);
       holder.add(blocky ?? new THREE.Mesh(machineBlock(o.size), FLAT));
@@ -311,6 +327,198 @@ export class FactoryScene {
       this.ghost = g;
       this.overlay.add(g);
     }
+    this.dirty = true;
+  }
+
+  private showcaseOn = false;
+  private showcase = new THREE.Group();
+  private sim = new THREE.Group();
+  private carts: THREE.Group[] = [];
+  private stacks: THREE.Mesh[] = [];
+  private lamps: THREE.Mesh[] = [];
+
+  /** The dressed-up view: dark floor, lit walls and roof, in place of the plain look. */
+  setShowcase(on: boolean) {
+    if (on === this.showcaseOn) return;
+    this.showcaseOn = on;
+    this.scene.background = new THREE.Color(on ? '#0b0d10' : '#e9edf1');
+    this.scene.fog = on ? null : new THREE.Fog('#e9edf1', 160, 420);
+    this.hemi.intensity = on ? 1.5 : 1.7;
+    this.hemi.color.set(on ? '#dfe7f0' : '#ffffff');
+    this.hemi.groundColor.set(on ? '#3a3d42' : '#b7c0c8');
+    this.sun.castShadow = on;
+    this.labels.visible = !on;
+    this.scene.environment = on ? this.reflections() : null;
+    this.scene.environmentIntensity = 0.55;
+    if (this.project) this.rebuildBuilding(this.project);
+    this.rebuildMachines();
+    this.showParked();
+    this.areas.visible = this.opts.areas && !on;
+    if (on) this.rebuildShowcase();
+    else {
+      this.clearGroup(this.showcase);
+      this.endSim();
+      this.ground.visible = !this.island;
+      if (this.island) this.island.visible = true;
+    }
+    this.dirty = true;
+  }
+
+  private envMap: THREE.Texture | null = null;
+
+  /** A soft room for metal and paint to reflect; without one, metal parts read black. */
+  private reflections(): THREE.Texture {
+    if (!this.envMap) {
+      const pmrem = new THREE.PMREMGenerator(this.renderer);
+      this.envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      pmrem.dispose();
+      this.disposers.push(() => this.envMap?.dispose());
+    }
+    return this.envMap;
+  }
+
+  /** Every placed machine built again at the view's level of detail. */
+  private rebuildMachines() {
+    if (!this.project) return;
+    const machines = new Set(this.project.objects.filter(isMachine).map((o) => o.assetId));
+    this.refreshAssets(machines);
+  }
+
+  private roofOn = false;
+  private flow = new FlowFx();
+  private flowOn = true;
+
+  /** Air and current running along the pipes and cables. */
+  setFlow(on: boolean) {
+    this.flowOn = on;
+    this.applyFlow();
+    this.dirty = true;
+  }
+
+  private applyFlow() {
+    this.flow.group.visible = this.flowOn && this.showcaseOn;
+  }
+
+  /** The roof trusses and lamps in the realistic view. */
+  setRoof(on: boolean) {
+    this.roofOn = on;
+    this.applyRoof();
+    this.dirty = true;
+  }
+
+  private applyRoof() {
+    const roof = this.showcase.getObjectByName('roof');
+    if (roof) roof.visible = this.roofOn;
+  }
+
+  private showcaseTimer = 0;
+
+  /** The painted floor is costly to redo, so a machine being dragged repaints it once it stops. */
+  private queueShowcase() {
+    clearTimeout(this.showcaseTimer);
+    this.showcaseTimer = window.setTimeout(() => {
+      if (!this.showcaseOn) return;
+      this.rebuildShowcase();
+      this.dirty = true;
+    }, 180);
+  }
+
+  private clearGroup(g: THREE.Group) {
+    disposeTree(g);
+    g.clear();
+  }
+
+  private rebuildShowcase() {
+    const p = this.project;
+    if (!p) return;
+    this.clearGroup(this.showcase);
+    if (!this.showcase.parent) this.scene.add(this.showcase);
+    this.showcase.add(buildShowcase(p));
+    this.flow.build(flowTracks(p));
+    this.showcase.add(this.flow.group);
+    this.applyFlow();
+    this.applyRoof();
+    this.ground.visible = false;
+    if (this.island) this.island.visible = false;
+    this.objects.traverse((x) => {
+      const mesh = x as THREE.Mesh;
+      if (mesh.isMesh) mesh.castShadow = !(mesh.material as THREE.Material).transparent;
+    });
+    const spread = showcaseSpread(p);
+    if (spread) {
+      const c = this.sun.shadow.camera;
+      c.left = c.bottom = -spread.r;
+      c.right = c.top = spread.r;
+      c.near = 1;
+      c.far = spread.r * 4;
+      c.updateProjectionMatrix();
+      this.sun.shadow.mapSize.set(2048, 2048);
+      this.sun.shadow.bias = -0.0006;
+      this.sun.position.set(spread.x + spread.r * 0.5, spread.r * 1.8, spread.z + spread.r * 0.4);
+      this.sun.target.position.set(spread.x, 0, spread.z);
+    }
+  }
+
+  private clearSim() {
+    this.clearGroup(this.sim);
+    this.carts = [];
+    this.stacks = [];
+    this.lamps = [];
+  }
+
+  private showParked() {
+    for (const [id, node] of this.objectMeshes) node.visible = this.shows(this.objectKeys.get(id)!);
+  }
+
+  /** Takes the moving parts of the line away. */
+  endSim() {
+    this.clearSim();
+    this.showParked();
+    this.dirty = true;
+  }
+
+  /** Sets out the moving parts of the line: a trolley per leg, a stack and a status lamp per machine. */
+  prepareSim(carts: number, stations: { x: number; y: number; top: number }[]) {
+    this.clearSim();
+    if (!this.sim.parent) this.scene.add(this.sim);
+    for (let i = 0; i < carts; i++) {
+      const c = cartModel();
+      this.sim.add(c);
+      this.carts.push(c);
+    }
+    const board = new THREE.MeshStandardMaterial({ color: '#c9a877', roughness: 0.7 });
+    for (const s of stations) {
+      const stack = new THREE.Mesh(new THREE.BoxGeometry(1.22, 1, 1.22), board);
+      stack.castShadow = true;
+      stack.visible = false;
+      this.sim.add(stack);
+      this.stacks.push(stack);
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), new THREE.MeshBasicMaterial({ color: '#22c55e' }));
+      lamp.position.set(s.x * M, s.top * M + 0.18, s.y * M);
+      this.sim.add(lamp);
+      this.lamps.push(lamp);
+    }
+    this.showParked();
+    this.dirty = true;
+  }
+
+  /** One frame of the line: where each trolley is and what it carries, the stack at each machine, and its lamp. */
+  showSim(carts: { x: number; y: number; heading: number; loaded: boolean }[], stations: { x: number; y: number; queue: number; color: string }[]) {
+    carts.forEach((c, i) => {
+      const g = this.carts[i];
+      if (!g) return;
+      g.position.set(c.x * M, 0.03, c.y * M);
+      g.rotation.y = -c.heading;
+      g.getObjectByName('load')!.visible = c.loaded;
+    });
+    stations.forEach((s, i) => {
+      const stack = this.stacks[i];
+      if (!stack) return;
+      stack.visible = s.queue > 0;
+      stack.scale.y = Math.max(0.01, s.queue * 0.06);
+      stack.position.set(s.x * M, 0.03 + stack.scale.y / 2, s.y * M);
+      (this.lamps[i].material as THREE.MeshBasicMaterial).color.set(s.color);
+    });
     this.dirty = true;
   }
 
@@ -506,6 +714,11 @@ export class FactoryScene {
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop);
     this.controls.update();
+    // While air and current are shown moving, every frame is drawn.
+    if (this.flow.group.visible && !this.flow.empty && this.flow.group.parent) {
+      this.flow.update(performance.now() / 1000);
+      this.dirty = true;
+    }
     if (!this.dirty) return;
     this.dirty = false;
     this.fitLabels();
@@ -586,9 +799,20 @@ export class FactoryScene {
     const ndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this.camera);
-    const hits = ray.intersectObjects(this.objects.children, true);
-    const h = hits.find((x) => x.object.userData.objectId);
-    return h ? { object: h.object.userData.objectId } : {};
+    const services = this.showcase.getObjectByName('services');
+    const hits = ray.intersectObjects(services ? [...this.objects.children, services] : this.objects.children, true);
+    const h = hits.find((x) => x.object.userData.objectId || x.object.userData.service);
+    if (!h) return {};
+    if (h.object.userData.objectId) return { object: h.object.userData.objectId };
+    // Pipes are merged by material: the stretch is the one nearest the hit, among runs of the kind hit.
+    const at = { x: h.point.x / M, y: h.point.z / M };
+    let best: { id: Id; seg: number; d: number } | null = null;
+    for (const r of this.project ? routedRuns(this.project, h.object.userData.service) : [])
+      for (let i = 1; i < r.points.length; i++) {
+        const d = projectOnSegment(at, r.points[i - 1], r.points[i]).distance;
+        if (!best || d < best.d) best = { id: r.id as Id, seg: r.segOf[i - 1], d };
+      }
+    return best ? { run: { id: best.id, seg: best.seg } } : {};
   }
 
   /** Where on the floor (mm, plan coordinates) the pointer is. */
@@ -613,6 +837,7 @@ export class FactoryScene {
 
   dispose() {
     cancelAnimationFrame(this.raf);
+    clearTimeout(this.showcaseTimer);
     for (const d of this.disposers) d();
     this.controls.dispose();
     disposeTree(this.scene);

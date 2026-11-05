@@ -17,13 +17,13 @@ export interface EntryField {
 export const EMPTY_ENTRY: Entry = { values: ['', ''], field: 0 };
 
 const SIZE: EntryField[] = [
-  { label: 'กว้าง', unit: 'ซม.' },
-  { label: 'ลึก', unit: 'ซม.' },
+  { label: 'กว้าง', unit: 'ม.' },
+  { label: 'ลึก', unit: 'ม.' },
 ];
 
 export const ENTRY_FIELDS = {
   drawWall: [
-    { label: 'ยาว', unit: 'ซม.' },
+    { label: 'ยาว', unit: 'ม.' },
     { label: 'มุม', unit: '°', signed: true },
   ],
   drawRoomRect: SIZE,
@@ -51,22 +51,22 @@ export const hasTyped = (entry: Entry) => entry.values.some((v) => v !== '');
 /** A direction's angle in whole-turn degrees, measured the way the wall panel's angle field measures it. */
 export const planDeg = (d: Vec2) => (deg(Math.atan2(d.y, d.x)) + 360) % 360;
 
-/** Where the wall drawn from `last` ends: at the pointer, unless a length (cm) or angle (°) was typed. */
+/** Where the wall drawn from `last` ends: at the pointer, unless a length (m) or angle (°) was typed. */
 export function wallEnd(last: Vec2, pointer: Vec2, entry: Entry): Vec2 {
   const len = typedNum(entry, 0);
   const a = typedNum(entry, 1);
   if (len === null && a === null) return pointer;
-  const l: Mm = len === null ? dist(last, pointer) : len * 10;
+  const l: Mm = len === null ? dist(last, pointer) : len * 1000;
   const r = rad(a ?? planDeg(sub(pointer, last)));
   return add(last, { x: l * Math.cos(r), y: l * Math.sin(r) });
 }
 
-/** The rectangle's far corner: at the pointer, or a typed width / depth (cm) from `start` toward it. */
+/** The rectangle's far corner: at the pointer, or a typed width / depth (m) from `start` toward it. */
 export function rectCorner(start: Vec2, pointer: Vec2, entry: Entry): Vec2 {
   const w = typedNum(entry, 0);
   const d = typedNum(entry, 1);
   return {
-    x: w === null ? pointer.x : start.x + (pointer.x < start.x ? -1 : 1) * w * 10,
-    y: d === null ? pointer.y : start.y + (pointer.y < start.y ? -1 : 1) * d * 10,
+    x: w === null ? pointer.x : start.x + (pointer.x < start.x ? -1 : 1) * w * 1000,
+    y: d === null ? pointer.y : start.y + (pointer.y < start.y ? -1 : 1) * d * 1000,
   };
 }

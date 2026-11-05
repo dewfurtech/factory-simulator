@@ -167,6 +167,16 @@ const BUILDERS: Record<string, Builder> = {
       if (i < 3) p.block(w * 0.35, 0.25, d * 0.7, -w / 4 + (i % 2) * 0.3, y + 0.03, 0, i % 2 ? '#d6b98c' : '#7aa2c8');
     }
   },
+  'panel-cart'(p, w, d, h) {
+    const deck = h * 0.3;
+    p.block(w, 0.05, d, 0, deck, 0, '#ff6f00');
+    for (const x of [-1, 1])
+      for (const z of [-1, 1]) {
+        p.block(0.07, deck, 0.07, x * (w / 2 - 0.1), 0, z * (d / 2 - 0.08), DARK);
+        if (x < 0) p.block(0.04, h - deck, 0.04, -w / 2 + 0.03, deck, z * (d / 2 - 0.06), DARK);
+      }
+    p.block(0.05, 0.05, d - 0.1, -w / 2 + 0.03, h - 0.05, 0, '#17191d');
+  },
   pallet(p, w, d, h) {
     p.block(w, 0.14, d, 0, 0, 0, '#a77b4f');
     p.block(w - 0.05, h - 0.14, d - 0.05, 0, 0.14, 0, '#e3d3b5');
